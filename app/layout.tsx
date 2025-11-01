@@ -1,0 +1,20 @@
+import type { Metadata } from 'next'
+import './globals.css'
+
+export const metadata: Metadata = {
+  title: 'ContentMaxer - Content Monetization Platform',
+  description: 'Find affiliate opportunities, create digital products, and promote them—all from your existing content',
+}
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return (
+    <html lang="en">
+      <body>{children}</body>
+    </html>
+  )
+}
+
