@@ -8,8 +8,15 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables')
 }
 
-// Browser client that uses cookies (SSR-compatible)
-export const supabase = createBrowserClient(supabaseUrl, supabaseAnonKey)
+// Browser client for client components
+// createBrowserClient handles cookies automatically in browser
+// Only create client if we're in browser (not SSR)
+export const supabase = typeof window !== 'undefined'
+  ? createBrowserClient(supabaseUrl, supabaseAnonKey)
+  : (() => {
+      // Fallback for SSR - should not be used in client components
+      return createClient(supabaseUrl, supabaseAnonKey)
+    })()
 
 // Legacy client for backwards compatibility (use supabase instead)
 export const createClientOld = () => createClient(supabaseUrl, supabaseAnonKey)

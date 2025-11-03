@@ -20,11 +20,13 @@ CREATE TABLE IF NOT EXISTS public.content_analyses (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
   url TEXT NOT NULL,
+  title TEXT,
   content TEXT,
   affiliate_opportunities JSONB DEFAULT '[]'::jsonb,
   product_ideas JSONB DEFAULT '[]'::jsonb,
   status TEXT NOT NULL DEFAULT 'processing' CHECK (status IN ('processing', 'completed', 'failed')),
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
+  deleted_at TIMESTAMP WITH TIME ZONE
 );
 
 -- 3. Generated products table
@@ -53,6 +55,8 @@ CREATE TABLE IF NOT EXISTS public.social_posts (
 CREATE INDEX IF NOT EXISTS idx_content_analyses_user_id ON public.content_analyses(user_id);
 CREATE INDEX IF NOT EXISTS idx_content_analyses_status ON public.content_analyses(status);
 CREATE INDEX IF NOT EXISTS idx_content_analyses_created_at ON public.content_analyses(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_content_analyses_url_user ON public.content_analyses(user_id, url, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_content_analyses_deleted_at ON public.content_analyses(deleted_at) WHERE deleted_at IS NULL;
 
 CREATE INDEX IF NOT EXISTS idx_generated_products_user_id ON public.generated_products(user_id);
 CREATE INDEX IF NOT EXISTS idx_generated_products_analysis_id ON public.generated_products(analysis_id);

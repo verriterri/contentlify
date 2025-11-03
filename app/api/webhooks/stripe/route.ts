@@ -51,42 +51,71 @@ export async function POST(req: NextRequest) {
           const customerId = subscription.customer as string
           const priceId = subscription.items.data[0].price.id
           
-          // Determine tier from price ID
+          // Determine tier - prefer metadata, fallback to product name parsing
           let tier: string = 'free'
-          const prices = await stripe.prices.list({ limit: 100 })
           
-          for (const price of prices.data) {
-            if (price.id === priceId) {
-              const productId = price.product as string
-              const product = await stripe.products.retrieve(productId)
-              
-              if (product.name?.toLowerCase().includes('starter')) {
-                tier = 'starter'
-              } else if (product.name?.toLowerCase().includes('pro')) {
-                tier = 'pro'
-              } else if (product.name?.toLowerCase().includes('agency')) {
-                tier = 'agency'
+          // First try metadata from checkout session
+          if (session.metadata?.tier) {
+            tier = session.metadata.tier.toLowerCase()
+            console.log(`[Webhook] Using tier from metadata: ${tier}`)
+          } else {
+            // Fallback: Determine tier from product name
+            const prices = await stripe.prices.list({ limit: 100 })
+            
+            for (const price of prices.data) {
+              if (price.id === priceId) {
+                const productId = price.product as string
+                const product = await stripe.products.retrieve(productId)
+                
+                const productName = product.name?.toLowerCase() || ''
+                if (productName.includes('starter')) {
+                  tier = 'starter'
+                } else if (productName.includes('pro')) {
+                  tier = 'pro'
+                } else if (productName.includes('agency')) {
+                  tier = 'agency'
+                }
+                console.log(`[Webhook] Determined tier from product name "${product.name}": ${tier}`)
+                break
               }
-              break
             }
           }
 
           // Update user subscription in database
-          const { data: user } = await supabase
+          // Try to find user by customer ID first
+          let user = await supabase
             .from('users')
             .select('id')
             .eq('stripe_customer_id', customerId)
             .single()
 
-          if (user) {
-            await supabase
+          // If not found by customer ID, try by metadata user ID
+          if (!user.data && session.metadata?.supabase_user_id) {
+            console.log(`[Webhook] User not found by customer ID, trying user ID from metadata`)
+            user = await supabase
+              .from('users')
+              .select('id')
+              .eq('id', session.metadata.supabase_user_id)
+              .single()
+          }
+
+          if (user.data) {
+            const updateResult = await supabase
               .from('users')
               .update({
                 subscription_tier: tier,
                 subscription_status: 'active',
                 stripe_customer_id: customerId,
               })
-              .eq('id', user.id)
+              .eq('id', user.data.id)
+
+            if (updateResult.error) {
+              console.error('[Webhook] Error updating user:', updateResult.error)
+            } else {
+              console.log(`[Webhook] Updated user ${user.data.id} to tier: ${tier}`)
+            }
+          } else {
+            console.error(`[Webhook] User not found for customer ${customerId}`)
           }
         }
         break
@@ -95,44 +124,67 @@ export async function POST(req: NextRequest) {
       case 'customer.subscription.updated': {
         const subscription = event.data.object as Stripe.Subscription
         
+        console.log(`[Webhook] Subscription updated event received for subscription: ${subscription.id}`)
+        
         const customerId = subscription.customer as string
         const priceId = subscription.items.data[0].price.id
         
-        // Determine tier from price ID
-        let tier: string = 'free'
-        const prices = await stripe.prices.list({ limit: 100 })
+        console.log(`[Webhook] Customer ID: ${customerId}, Price ID: ${priceId}`)
         
-        for (const price of prices.data) {
-          if (price.id === priceId) {
-            const productId = price.product as string
-            const product = await stripe.products.retrieve(productId)
-            
-            if (product.name?.toLowerCase().includes('starter')) {
-              tier = 'starter'
-            } else if (product.name?.toLowerCase().includes('pro')) {
-              tier = 'pro'
-            } else if (product.name?.toLowerCase().includes('agency')) {
-              tier = 'agency'
-            }
-            break
+        // Determine tier from product name - retrieve price and product directly
+        let tier: string = 'free'
+        
+        try {
+          const price = await stripe.prices.retrieve(priceId, { expand: ['product'] })
+          const product = typeof price.product === 'object' && price.product !== null
+            ? price.product
+            : await stripe.products.retrieve(price.product as string)
+          
+          const productName = product.name?.toLowerCase() || ''
+          console.log(`[Webhook] Product name: "${product.name}"`)
+          
+          if (productName.includes('starter')) {
+            tier = 'starter'
+          } else if (productName.includes('pro')) {
+            tier = 'pro'
+          } else if (productName.includes('agency')) {
+            tier = 'agency'
           }
+          
+          console.log(`[Webhook] Determined tier: ${tier}`)
+        } catch (error) {
+          console.error('[Webhook] Error retrieving price/product:', error)
         }
 
         // Update user subscription
-        const { data: user } = await supabase
+        const { data: user, error: userError } = await supabase
           .from('users')
-          .select('id')
+          .select('id, email')
           .eq('stripe_customer_id', customerId)
           .single()
 
+        if (userError) {
+          console.error(`[Webhook] Error finding user:`, userError)
+        }
+
         if (user) {
-          await supabase
+          console.log(`[Webhook] Found user: ${user.id} (${user.email})`)
+          
+          const updateResult = await supabase
             .from('users')
             .update({
               subscription_tier: tier,
               subscription_status: subscription.status === 'active' ? 'active' : 'canceled',
             })
             .eq('id', user.id)
+
+          if (updateResult.error) {
+            console.error('[Webhook] Error updating user subscription:', updateResult.error)
+          } else {
+            console.log(`[Webhook] Successfully updated user ${user.id} subscription to tier: ${tier}, status: ${subscription.status === 'active' ? 'active' : 'canceled'}`)
+          }
+        } else {
+          console.error(`[Webhook] User not found for customer ${customerId}`)
         }
         break
       }

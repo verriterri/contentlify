@@ -32,7 +32,9 @@ export interface AffiliateOpportunity {
   category: string
   context: string
   confidence: number
+  relevance?: number
   isAlreadyLinked: boolean
+  estimatedValue?: number // Estimated item price in USD (for sorting high-value items first)
   affiliatePrograms: {
     name: string
     url: string

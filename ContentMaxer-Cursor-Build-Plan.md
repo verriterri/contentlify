@@ -154,10 +154,10 @@ Sections:
    - Solution: We show you exactly what to create and how to sell it
 
 3. Features (with icons)
-   - 🔗 Affiliate Opportunity Detection
-   - 📦 Digital Product Generation
-   - 📱 Social Post Creation
-   - 📧 Newsletter Templates
+   - Affiliate Opportunity Detection
+   - Digital Product Generation
+   - Social Post Creation
+   - Newsletter Templates
    - All include affiliate links automatically
 
 4. How It Works (3 steps)
@@ -186,6 +186,32 @@ Make it responsive and fast.
 
 ## Phase 2: Core Content Analysis (Prompts 6-10)
 
+**Implementation Notes:**
+- URL scraper extracts link details (anchor text + context) for better link detection
+- Affiliate detector uses relevance scoring and filters own domain/internal links
+- **Estimated item value**: AI estimates product prices (especially for physical products) to help prioritize high-value affiliate opportunities
+- **Sorting by value**: Affiliate opportunities sorted by estimated value (descending), then by confidence/relevance
+- Content chunking (>8000 chars) with intelligent result combination:
+  - Splits at sentence/paragraph boundaries to preserve context
+  - Uses similarity matching (Jaccard similarity) to deduplicate products across chunks
+  - Keeps highest confidence/relevance version when duplicates found
+- Site-wide audit feature for Pro/Agency users:
+  - Creates `/lib/crawlers/site-crawler.ts` for discovering child URLs
+  - Only crawls URLs that are under the root URL path (e.g., /blog URLs only)
+  - Tries sitemap.xml first, falls back to link crawling
+  - Filters URLs by path prefix to ensure only relevant pages are analyzed
+  - Processes multiple URLs and combines results
+- Smart product grouping using similarity matching (not static rules):
+  - Extracts core product terms, filters common words
+  - Uses Jaccard similarity and containment checks
+  - Domain-agnostic approach that works for any blog topic
+- **Caching**: Indefinite cache (no expiration) - checks for any existing analysis before scraping
+- **Force Re-crawl**: Option to bypass cache and create new analysis entry (preserves all history)
+- **Soft deletes**: Analyses marked as deleted (deleted_at) instead of hard delete to prevent quota bypass
+- **Product ideas**: Limited to exactly 5 best ideas (enforced in AI prompt and code)
+- **Database**: Added `title` and `deleted_at` columns to `content_analyses` table
+- **UI**: Date/time displayed in user's timezone, estimated value column in affiliate opportunities table
+
 ### Prompt 6: URL Scraper
 ```
 Create /lib/scrapers/url-scraper.ts
@@ -196,6 +222,7 @@ Function: scrapeUrl(url: string)
   - Page title
   - Main content (strip navigation, footer, ads)
   - Existing links (to detect current affiliate links)
+  - Link details: anchor text and context around each link
   - Meta description
 - Handle errors gracefully (timeouts, 404s, blocked requests)
 - Return structured data:
@@ -204,11 +231,12 @@ Function: scrapeUrl(url: string)
     title: string
     content: string
     existingLinks: string[]
+    linkDetails: LinkInfo[] // Includes anchor text and context
     wordCount: number
     error?: string
   }
 
-Add rate limiting and caching to avoid abuse.
+Add rate limiting (1 request per URL per 10 seconds) and caching (5 min TTL) to avoid abuse.
 Test with common blog platforms: WordPress, Medium, Substack, Ghost.
 ```
 
@@ -219,17 +247,28 @@ Create /lib/ai/affiliate-detector.ts
 This uses a two-step approach: AI detection + smart matching.
 
 Step 1: AI Product Detection
-Function: detectProducts(content: string, existingLinks: string[])
+Function: detectProducts(content: string, existingLinks: string[], linkDetails: LinkInfo[], articleTitle?: string, articleUrl?: string)
 
 Use OpenAI API with this prompt:
-"Analyze this blog post and identify products/services mentioned that could be affiliate-linked.
+"Analyze this blog post and identify products/services mentioned that are RELEVANT to the main topic and could be affiliate-linked.
 
-For each product found:
+ARTICLE TOPIC: [article title]
+
+CRITICAL: Only include products that are RELEVANT to the article's main topic. For example:
+- If the article is about pottery, include pottery wheels, clay, tools, but NOT incidental items like "water bottle"
+- Focus on products that readers would genuinely want to buy related to the topic
+
+For each RELEVANT product found:
 1. Extract exact product/brand name
 2. Determine category (software, physical_product, service, hosting, course, etc.)
 3. Provide context quote where mentioned
 4. Confidence score (0-1)
-5. Is it already linked in the content?
+5. Relevance score (0-1) - how relevant to the article topic
+6. Estimated value (USD) - REQUIRED for physical products, optional for others
+   - Helps prioritize high-value items (e.g., "Canon EOS R5" = ~$3000)
+   - Low-value items (under $10-15) often not worth linking (e.g., "all-purpose flour" = ~$5)
+   - Used for sorting opportunities by value
+7. Is it already linked? (IGNORE internal links - only count external links to other websites)
 
 Return JSON array:
 [
@@ -238,14 +277,19 @@ Return JSON array:
     category: string,
     context: string,
     confidence: number,
+    relevance: number,
+    estimatedValue: number (or null),
     isAlreadyLinked: boolean
   }
 ]
 
 Only include:
 - Specific brands/products (not generic terms like "a microphone")
+- Products that are RELEVANT to the article topic
 - Products that could have affiliate programs
-- Products mentioned in recommendation/review context"
+- SKIP products with relevance < 0.5
+- SKIP products matching the article's own domain
+- Only mark as linked if EXTERNAL link exists (not internal links)"
 
 Step 2: Match Against Affiliate Programs
 Create /lib/data/affiliate-programs.ts with curated list of top programs:
@@ -298,14 +342,27 @@ Return type:
   category: string
   context: string
   confidence: number
+  relevance: number // How relevant to article topic
+  estimatedValue?: number // Estimated item price in USD (for sorting)
   isAlreadyLinked: boolean
+  linkedUrl?: string // If linked, the external URL
+  linkAnchorText?: string // The text that's linked
   affiliatePrograms: Array<{
     name: string
     url: string
     commission: string
     isPrimary: boolean
+    note?: string
   }>
 }[]
+
+Filtering and Sorting:
+- Products matching user's own domain (root URL) are filtered out
+- Products with relevance < 0.5 are filtered out
+- Internal links (same domain) don't count as "already linked"
+- Only external links to other websites count as affiliate opportunities
+- **Results sorted by estimated value (descending), then by confidence/relevance**
+- High-value items appear first, making it easy to prioritize worthwhile affiliate links
 
 For products not in curated list, return:
 {
@@ -320,6 +377,7 @@ This approach is:
 - Accurate (AI finds products, you provide verified programs)
 - Scalable (add more programs over time)
 - Honest (doesn't hallucinate commission rates)
+- Smart (filters out own domain, low relevance, internal links)
 ```
 
 ### Prompt 8: Product Ideas Generator
@@ -328,14 +386,30 @@ Create /lib/ai/product-ideas-generator.ts
 
 Function: generateProductIdeas(content: string, title: string)
 
-Use OpenAI API to suggest 5-10 digital product ideas based on the content.
+Use OpenAI API to suggest the TOP 5 BEST digital product ideas based on the content.
+
+CRITICAL: Return EXACTLY 5 ideas - prioritize quality over quantity.
 
 Prompt structure:
-"Based on this blog post, suggest digital products the author could create and sell.
+"Based on this blog post, suggest the TOP 5 BEST digital products the author could create and sell.
+
+CRITICAL INSTRUCTIONS:
+1. Return EXACTLY 5 product ideas - no more, no less
+2. Prioritize ONLY the highest quality, most sellable ideas
+3. Focus on products that ADD SIGNIFICANT VALUE beyond the free blog post
+4. Be selective - quality over quantity
+
+Rank ideas by:
+- HIGHEST potential to actually sell (solve a real pain point)
+- BEST alignment with the article's topic and audience
+- MOST valuable extension beyond the free content
+- STRONGEST value proposition (clear why someone would pay)
+- MOST realistic and achievable for the author
 
 For each product idea:
 - Product name
 - Product type (checklist, workbook, ebook, template, newsletter)
+- Description (2-3 sentences)
 - Why it would sell (value proposition)
 - Suggested price range
 - Time to create estimate
@@ -347,7 +421,7 @@ Examples:
 - Blog has overview → Product is deep dive guide
 - Blog explains concept → Product is done-for-you templates
 
-Return 5-10 ideas as JSON array."
+Return EXACTLY 5 ideas as JSON array, ranked from best to worst."
 
 Return type:
 {
@@ -359,6 +433,11 @@ Return type:
   estimatedTime: string
   targetAudience: string
 }[]
+
+Implementation notes:
+- Code enforces maximum of 5 ideas (slices array if AI returns more)
+- AI prompt emphasizes quality and selectivity
+- Focuses on most sellable, highest-value ideas only
 ```
 
 ### Prompt 9: API Route - Analyze Content
@@ -366,31 +445,63 @@ Return type:
 Create /app/api/analyze/route.ts
 
 POST endpoint that:
-1. Accepts { url: string } from authenticated user
-2. Checks user's analysis limit based on subscription tier
-3. Scrapes the URL
-4. Runs affiliate detection (AI + matching)
-5. Generates product ideas
-6. Saves to content_analyses table
-7. Returns combined results
+1. Accepts { url: string, forceRecrawl?: boolean } from authenticated user
+2. **Cache check**: Checks for existing non-deleted analysis (indefinite cache, no expiration)
+   - If found and forceRecrawl=false, returns cached result
+   - If forceRecrawl=true, bypasses cache and creates new entry
+3. Checks user's analysis limit based on subscription tier (counts all analyses, including deleted ones)
+4. Scrapes the URL
+5. Checks if content needs chunking (>8000 chars)
+   - If yes, splits content into chunks at sentence/paragraph boundaries
+   - Processes each chunk separately for affiliate detection and product ideas
+   - Combines results intelligently (deduplicates similar products)
+6. Runs affiliate detection (AI + matching) with:
+   - Article title and URL for relevance checking
+   - Link details (anchor text) for accurate link detection
+   - Estimated item value for sorting (especially physical products)
+   - Filters out own domain products
+   - Filters out low relevance products (<0.5)
+   - Only counts external links (not internal)
+   - **Sorts results by estimated value (descending), then confidence/relevance**
+7. Generates product ideas (with chunking support if needed, limited to exactly 5 best)
+8. Saves to content_analyses table (includes title field)
+9. Returns combined results
 
 Include error handling for:
 - Invalid URLs
 - Scraping failures
 - AI API errors
 - Rate limits exceeded
+- Graceful degradation (continues if one step fails)
 
 Return format:
 {
+  success: boolean
   analysisId: string
   url: string
   title: string
   wordCount: number
   affiliateOpportunities: [...],
-  productIdeas: [...]
+  productIdeas: [...],
+  warnings: string[] // Any partial failures
 }
 
 Add loading states and progress indicators.
+
+Create /app/api/analyze-site/route.ts (Pro/Agency only):
+- Site-wide audit: crawls all pages under a root URL path
+- IMPORTANT: Only crawls URLs that start with the root URL path
+  - Example: https://example.com/blog will only crawl URLs like:
+    - https://example.com/blog/post-1 ✓
+    - https://example.com/blog/category/page ✓
+    - But NOT: https://example.com/calculator ✗
+    - And NOT: https://example.com/about ✗
+- Tries sitemap.xml first, falls back to crawling
+- Filters sitemap URLs to only include those under root path
+- Analyzes up to 20 URLs (configurable)
+- Processes each URL with chunking if needed
+- Combines all results into single analysis
+- Returns summary with analyzed URLs and combined opportunities
 ```
 
 ### Prompt 10: Analysis Results UI
@@ -401,9 +512,20 @@ UI Components:
 
 1. Input Section
    - Text input for URL
+   - Checkbox for Pro/Agency users: "Analyze all child URLs under this URL"
+     * Only visible for Pro/Agency tier users
+     * Enables site-wide audit feature
+     * Tooltip: "Site-wide audit - Crawls and analyzes all pages under this root URL"
+   - Checkbox for all users: "Force Re-crawl"
+     * Bypasses cache and creates new analysis entry
+     * Tooltip: "Ignore cached results and re-analyze the URL (creates a new analysis while keeping all history)"
    - "Analyze Content" button
-   - Shows loading state with progress messages
-   - Example: "Analyzing content... Finding affiliate opportunities... Generating product ideas..."
+   - Shows loading state with progress messages:
+     * "Scraping URL and extracting content..."
+     * "Finding affiliate opportunities..."
+     * "Generating product ideas..."
+     * For site-wide: "Discovering pages on site...", "Analyzed X of Y pages..."
+   - Shows cached result warning if returning cached analysis
 
 2. Results Section (after analysis completes)
 
@@ -411,29 +533,55 @@ UI Components:
       - Shows count: "Found 8 monetization opportunities"
       - Table with columns:
         * Product/Service
-        * Context (where mentioned)
-        * Best Affiliate Program
+        * Category (badge)
+        * Context (where mentioned, truncated)
+        * Best Affiliate Program (with link)
+        * Est. Value (estimated item price in USD)
         * Est. Commission
         * Already Linked? (yes/no badge)
-        * Action buttons: [Copy Link] [Learn More]
-      - Sort by commission (highest first)
-      - Expandable rows for multiple affiliate program options
+          - If linked: shows anchor text and URL
+        * Relevance score (if available)
+      - **Sort by estimated value (descending), then confidence/relevance**
+      - High-value items appear first (helps prioritize worthwhile affiliate links)
+      - Low-value items (under $10-15) are still shown but appear lower in list
+      - Products are intelligently grouped:
+        * Similar products (e.g., "Basic Glazes" + "Glazes") are deduplicated
+        * Uses similarity matching (not static rules)
+        * Keeps highest confidence/relevance version
       - For products not in database: show "Search [product] affiliate program"
 
    B. Digital Product Ideas Card
-      - Shows count: "10 product ideas to test"
+      - Shows count: "5 product ideas to test"
       - Grid of product cards, each showing:
         * Product name
         * Product type (badge: Checklist, Workbook, etc.)
-        * Value proposition (2-3 sentences)
+        * Description (2-3 sentences)
+        * Value proposition
         * Suggested price
-        * [Generate This Product] button
+        * Time to create estimate
+        * Target audience
+        * [Generate This Product] button (future feature)
       - Can favorite/save ideas for later
 
 3. History Sidebar
-   - List of past analyses
-   - Click to view previous results
-   - Delete option
+   - List of past analyses (last 20, excludes soft-deleted)
+   - Shows URL, title, date/time (in user's timezone), status
+   - Click to view previous results (loads from database)
+   - Delete option with confirmation (soft delete - preserves quota usage)
+
+Features:
+- **Indefinite caching**: Results cached forever (no expiration)
+- **Force Re-crawl**: Option to bypass cache and create new analysis
+- **Soft deletes**: Deleted analyses hidden but still count toward quota (prevents bypass)
+- **Quota enforcement**: All analyses count (deleted or not) to prevent quota bypass
+- Chunking support: Automatically handles content >8000 chars
+- Site-wide audit: Pro users can analyze entire sites
+- Smart grouping: Similar products are automatically deduplicated
+- Relevance filtering: Only shows products relevant to article topic
+- Own domain filtering: Doesn't suggest user's own website
+- Internal link detection: Only counts external links as "already linked"
+- **Estimated value sorting**: High-value items prioritized for affiliate opportunities
+- **Product ideas limit**: Exactly 5 best ideas (enforced in AI prompt and code)
 
 Use clean card-based layout. Make it scannable with good typography hierarchy.
 Add empty states for no opportunities found.

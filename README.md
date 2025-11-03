@@ -48,12 +48,22 @@ Create a `.env.local` file in the root directory with the following variables:
 OPENAI_API_KEY=your_openai_api_key_here
 
 # Supabase
-SUPABASE_URL=your_supabase_project_url
-SUPABASE_ANON_KEY=your_supabase_anon_key
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 
 # Stripe
 STRIPE_SECRET_KEY=your_stripe_secret_key
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=your_stripe_publishable_key
+STRIPE_WEBHOOK_SECRET=your_stripe_webhook_secret
+
+# Stripe Price IDs (from Stripe Dashboard → Products → Prices)
+# Get these by creating Products and Prices in Stripe Dashboard
+STRIPE_PRICE_STARTER_MONTHLY=price_xxxxxxxxxxxxx
+STRIPE_PRICE_STARTER_YEARLY=price_xxxxxxxxxxxxx
+STRIPE_PRICE_PRO_MONTHLY=price_xxxxxxxxxxxxx
+STRIPE_PRICE_PRO_YEARLY=price_xxxxxxxxxxxxx
+STRIPE_PRICE_AGENCY_MONTHLY=price_xxxxxxxxxxxxx
+STRIPE_PRICE_AGENCY_YEARLY=price_xxxxxxxxxxxxx
 
 # App
 NEXT_PUBLIC_APP_URL=http://localhost:3000

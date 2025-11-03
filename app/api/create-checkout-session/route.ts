@@ -59,8 +59,21 @@ export async function POST(req: NextRequest) {
     }
 
     const plan = PRICING_PLANS[tier]
-    const price = billingInterval === 'year' ? plan.annualPrice : plan.monthlyPrice
-    const interval = billingInterval === 'year' ? 'year' : 'month'
+    
+    // Get Price ID from environment variables
+    // Format: STRIPE_PRICE_[TIER]_[INTERVAL] (e.g., STRIPE_PRICE_STARTER_MONTHLY)
+    // Convert billing interval: "month" -> "MONTHLY", "year" -> "YEARLY"
+    const intervalKey = billingInterval === 'month' ? 'MONTHLY' : 'YEARLY'
+    const priceIdKey = `STRIPE_PRICE_${tier.toUpperCase()}_${intervalKey}` as keyof typeof process.env
+    const priceId = process.env[priceIdKey]
+    
+    if (!priceId) {
+      console.error(`Missing Price ID for ${tier} ${billingInterval} plan. Set ${priceIdKey} environment variable.`)
+      return NextResponse.json(
+        { error: `Price configuration missing for ${plan.name} ${billingInterval} plan. Please contact support.` },
+        { status: 500 }
+      )
+    }
 
     // Create or retrieve Stripe customer
     let customerId = userData.stripe_customer_id
@@ -81,9 +94,28 @@ export async function POST(req: NextRequest) {
         .eq('id', user.id)
     }
 
-    // Create checkout session
-    // Note: In production, you'll need to create Price objects in Stripe Dashboard
-    // and use their price IDs here. For now, we're using a placeholder approach.
+    // Check if user already has an active subscription
+    // If they do, redirect to Customer Portal for upgrades/downgrades
+    const existingSubscriptions = await stripe.subscriptions.list({
+      customer: customerId,
+      status: 'active',
+      limit: 1,
+    })
+
+    if (existingSubscriptions.data.length > 0) {
+      // User has existing subscription - redirect to Customer Portal
+      const sessionUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+
+      const portalSession = await stripe.billingPortal.sessions.create({
+        customer: customerId,
+        return_url: `${sessionUrl}/dashboard`,
+      })
+
+      return NextResponse.json({ url: portalSession.url })
+    }
+
+    // Create checkout session (for new subscriptions only)
+    // Uses Price IDs from Stripe Dashboard (configured via environment variables)
     const sessionUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
 
     const checkoutSession = await stripe.checkout.sessions.create({
@@ -92,17 +124,7 @@ export async function POST(req: NextRequest) {
       payment_method_types: ['card'],
       line_items: [
         {
-          price_data: {
-            currency: 'usd',
-            product_data: {
-              name: `${plan.name} Plan`,
-              description: `ContentMaxer ${plan.name} subscription`,
-            },
-            unit_amount: price * 100, // Convert to cents
-            recurring: {
-              interval: interval as 'month' | 'year',
-            },
-          },
+          price: priceId, // Use Price ID from Stripe Dashboard
           quantity: 1,
         },
       ],

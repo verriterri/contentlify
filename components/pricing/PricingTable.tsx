@@ -169,7 +169,7 @@ export function PricingTable() {
       </div>
 
       <p className="text-center text-sm text-gray-500 mt-8">
-        All plans include a 14-day free trial. Cancel anytime.
+        30-day money back guarantee. Cancel anytime.
       </p>
     </div>
   )
