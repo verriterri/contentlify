@@ -1,7 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import { isAffiliateLink, getAffiliateLinkInfo } from '@/lib/utils/affiliate-link-detector';
 
 interface AnalysisResult {
   success: boolean;
@@ -23,6 +25,7 @@ interface AnalysisHistory {
 }
 
 export default function AnalyzePage() {
+  const router = useRouter();
   const [url, setUrl] = useState('');
   const [analyzeChildren, setAnalyzeChildren] = useState(false);
   const [forceRecrawl, setForceRecrawl] = useState(false);
@@ -442,11 +445,68 @@ export default function AnalyzePage() {
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                                 {opp.affiliatePrograms[0]?.commission || 'N/A'}
                               </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
+                              <td className="px-6 py-4">
                                 {opp.isAlreadyLinked ? (
-                                  <span className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded">
-                                    Linked
-                                  </span>
+                                  <div className="space-y-2">
+                                    <div className="flex items-center space-x-2">
+                                      {opp.linkedUrl && isAffiliateLink(opp.linkedUrl) ? (
+                                        <span className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded font-medium">
+                                          ✓ Affiliate Link
+                                        </span>
+                                      ) : (
+                                        <span className="px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded font-medium">
+                                          Link Found
+                                        </span>
+                                      )}
+                                    </div>
+                                    {opp.linkedUrl && (
+                                      <details className="text-xs">
+                                        <summary className="cursor-pointer text-purple-600 hover:text-purple-800 font-medium">
+                                          View link details
+                                        </summary>
+                                        <div className="mt-2 p-3 bg-gray-50 rounded border border-gray-200 space-y-2">
+                                          {(() => {
+                                            const linkInfo = getAffiliateLinkInfo(opp.linkedUrl);
+                                            return (
+                                              <>
+                                                {linkInfo && (
+                                                  <div>
+                                                    <strong className="text-gray-700">Network:</strong>{' '}
+                                                    <span className="text-gray-900">{linkInfo.type}</span>
+                                                    {' '}
+                                                    <span className={`text-xs ${
+                                                      linkInfo.confidence === 'high' ? 'text-green-600' :
+                                                      linkInfo.confidence === 'medium' ? 'text-yellow-600' :
+                                                      'text-gray-500'
+                                                    }`}>
+                                                      ({linkInfo.confidence} confidence)
+                                                    </span>
+                                                  </div>
+                                                )}
+                                                {opp.linkAnchorText && (
+                                                  <div>
+                                                    <strong className="text-gray-700">Anchor text:</strong>{' '}
+                                                    <span className="text-gray-900 italic">&quot;{opp.linkAnchorText}&quot;</span>
+                                                  </div>
+                                                )}
+                                                <div>
+                                                  <strong className="text-gray-700">URL:</strong>{' '}
+                                                  <a
+                                                    href={opp.linkedUrl}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="text-purple-600 hover:text-purple-800 hover:underline break-all"
+                                                  >
+                                                    {opp.linkedUrl}
+                                                  </a>
+                                                </div>
+                                              </>
+                                            );
+                                          })()}
+                                        </div>
+                                      </details>
+                                    )}
+                                  </div>
                                 ) : (
                                   <span className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded">
                                     Not Linked
@@ -476,7 +536,7 @@ export default function AnalyzePage() {
                       {result.productIdeas.map((idea, idx) => (
                         <div
                           key={idx}
-                          className="border border-gray-200 rounded-lg p-4 bg-gradient-to-br from-purple-50 to-white"
+                          className="border border-gray-200 rounded-lg p-4 bg-gradient-to-br from-purple-50 to-white hover:border-purple-300 transition-colors"
                         >
                           <div className="flex items-start justify-between mb-2">
                             <h3 className="font-semibold text-gray-900 text-lg">
@@ -516,6 +576,31 @@ export default function AnalyzePage() {
                               <span className="text-xs text-gray-600">
                                 Target: {idea.targetAudience}
                               </span>
+                            </div>
+                            <div className="pt-3 border-t border-gray-200">
+                              <button
+                                onClick={() => {
+                                  router.push(
+                                    `/dashboard/generate?analysisId=${result.analysisId}&productId=${idx}`
+                                  );
+                                }}
+                                className="w-full px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors flex items-center justify-center space-x-2"
+                              >
+                                <svg
+                                  className="w-5 h-5"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M13 10V3L4 14h7v7l9-11h-7z"
+                                  />
+                                </svg>
+                                <span>Generate This Product</span>
+                              </button>
                             </div>
                           </div>
                         </div>
