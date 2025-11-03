@@ -1,162 +1,207 @@
 /**
- * Detect if a URL appears to be an affiliate link based on common patterns
+ * Utility functions to detect if a URL is an affiliate link
+ */
+
+export interface AffiliateLinkInfo {
+  isAffiliate: boolean;
+  confidence: 'high' | 'medium' | 'low';
+  detectedParams?: string[];
+  network?: string;
+}
+
+/**
+ * Common affiliate link parameters
+ */
+const AFFILIATE_PARAMS = [
+  'ref', 'ref_id', 'refid', 'referrer', 'referral',
+  'aff', 'affiliate', 'aff_id', 'affid',
+  'tag', 'tags',
+  'source', 'source_id',
+  'partner', 'partner_id',
+  'campaign', 'campaign_id',
+  'tracking', 'tracking_id',
+  'clickid', 'click_id',
+  'linkCode', 'link_code',
+  'tid', 'tid1', 'tid2',
+  'awc', // Amazon Associates
+  'anid', // Amazon Native Shopping Ads
+  'linkId', // Some programs
+];
+
+/**
+ * Common affiliate URL path patterns
+ */
+const AFFILIATE_PATH_PATTERNS = [
+  '/ref/', '/refs/',
+  '/affiliate/',
+  '/a/', '/aff/',
+  '/r/', '/refer/',
+  '/track/', '/tracking/',
+];
+
+/**
+ * Known affiliate networks and their patterns
+ */
+const AFFILIATE_NETWORKS: Record<string, { params: string[]; paths?: string[] }> = {
+  'Amazon Associates': {
+    params: ['tag', 'awc', 'anid'],
+    paths: ['/gp/product/'],
+  },
+  'ShareASale': {
+    params: ['u', 'mdata'],
+  },
+  'CJ Affiliate': {
+    params: ['pid'],
+  },
+  'Impact': {
+    params: ['ref'],
+  },
+  'Rakuten': {
+    params: ['site_id'],
+  },
+};
+
+/**
+ * Check if a URL is likely an affiliate link
  */
 export function isAffiliateLink(url: string): boolean {
   if (!url) return false;
-  
+
   try {
     const urlObj = new URL(url);
-    
-    // Check for common affiliate query parameters
-    const affiliateParams = [
-      'ref', 'ref_id', 'refid', 'referrer', 'referral',
-      'aff', 'affiliate', 'aff_id', 'affid',
-      'tag', 'tags',
-      'source', 'source_id',
-      'partner', 'partner_id',
-      'campaign', 'campaign_id',
-      'tracking', 'tracking_id',
-      'clickid', 'click_id',
-      'linkCode', 'link_code',
-      'tid', 'tid1', 'tid2',
-      'utm_source', 'utm_medium', 'utm_campaign', // Can indicate affiliate
-      'awc', // Amazon Associates
-      'anid', // Amazon Native Shopping Ads
-      'linkId', // Some programs
-      'pid', // Product ID / Partner ID
-      'aid', // Affiliate ID
-      'subid', // Sub ID
-      'clickref', // Click reference
-    ];
-    
-    // Check query parameters
-    for (const param of affiliateParams) {
+    const hostname = urlObj.hostname.toLowerCase();
+    const pathname = urlObj.pathname.toLowerCase();
+
+    // Check for affiliate query parameters
+    for (const param of AFFILIATE_PARAMS) {
       if (urlObj.searchParams.has(param)) {
         return true;
       }
     }
-    
-    // Check path for affiliate patterns
-    const pathLower = urlObj.pathname.toLowerCase();
-    const affiliatePaths = [
-      '/ref/', '/refs/',
-      '/affiliate/',
-      '/a/', '/aff/',
-      '/r/', '/refer/',
-      '/track/', '/tracking/',
-      '/partner/',
-    ];
-    
-    for (const path of affiliatePaths) {
-      if (pathLower.includes(path)) {
+
+    // Check for affiliate path patterns
+    for (const pattern of AFFILIATE_PATH_PATTERNS) {
+      if (pathname.includes(pattern)) {
         return true;
       }
     }
-    
-    // Check for known affiliate URL patterns
-    const hostname = urlObj.hostname.toLowerCase();
-    
-    // Amazon Associates - tag parameter is a strong indicator
+
+    // Check specific affiliate networks
+    for (const [network, patterns] of Object.entries(AFFILIATE_NETWORKS)) {
+      // Check params
+      if (patterns.params.some(param => urlObj.searchParams.has(param))) {
+        return true;
+      }
+      // Check paths if defined
+      if (patterns.paths && patterns.paths.some(path => pathname.includes(path))) {
+        return true;
+      }
+    }
+
+    // Amazon-specific check
     if (hostname.includes('amazon.') && urlObj.searchParams.has('tag')) {
       return true;
     }
-    
+
     // Check for URL shorteners that are often used for affiliate links
     const shortenerDomains = [
       'amzn.to', 'amzn.com',
       'bit.ly', 'tinyurl.com',
       'goo.gl', 't.co',
-      'ow.ly', 'buff.ly',
     ];
-    
+
     if (shortenerDomains.some(domain => hostname.includes(domain))) {
       return true; // Likely an affiliate link if it's a shortener
     }
-    
-    // Check for known affiliate network domains in the URL
-    const affiliateNetworkPatterns = [
-      'shareasale',
-      'cj.com',
-      'commissionjunction',
-      'rakuten',
-      'impact',
-      'awin',
-      'partnerstack',
-      'tapfiliate',
-    ];
-    
-    const fullUrl = url.toLowerCase();
-    if (affiliateNetworkPatterns.some(pattern => fullUrl.includes(pattern))) {
-      return true;
-    }
-    
+
     return false;
   } catch {
-    // If URL parsing fails, return false
     return false;
   }
 }
 
 /**
- * Get affiliate link type/network if detectable
+ * Get detailed information about whether a URL is an affiliate link
  */
-export function getAffiliateLinkInfo(url: string): { type: string; confidence: 'high' | 'medium' | 'low' } | null {
-  if (!url) return null;
-  
+export function getAffiliateLinkInfo(url: string): AffiliateLinkInfo {
+  if (!url) {
+    return { isAffiliate: false, confidence: 'low' };
+  }
+
   try {
     const urlObj = new URL(url);
     const hostname = urlObj.hostname.toLowerCase();
-    const fullUrl = url.toLowerCase();
-    
-    // Amazon Associates
+    const pathname = urlObj.pathname.toLowerCase();
+    const detectedParams: string[] = [];
+    let detectedNetwork: string | undefined;
+    let confidence: 'high' | 'medium' | 'low' = 'low';
+
+    // Check for affiliate query parameters
+    for (const param of AFFILIATE_PARAMS) {
+      if (urlObj.searchParams.has(param)) {
+        detectedParams.push(param);
+        confidence = 'high';
+      }
+    }
+
+    // Check for affiliate path patterns
+    let hasAffiliatePath = false;
+    for (const pattern of AFFILIATE_PATH_PATTERNS) {
+      if (pathname.includes(pattern)) {
+        hasAffiliatePath = true;
+        confidence = confidence === 'low' ? 'medium' : 'high';
+      }
+    }
+
+    // Check specific affiliate networks
+    for (const [network, patterns] of Object.entries(AFFILIATE_NETWORKS)) {
+      const hasNetworkParam = patterns.params.some(param => {
+        if (urlObj.searchParams.has(param)) {
+          detectedParams.push(param);
+          detectedNetwork = network;
+          confidence = 'high';
+          return true;
+        }
+        return false;
+      });
+      
+      if (hasNetworkParam) break;
+
+      // Check paths if defined
+      if (patterns.paths && patterns.paths.some(path => pathname.includes(path))) {
+        detectedNetwork = network;
+        confidence = confidence === 'low' ? 'medium' : 'high';
+      }
+    }
+
+    // Amazon-specific check
     if (hostname.includes('amazon.') && urlObj.searchParams.has('tag')) {
-      return { type: 'Amazon Associates', confidence: 'high' };
+      detectedParams.push('tag');
+      detectedNetwork = 'Amazon Associates';
+      confidence = 'high';
     }
-    
-    if (hostname.includes('amzn.to')) {
-      return { type: 'Amazon Associates (Short Link)', confidence: 'high' };
+
+    // Check for URL shorteners
+    const shortenerDomains = [
+      'amzn.to', 'amzn.com',
+      'bit.ly', 'tinyurl.com',
+      'goo.gl', 't.co',
+    ];
+
+    const isShortener = shortenerDomains.some(domain => hostname.includes(domain));
+    if (isShortener && detectedParams.length === 0 && !hasAffiliatePath) {
+      confidence = 'medium'; // Shorteners are often affiliate links but can't be sure
     }
-    
-    // ShareASale
-    if (fullUrl.includes('shareasale')) {
-      return { type: 'ShareASale', confidence: 'high' };
-    }
-    
-    // Commission Junction / CJ Affiliate
-    if (fullUrl.includes('cj.com') || fullUrl.includes('commissionjunction')) {
-      return { type: 'CJ Affiliate', confidence: 'high' };
-    }
-    
-    // Rakuten
-    if (fullUrl.includes('rakuten')) {
-      return { type: 'Rakuten', confidence: 'high' };
-    }
-    
-    // Impact
-    if (fullUrl.includes('impact')) {
-      return { type: 'Impact', confidence: 'high' };
-    }
-    
-    // Awin
-    if (fullUrl.includes('awin')) {
-      return { type: 'Awin', confidence: 'high' };
-    }
-    
-    // Generic affiliate parameters (medium confidence)
-    const strongAffiliateParams = ['tag', 'ref', 'aff', 'affiliate', 'refid'];
-    if (strongAffiliateParams.some(param => urlObj.searchParams.has(param))) {
-      return { type: 'Affiliate Link (Unknown Network)', confidence: 'medium' };
-    }
-    
-    // Weak indicators (low confidence)
-    const weakAffiliateParams = ['source', 'campaign', 'partner', 'tracking'];
-    if (weakAffiliateParams.some(param => urlObj.searchParams.has(param))) {
-      return { type: 'Possible Affiliate Link', confidence: 'low' };
-    }
-    
-    return null;
+
+    const isAffiliate = detectedParams.length > 0 || hasAffiliatePath || isShortener || detectedNetwork !== undefined;
+
+    return {
+      isAffiliate,
+      confidence,
+      detectedParams: detectedParams.length > 0 ? detectedParams : undefined,
+      network: detectedNetwork,
+    };
   } catch {
-    return null;
+    return { isAffiliate: false, confidence: 'low' };
   }
 }
-

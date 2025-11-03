@@ -398,7 +398,7 @@ export default function AnalyzePage() {
                               Context
                             </th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Best Program
+                              Suggested Program
                             </th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                               Est. Value
@@ -448,63 +448,91 @@ export default function AnalyzePage() {
                               <td className="px-6 py-4">
                                 {opp.isAlreadyLinked ? (
                                   <div className="space-y-2">
-                                    <div className="flex items-center space-x-2">
-                                      {opp.linkedUrl && isAffiliateLink(opp.linkedUrl) ? (
-                                        <span className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded font-medium">
-                                          ✓ Affiliate Link
-                                        </span>
-                                      ) : (
-                                        <span className="px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded font-medium">
-                                          Link Found
-                                        </span>
-                                      )}
-                                    </div>
-                                    {opp.linkedUrl && (
-                                      <details className="text-xs">
-                                        <summary className="cursor-pointer text-purple-600 hover:text-purple-800 font-medium">
-                                          View link details
-                                        </summary>
-                                        <div className="mt-2 p-3 bg-gray-50 rounded border border-gray-200 space-y-2">
-                                          {(() => {
-                                            const linkInfo = getAffiliateLinkInfo(opp.linkedUrl);
-                                            return (
-                                              <>
-                                                {linkInfo && (
+                                    {opp.linkedUrl ? (
+                                      <>
+                                        {isAffiliateLink(opp.linkedUrl) ? (
+                                          <div className="flex items-center space-x-2">
+                                            <span className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded font-medium flex items-center">
+                                              <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                              </svg>
+                                              Affiliate Link
+                                            </span>
+                                          </div>
+                                        ) : (
+                                          <div className="flex items-center space-x-2">
+                                            <span className="px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded font-medium">
+                                              Regular Link
+                                            </span>
+                                          </div>
+                                        )}
+                                        <details className="text-xs">
+                                          <summary className="cursor-pointer text-purple-600 hover:text-purple-800 font-medium">
+                                            View link details
+                                          </summary>
+                                          <div className="mt-2 p-3 bg-gray-50 rounded border border-gray-200 space-y-2">
+                                            {(() => {
+                                              const linkInfo = getAffiliateLinkInfo(opp.linkedUrl);
+                                              return (
+                                                <>
+                                                  {linkInfo.isAffiliate && (
+                                                    <div className="space-y-1">
+                                                      {linkInfo.network && (
+                                                        <div>
+                                                          <strong className="text-gray-700">Network:</strong>{' '}
+                                                          <span className="text-gray-900">{linkInfo.network}</span>
+                                                        </div>
+                                                      )}
+                                                      <div>
+                                                        <strong className="text-gray-700">Confidence:</strong>{' '}
+                                                        <span className={`text-xs ${
+                                                          linkInfo.confidence === 'high' ? 'text-green-600' :
+                                                          linkInfo.confidence === 'medium' ? 'text-yellow-600' :
+                                                          'text-gray-500'
+                                                        }`}>
+                                                          {linkInfo.confidence}
+                                                        </span>
+                                                      </div>
+                                                      {linkInfo.detectedParams && linkInfo.detectedParams.length > 0 && (
+                                                        <div>
+                                                          <strong className="text-gray-700">Detected params:</strong>{' '}
+                                                          <span className="text-gray-900 text-xs">{linkInfo.detectedParams.join(', ')}</span>
+                                                        </div>
+                                                      )}
+                                                    </div>
+                                                  )}
+                                                  {!linkInfo.isAffiliate && (
+                                                    <div className="text-gray-600 text-xs">
+                                                      No affiliate parameters detected. This appears to be a regular link.
+                                                    </div>
+                                                  )}
+                                                  {opp.linkAnchorText && (
+                                                    <div>
+                                                      <strong className="text-gray-700">Anchor text:</strong>{' '}
+                                                      <span className="text-gray-900 italic">&quot;{opp.linkAnchorText}&quot;</span>
+                                                    </div>
+                                                  )}
                                                   <div>
-                                                    <strong className="text-gray-700">Network:</strong>{' '}
-                                                    <span className="text-gray-900">{linkInfo.type}</span>
-                                                    {' '}
-                                                    <span className={`text-xs ${
-                                                      linkInfo.confidence === 'high' ? 'text-green-600' :
-                                                      linkInfo.confidence === 'medium' ? 'text-yellow-600' :
-                                                      'text-gray-500'
-                                                    }`}>
-                                                      ({linkInfo.confidence} confidence)
-                                                    </span>
+                                                    <strong className="text-gray-700">URL:</strong>{' '}
+                                                    <a
+                                                      href={opp.linkedUrl}
+                                                      target="_blank"
+                                                      rel="noopener noreferrer"
+                                                      className="text-purple-600 hover:text-purple-800 hover:underline break-all"
+                                                    >
+                                                      {opp.linkedUrl}
+                                                    </a>
                                                   </div>
-                                                )}
-                                                {opp.linkAnchorText && (
-                                                  <div>
-                                                    <strong className="text-gray-700">Anchor text:</strong>{' '}
-                                                    <span className="text-gray-900 italic">&quot;{opp.linkAnchorText}&quot;</span>
-                                                  </div>
-                                                )}
-                                                <div>
-                                                  <strong className="text-gray-700">URL:</strong>{' '}
-                                                  <a
-                                                    href={opp.linkedUrl}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="text-purple-600 hover:text-purple-800 hover:underline break-all"
-                                                  >
-                                                    {opp.linkedUrl}
-                                                  </a>
-                                                </div>
-                                              </>
-                                            );
-                                          })()}
-                                        </div>
-                                      </details>
+                                                </>
+                                              );
+                                            })()}
+                                          </div>
+                                        </details>
+                                      </>
+                                    ) : (
+                                      <span className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded">
+                                        Linked
+                                      </span>
                                     )}
                                   </div>
                                 ) : (
