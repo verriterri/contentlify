@@ -39,6 +39,7 @@ export async function scrapeUrl(url: string): Promise<ScrapeResult> {
       title: '',
       content: '',
       existingLinks: [],
+      linkDetails: [],
       wordCount: 0,
       error: 'Invalid URL format',
     };
@@ -50,18 +51,35 @@ export async function scrapeUrl(url: string): Promise<ScrapeResult> {
     return cached.data;
   }
 
-  // Check rate limit
-  const lastRequest = rateLimit.get(url);
+  // Clean up old rate limit entries before checking (prevent stale entries)
   const now = Date.now();
+  const cutoff = now - RATE_LIMIT_WINDOW;
+  Array.from(rateLimit.entries()).forEach(([key, timestamp]) => {
+    if (timestamp < cutoff) {
+      rateLimit.delete(key);
+    }
+  });
+
+  // Check rate limit (only if not using cache)
+  const lastRequest = rateLimit.get(url);
   if (lastRequest && now - lastRequest < RATE_LIMIT_WINDOW) {
-    return {
-      url,
-      title: '',
-      content: '',
-      existingLinks: [],
-      wordCount: 0,
-      error: 'Rate limit exceeded. Please wait a few seconds before scraping this URL again.',
-    };
+    // Check if we have a cached result we can return instead (even if stale)
+    const staleCache = cache.get(url);
+    if (staleCache) {
+      // Return stale cache if rate limited (better than error)
+      console.log(`[Scraper] Rate limited for ${url}, returning cached result`);
+      return staleCache.data;
+    }
+    // If no cache available, wait a moment and try again (better UX than error)
+    const waitTime = RATE_LIMIT_WINDOW - (now - lastRequest);
+    console.log(`[Scraper] Rate limited for ${url}, waiting ${waitTime}ms before retry`);
+    await new Promise(resolve => setTimeout(resolve, waitTime));
+    // After waiting, check cache again (in case another request populated it)
+    const retryCache = cache.get(url);
+    if (retryCache) {
+      return retryCache.data;
+    }
+    // If still no cache, proceed with the request (rate limit window should be passed)
   }
 
   rateLimit.set(url, now);
@@ -90,6 +108,7 @@ export async function scrapeUrl(url: string): Promise<ScrapeResult> {
           title: '',
           content: '',
           existingLinks: [],
+          linkDetails: [],
           wordCount: 0,
           error: 'URL not found (404)',
         };
@@ -100,6 +119,7 @@ export async function scrapeUrl(url: string): Promise<ScrapeResult> {
           title: '',
           content: '',
           existingLinks: [],
+          linkDetails: [],
           wordCount: 0,
           error: 'Access forbidden (403). The website may be blocking automated requests.',
         };
@@ -109,6 +129,7 @@ export async function scrapeUrl(url: string): Promise<ScrapeResult> {
         title: '',
         content: '',
         existingLinks: [],
+        linkDetails: [],
         wordCount: 0,
         error: `HTTP error: ${response.status} ${response.statusText}`,
       };
@@ -120,11 +141,73 @@ export async function scrapeUrl(url: string): Promise<ScrapeResult> {
     const $ = cheerio.load(html);
 
     // Extract title
-    const title =
+    let title =
       $('meta[property="og:title"]').attr('content') ||
       $('title').text() ||
       $('h1').first().text() ||
       '';
+
+    // Sanitize title: remove any HTML tags that might have slipped through
+    // This handles cases where HTML is encoded or cheerio's .text() doesn't fully strip it
+    title = title
+      .replace(/<[^>]*>/g, '') // Remove any HTML tags
+      .replace(/&nbsp;/g, ' ') // Replace &nbsp; with space
+      .replace(/&amp;/g, '&') // Decode &amp;
+      .replace(/&lt;/g, '<') // Decode &lt;
+      .replace(/&gt;/g, '>') // Decode &gt;
+      .replace(/&quot;/g, '"') // Decode &quot;
+      .replace(/&#39;/g, "'") // Decode &#39;
+      .replace(/\s+/g, ' ') // Normalize whitespace
+      .trim();
+
+    // Check if title is actually a URL (starts with http/https)
+    // Some websites incorrectly put URLs in their title tags
+    if (title.startsWith('http://') || title.startsWith('https://')) {
+      // Title is a URL, try to extract a better title from the URL path
+      try {
+        const urlObj = new URL(title);
+        const pathParts = urlObj.pathname.split('/').filter(p => p.length > 0);
+        if (pathParts.length > 0) {
+          // Use the last path segment, clean it up
+          const lastPart = pathParts[pathParts.length - 1];
+          title = lastPart
+            .replace(/[-_]/g, ' ')
+            .replace(/\.[^.]*$/, '') // Remove file extension
+            .split(' ')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' ');
+        } else {
+          // No path, try from the original URL
+          title = '';
+        }
+      } catch {
+        title = '';
+      }
+    }
+
+    // If title is still empty or just whitespace, generate one from URL
+    // (Content-based fallback will happen after content extraction)
+    if (!title || title.trim().length === 0) {
+      try {
+        const urlObj = new URL(url);
+        const pathParts = urlObj.pathname.split('/').filter(p => p.length > 0);
+        if (pathParts.length > 0) {
+          // Create title from URL path segments
+          const lastPart = pathParts[pathParts.length - 1];
+          title = lastPart
+            .replace(/[-_]/g, ' ')
+            .replace(/\.[^.]*$/, '') // Remove file extension
+            .split(' ')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' ');
+        } else {
+          // Fallback to domain name
+          title = urlObj.hostname.replace('www.', '');
+        }
+      } catch {
+        title = ''; // Will be handled after content extraction
+      }
+    }
 
     // Extract meta description
     const metaDescription =
@@ -176,6 +259,34 @@ export async function scrapeUrl(url: string): Promise<ScrapeResult> {
         }
       });
       content = paragraphs.join('\n\n');
+    }
+
+    // Final title fallback: if title is still empty or looks like a URL, use content
+    if (!title || title.trim().length === 0 || title.startsWith('http')) {
+      // Try to extract title from content
+      const firstSentence = content.split(/[.!?]/).find(s => s.trim().length > 20);
+      if (firstSentence) {
+        title = firstSentence.trim().substring(0, 100);
+      } else if (!title || title.trim().length === 0) {
+        // Last resort: use URL path or domain
+        try {
+          const urlObj = new URL(url);
+          const pathParts = urlObj.pathname.split('/').filter(p => p.length > 0);
+          if (pathParts.length > 0) {
+            const lastPart = pathParts[pathParts.length - 1];
+            title = lastPart
+              .replace(/[-_]/g, ' ')
+              .replace(/\.[^.]*$/, '')
+              .split(' ')
+              .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+              .join(' ');
+          } else {
+            title = urlObj.hostname.replace('www.', '').replace(/^./, (c) => c.toUpperCase());
+          }
+        } catch {
+          title = 'Untitled Article';
+        }
+      }
     }
 
     // Extract all links with anchor text and context
@@ -262,15 +373,13 @@ export async function scrapeUrl(url: string): Promise<ScrapeResult> {
       });
     }
 
-    // Clean up old rate limit entries
-    if (rateLimit.size > 1000) {
-      const cutoff = Date.now() - RATE_LIMIT_WINDOW;
-      Array.from(rateLimit.entries()).forEach(([key, timestamp]) => {
-        if (timestamp < cutoff) {
-          rateLimit.delete(key);
-        }
-      });
-    }
+    // Clean up old rate limit entries (always clean up, not just when >1000)
+    const cleanupCutoff = Date.now() - RATE_LIMIT_WINDOW;
+    Array.from(rateLimit.entries()).forEach(([key, timestamp]) => {
+      if (timestamp < cleanupCutoff) {
+        rateLimit.delete(key);
+      }
+    });
 
     return result;
   } catch (error: any) {
@@ -281,6 +390,7 @@ export async function scrapeUrl(url: string): Promise<ScrapeResult> {
         title: '',
         content: '',
         existingLinks: [],
+        linkDetails: [],
         wordCount: 0,
         error: 'Request timeout. The website took too long to respond.',
       };
@@ -292,6 +402,7 @@ export async function scrapeUrl(url: string): Promise<ScrapeResult> {
         title: '',
         content: '',
         existingLinks: [],
+        linkDetails: [],
         wordCount: 0,
         error: 'Could not connect to the website. Please check if the URL is accessible.',
       };
@@ -302,6 +413,7 @@ export async function scrapeUrl(url: string): Promise<ScrapeResult> {
       title: '',
       content: '',
       existingLinks: [],
+      linkDetails: [],
       wordCount: 0,
       error: error.message || 'Unknown error occurred while scraping the URL',
     };

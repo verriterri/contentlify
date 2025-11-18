@@ -211,7 +211,12 @@ ${content.substring(0, 10000)}`;
   } catch (error: any) {
     console.error('[Product Ideas] Error generating product ideas:', error);
     console.error('[Product Ideas] Error stack:', error.stack);
-    throw new Error(`Failed to generate product ideas: ${error.message}`);
+    // Preserve original error structure for rate limit detection
+    const wrappedError: any = new Error(`Failed to generate product ideas: ${error.message}`);
+    wrappedError.originalError = error;
+    wrappedError.status = error?.status || error?.statusCode;
+    wrappedError.code = error?.code;
+    throw wrappedError;
   }
 }
 

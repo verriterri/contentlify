@@ -42,6 +42,87 @@ export async function POST(req: NextRequest) {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session
         
+        console.log('[Webhook] checkout.session.completed received:', {
+          sessionId: session.id,
+          mode: session.mode,
+          metadata: session.metadata,
+        })
+        
+        // Handle credit purchases (one-time payments)
+        if (session.mode === 'payment' && session.metadata?.purchase_id) {
+          const purchaseId = session.metadata.purchase_id
+          const credits = parseInt(session.metadata.credits || '0', 10)
+          const userId = session.metadata.supabase_user_id
+
+          console.log('[Webhook] Processing credit purchase:', {
+            purchaseId,
+            credits,
+            userId,
+          })
+
+          if (!userId || !credits) {
+            console.error('[Webhook] Missing user ID or credits in metadata', {
+              userId,
+              credits,
+              metadata: session.metadata,
+            })
+            break
+          }
+
+          // Update purchase status
+          const { error: purchaseError } = await supabase
+            .from('credit_purchases')
+            .update({
+              status: 'completed',
+              stripe_payment_intent_id: session.payment_intent as string,
+            })
+            .eq('id', purchaseId)
+
+          if (purchaseError) {
+            console.error('[Webhook] Error updating purchase:', purchaseError)
+          }
+
+          // Get user data and check if this is their first purchase
+          const { data: user, error: userError } = await supabase
+            .from('users')
+            .select('credits, has_made_first_purchase')
+            .eq('id', userId)
+            .single()
+
+          if (userError || !user) {
+            console.error('[Webhook] Error finding user:', userError)
+            break
+          }
+
+          // Check if this is the first purchase (first purchase bonus: 2x credits)
+          const isFirstPurchase = !user.has_made_first_purchase
+          const creditsToAdd = isFirstPurchase ? credits * 2 : credits
+
+          const newCredits = (user.credits || 0) + creditsToAdd
+
+          // Update user credits and mark first purchase as completed
+          const { error: creditError } = await supabase
+            .from('users')
+            .update({ 
+              credits: newCredits,
+              has_made_first_purchase: true 
+            })
+            .eq('id', userId)
+
+          if (creditError) {
+            console.error('[Webhook] Error updating credits:', creditError)
+          } else {
+            if (isFirstPurchase) {
+              console.log(`[Webhook] First purchase bonus! Added ${creditsToAdd} credits (${credits} x 2) to user ${userId}. New balance: ${newCredits}`)
+            } else {
+              console.log(`[Webhook] Added ${creditsToAdd} credits to user ${userId}. New balance: ${newCredits}`)
+            }
+          }
+
+          break
+        }
+        
+        // Handle subscriptions (legacy support)
         if (session.mode === 'subscription' && session.subscription) {
           const subscription = await stripe.subscriptions.retrieve(
             session.subscription as string,

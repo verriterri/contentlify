@@ -17,6 +17,12 @@ export function LoginForm() {
     setError(null)
 
     try {
+      // First, clear any existing session to avoid conflicts
+      await supabase.auth.signOut()
+      
+      // Small delay to ensure signout completes
+      await new Promise(resolve => setTimeout(resolve, 200))
+
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -26,18 +32,21 @@ export function LoginForm() {
 
       if (data.session) {
         // Validate user with server - getUser() ensures session is validated
-        await supabase.auth.getUser()
+        const { error: userError } = await supabase.auth.getUser()
+        if (userError) throw userError
         
         // Small delay to ensure cookies are set
-        await new Promise(resolve => setTimeout(resolve, 100))
+        await new Promise(resolve => setTimeout(resolve, 200))
         
         // Use window.location for a full page reload to ensure middleware picks up cookies
+        // Clear any query params that might cause issues
         window.location.href = '/dashboard'
       } else {
         setError('Failed to create session. Please try again.')
         setLoading(false)
       }
     } catch (error: any) {
+      console.error('Login error:', error)
       setError(error.message || 'An error occurred during login')
       setLoading(false)
     }

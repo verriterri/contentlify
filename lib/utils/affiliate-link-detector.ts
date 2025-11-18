@@ -40,15 +40,35 @@ const AFFILIATE_PATH_PATTERNS = [
 ];
 
 /**
+ * Social sharing domains that should never be considered affiliate links
+ */
+const SOCIAL_SHARING_DOMAINS = [
+  'facebook.com',
+  'twitter.com',
+  'x.com',
+  'linkedin.com',
+  'pinterest.com',
+  'reddit.com',
+  'tumblr.com',
+  'whatsapp.com',
+  'telegram.org',
+  'vk.com',
+  'weibo.com',
+  'line.me',
+  'mailto:', // Email sharing
+];
+
+/**
  * Known affiliate networks and their patterns
  */
-const AFFILIATE_NETWORKS: Record<string, { params: string[]; paths?: string[] }> = {
+const AFFILIATE_NETWORKS: Record<string, { params: string[]; paths?: string[]; domains?: string[] }> = {
   'Amazon Associates': {
     params: ['tag', 'awc', 'anid'],
     paths: ['/gp/product/'],
   },
   'ShareASale': {
     params: ['u', 'mdata'],
+    domains: ['shareasale.com', 'shareasale.net'], // Only match 'u' param on ShareASale domains
   },
   'CJ Affiliate': {
     params: ['pid'],
@@ -72,6 +92,11 @@ export function isAffiliateLink(url: string): boolean {
     const hostname = urlObj.hostname.toLowerCase();
     const pathname = urlObj.pathname.toLowerCase();
 
+    // Exclude social sharing URLs
+    if (SOCIAL_SHARING_DOMAINS.some(domain => hostname.includes(domain))) {
+      return false;
+    }
+
     // Check for affiliate query parameters
     for (const param of AFFILIATE_PARAMS) {
       if (urlObj.searchParams.has(param)) {
@@ -88,6 +113,14 @@ export function isAffiliateLink(url: string): boolean {
 
     // Check specific affiliate networks
     for (const [network, patterns] of Object.entries(AFFILIATE_NETWORKS)) {
+      // For networks with domain restrictions (like ShareASale), only match if domain matches
+      if (patterns.domains) {
+        const isNetworkDomain = patterns.domains.some(domain => hostname.includes(domain));
+        if (!isNetworkDomain) {
+          continue; // Skip this network if domain doesn't match
+        }
+      }
+      
       // Check params
       if (patterns.params.some(param => urlObj.searchParams.has(param))) {
         return true;
@@ -136,6 +169,11 @@ export function getAffiliateLinkInfo(url: string): AffiliateLinkInfo {
     let detectedNetwork: string | undefined;
     let confidence: 'high' | 'medium' | 'low' = 'low';
 
+    // Exclude social sharing URLs
+    if (SOCIAL_SHARING_DOMAINS.some(domain => hostname.includes(domain))) {
+      return { isAffiliate: false, confidence: 'low' };
+    }
+
     // Check for affiliate query parameters
     for (const param of AFFILIATE_PARAMS) {
       if (urlObj.searchParams.has(param)) {
@@ -155,6 +193,14 @@ export function getAffiliateLinkInfo(url: string): AffiliateLinkInfo {
 
     // Check specific affiliate networks
     for (const [network, patterns] of Object.entries(AFFILIATE_NETWORKS)) {
+      // For networks with domain restrictions (like ShareASale), only match if domain matches
+      if (patterns.domains) {
+        const isNetworkDomain = patterns.domains.some(domain => hostname.includes(domain));
+        if (!isNetworkDomain) {
+          continue; // Skip this network if domain doesn't match
+        }
+      }
+      
       const hasNetworkParam = patterns.params.some(param => {
         if (urlObj.searchParams.has(param)) {
           detectedParams.push(param);

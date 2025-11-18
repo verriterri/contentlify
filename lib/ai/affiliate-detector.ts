@@ -15,6 +15,15 @@ export interface DetectedProduct {
   estimatedValue?: number; // Estimated item price in USD (for physical products especially)
 }
 
+export interface LinkHealth {
+  status: 'healthy' | 'broken' | 'redirect' | 'timeout' | 'unknown';
+  statusCode?: number;
+  finalUrl?: string;
+  isStillAffiliate?: boolean;
+  error?: string;
+  checkedAt: string; // ISO date string
+}
+
 export interface AffiliateOpportunity {
   product: string;
   category: string;
@@ -24,6 +33,7 @@ export interface AffiliateOpportunity {
   isAlreadyLinked: boolean;
   linkedUrl?: string;
   linkAnchorText?: string;
+  linkHealth?: LinkHealth; // Health of existing link
   estimatedValue?: number; // Estimated item price in USD (for sorting high-value items first)
   affiliatePrograms: Array<{
     name: string;
@@ -31,6 +41,7 @@ export interface AffiliateOpportunity {
     commission: string;
     isPrimary: boolean;
     note?: string;
+    linkHealth?: LinkHealth; // Health of affiliate program link
   }>;
 }
 
@@ -346,7 +357,12 @@ ${content.substring(0, 12000)}`;
   } catch (error: any) {
     console.error('[AI Detection] Error detecting products:', error);
     console.error('[AI Detection] Error stack:', error.stack);
-    throw new Error(`Failed to detect products: ${error.message}`);
+    // Preserve original error structure for rate limit detection
+    const wrappedError: any = new Error(`Failed to detect products: ${error.message}`);
+    wrappedError.originalError = error;
+    wrappedError.status = error?.status || error?.statusCode;
+    wrappedError.code = error?.code;
+    throw wrappedError;
   }
 }
 

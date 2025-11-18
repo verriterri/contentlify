@@ -9,7 +9,7 @@ import { AffiliateOpportunity } from '@/lib/ai/affiliate-detector';
 
 /**
  * POST /api/generate-product
- * Generates a digital product from a product idea
+ * Generates an outline for a digital product from a product idea
  * 
  * Body: {
  *   productIdea: ProductIdea,
@@ -109,9 +109,9 @@ export async function POST(req: NextRequest) {
       ? (analysis.affiliate_opportunities || [])
       : [];
 
-    // Generate product content
+    // Generate outline
     try {
-      const generatedContent = await generateProduct({
+      const generatedOutline = await generateProduct({
         productIdea: productIdea as ProductIdea,
         originalContent: analysis.content || '',
         affiliateOpportunities,
@@ -120,12 +120,12 @@ export async function POST(req: NextRequest) {
 
       // Override title if provided
       if (productTitle) {
-        generatedContent.title = productTitle;
+        generatedOutline.title = productTitle;
       }
 
-      // Generate PDF
+      // Generate PDF for the outline
       const pdfResult = await generatePDF({
-        content: generatedContent,
+        content: generatedOutline,
         template,
         userBranding,
         subscriptionTier,
@@ -133,23 +133,23 @@ export async function POST(req: NextRequest) {
       });
 
       // Upload PDF to storage
-      const pdfFileName = `${sanitizeFileName(generatedContent.title)}.pdf`;
+      const pdfFileName = `${sanitizeFileName(generatedOutline.title)}-outline.pdf`;
       let fileUrl: string | null = null;
 
       try {
         fileUrl = await uploadPDFToStorage(pdfResult.buffer, pdfFileName, user.id);
       } catch (uploadError) {
-        console.error('[Generate Product] Failed to upload PDF:', uploadError);
+        console.error('[Generate Outline] Failed to upload PDF:', uploadError);
         // Continue without file URL
       }
 
-      // Save product to database
+      // Save outline to database (still using generated_products table)
       const productData = {
         user_id: user.id,
         analysis_id: analysisId,
         product_type: productIdea.type,
-        title: generatedContent.title,
-        content: JSON.stringify(generatedContent), // Store as JSON
+        title: generatedOutline.title,
+        content: JSON.stringify(generatedOutline), // Store as JSON
         template_used: templateId,
         file_url: fileUrl,
       };
@@ -161,21 +161,21 @@ export async function POST(req: NextRequest) {
         .single();
 
       if (saveError) {
-        console.error('[Generate Product] Error saving product:', saveError);
-        // Return product even if save fails
+        console.error('[Generate Outline] Error saving outline:', saveError);
+        // Return outline even if save fails
       }
 
       return NextResponse.json({
         success: true,
-        product: generatedContent,
+        outline: generatedOutline,
         productId: savedProduct?.id,
         fileUrl,
         pdfSize: pdfResult.size,
       });
     } catch (error: any) {
-      console.error('[Generate Product] Error:', error);
+      console.error('[Generate Outline] Error:', error);
       return NextResponse.json(
-        { error: `Failed to generate product: ${error.message}` },
+        { error: `Failed to generate outline: ${error.message}` },
         { status: 500 }
       );
     }

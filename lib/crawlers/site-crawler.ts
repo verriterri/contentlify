@@ -179,8 +179,68 @@ export async function crawlSiteForUrls(
 }
 
 /**
+ * Recursively parse a sitemap file and extract all content URLs
+ * Handles both regular sitemaps and sitemap indexes
+ */
+async function parseSitemap(sitemapUrl: string, normalizedRoot: string, visited: Set<string> = new Set()): Promise<string[]> {
+  // Prevent infinite loops
+  if (visited.has(sitemapUrl)) {
+    return [];
+  }
+  visited.add(sitemapUrl);
+
+  try {
+    const response = await fetch(sitemapUrl, {
+      headers: {
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+      },
+      signal: AbortSignal.timeout(10000), // 10 second timeout
+    });
+
+    if (!response.ok) {
+      return [];
+    }
+
+    const xml = await response.text();
+    const $ = cheerio.load(xml, { xmlMode: true });
+
+    // Check if this is a sitemap index (contains <sitemap> tags)
+    const sitemapIndexUrls = $('sitemap > loc').map((_, el) => $(el).text().trim()).get().filter(Boolean);
+    
+    if (sitemapIndexUrls.length > 0) {
+      // This is a sitemap index - recursively fetch each referenced sitemap
+      const allUrls: string[] = [];
+      for (const indexUrl of sitemapIndexUrls) {
+        const urls = await parseSitemap(indexUrl, normalizedRoot, visited);
+        allUrls.push(...urls);
+      }
+      return allUrls;
+    } else {
+      // This is a regular sitemap - extract content URLs
+      const urls: string[] = [];
+      $('url > loc').each((_, el) => {
+        const url = $(el).text().trim();
+        if (url) {
+          // Only include URLs that are under the root URL path
+          // Exclude sitemap files themselves
+          if (isUrlUnderRoot(url, normalizedRoot) && !url.toLowerCase().includes('sitemap')) {
+            urls.push(url);
+          }
+        }
+      });
+      return urls;
+    }
+  } catch (error) {
+    console.log(`[Sitemap Parser] Error parsing ${sitemapUrl}:`, error);
+    return [];
+  }
+}
+
+/**
  * Try to get URLs from sitemap.xml first (more efficient)
  * Only returns URLs that are under the root URL path
+ * Handles sitemap indexes by recursively fetching referenced sitemaps
  */
 export async function getUrlsFromSitemap(rootUrl: string): Promise<string[]> {
   const sitemapUrls = [
@@ -190,34 +250,16 @@ export async function getUrlsFromSitemap(rootUrl: string): Promise<string[]> {
   ];
 
   const normalizedRoot = normalizeUrl(rootUrl);
+  const visited = new Set<string>();
 
   for (const sitemapUrl of sitemapUrls) {
     try {
-      const response = await fetch(sitemapUrl, {
-        headers: {
-          'User-Agent':
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-        },
-      });
-
-      if (response.ok) {
-        const xml = await response.text();
-        const $ = cheerio.load(xml, { xmlMode: true });
-
-        const urls: string[] = [];
-        $('url > loc, sitemap > loc').each((_, el) => {
-          const url = $(el).text().trim();
-          if (url) {
-            // Only include URLs that are under the root URL path
-            if (isUrlUnderRoot(url, normalizedRoot)) {
-              urls.push(url);
-            }
-          }
-        });
-
-        if (urls.length > 0) {
-          return urls;
-        }
+      const urls = await parseSitemap(sitemapUrl, normalizedRoot, visited);
+      if (urls.length > 0) {
+        // Deduplicate URLs
+        const uniqueUrls = Array.from(new Set(urls));
+        console.log(`[Sitemap Parser] Found ${uniqueUrls.length} unique URLs from sitemap`);
+        return uniqueUrls;
       }
     } catch {
       // Try next sitemap

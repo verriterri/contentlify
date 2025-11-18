@@ -1,6 +1,10 @@
 import { SignupForm } from '@/components/auth/SignupForm'
 
-export default function SignupPage() {
+export default function SignupPage({
+  searchParams,
+}: {
+  searchParams?: { redirect?: string }
+}) {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
@@ -15,7 +19,7 @@ export default function SignupPage() {
             Join thousands of creators monetizing their content
           </p>
         </div>
-        <SignupForm />
+        <SignupForm redirect={searchParams?.redirect} />
       </div>
     </div>
   )

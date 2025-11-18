@@ -27,6 +27,15 @@ export interface ContentAnalysis {
   created_at: string
 }
 
+export interface LinkHealth {
+  status: 'healthy' | 'broken' | 'redirect' | 'timeout' | 'unknown'
+  statusCode?: number
+  finalUrl?: string
+  isStillAffiliate?: boolean
+  error?: string
+  checkedAt: string
+}
+
 export interface AffiliateOpportunity {
   product: string
   category: string
@@ -34,12 +43,17 @@ export interface AffiliateOpportunity {
   confidence: number
   relevance?: number
   isAlreadyLinked: boolean
+  linkedUrl?: string
+  linkAnchorText?: string
+  linkHealth?: LinkHealth
   estimatedValue?: number // Estimated item price in USD (for sorting high-value items first)
   affiliatePrograms: {
     name: string
     url: string
     commission: string
     isPrimary: boolean
+    note?: string
+    linkHealth?: LinkHealth
   }[]
 }
 

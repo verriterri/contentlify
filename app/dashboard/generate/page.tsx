@@ -4,8 +4,6 @@ import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { TemplateSelector } from '@/components/templates/TemplateSelector';
-import { ProductPreview } from '@/components/product/ProductPreview';
-import { ProductEditor } from '@/components/product/ProductEditor';
 import { ExportOptions } from '@/components/export/ExportOptions';
 import { ProductIdea } from '@/lib/ai/product-ideas-generator';
 import { GeneratedProductContent } from '@/lib/ai/product-generator';
@@ -124,9 +122,9 @@ export default function GeneratePage() {
       // Simulate progress updates
       const progressSteps = [
         { delay: 1000, message: 'Analyzing your content...' },
-        { delay: 3000, message: 'Structuring the product...' },
-        { delay: 5000, message: 'Adding affiliate opportunities...' },
-        { delay: 7000, message: 'Formatting with your template...' },
+        { delay: 3000, message: 'Creating outline structure...' },
+        { delay: 5000, message: 'Organizing key points...' },
+        { delay: 7000, message: 'Finalizing outline...' },
         { delay: 9000, message: 'Almost ready...' },
       ];
 
@@ -160,31 +158,26 @@ export default function GeneratePage() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to generate product');
+        throw new Error(data.error || 'Failed to generate outline');
       }
 
-      setGeneratedContent(data.product);
+      setGeneratedContent(data.outline || data.product); // Support both for compatibility
       setGeneratedProductId(data.productId);
       setStep('preview');
       setLoading(false);
     } catch (err: any) {
-      console.error('Error generating product:', err);
-      setError(err.message || 'Failed to generate product');
+      console.error('Error generating outline:', err);
+      setError(err.message || 'Failed to generate outline');
       setStep('customize');
       setLoading(false);
     }
   };
 
-  const handleSaveEdit = (editedContent: GeneratedProductContent) => {
-    setGeneratedContent(editedContent);
-    setStep('preview');
-  };
-
   const handleSaveToLibrary = async () => {
     if (!generatedContent || !generatedProductId) return;
 
-    // Product is already saved during generation, just show success
-    alert('Product saved to your library!');
+    // Outline is already saved during generation, just show success
+    alert('Outline saved to your library!');
   };
 
   if (loadingAnalyses) {
@@ -199,9 +192,9 @@ export default function GeneratePage() {
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Generate Product</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Generate Outline</h1>
           <p className="mt-2 text-gray-600">
-            Transform your content into a digital product ready to sell
+            Create a downloadable outline to guide your digital product development
           </p>
         </div>
 
@@ -296,7 +289,7 @@ export default function GeneratePage() {
               {/* Product Title */}
               <div className="mb-6">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Product Title
+                  Outline Title
                 </label>
                 <input
                   type="text"
@@ -368,11 +361,11 @@ export default function GeneratePage() {
                     className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
                   />
                   <span className="text-sm font-medium text-gray-700">
-                    Include affiliate links in product
+                    Note affiliate opportunities in outline
                   </span>
                 </label>
                 <p className="text-xs text-gray-500 mt-1 ml-7">
-                  Automatically weaves in relevant affiliate opportunities from your analysis
+                  Include notes on where affiliate links could be placed in the final product
                 </p>
               </div>
 
@@ -386,9 +379,16 @@ export default function GeneratePage() {
                 </button>
                 <button
                   onClick={handleGenerate}
-                  className="px-6 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700"
+                  className="px-6 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 flex items-center space-x-2"
                 >
-                  Generate Product
+                  <svg
+                    className="w-5 h-5"
+                    fill="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z"/>
+                  </svg>
+                  <span>Generate Outline</span>
                 </button>
               </div>
             </div>
@@ -399,7 +399,7 @@ export default function GeneratePage() {
         {step === 'generating' && (
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
             <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-purple-600 mx-auto mb-4"></div>
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">Generating Your Product</h2>
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">Generating Your Outline</h2>
             <p className="text-gray-600">{progressMessage}</p>
             <div className="mt-8 max-w-md mx-auto">
               <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
@@ -412,16 +412,45 @@ export default function GeneratePage() {
           </div>
         )}
 
-        {/* Step 4: Preview */}
+        {/* Step 4: Preview & Download */}
         {step === 'preview' && generatedContent && (
           <div className="space-y-6">
-            <ProductPreview
-              content={generatedContent}
-              onEdit={() => setStep('edit')}
-            />
-
-            {/* Export Options */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">Your Outline is Ready!</h2>
+              <p className="text-gray-600 mb-6">
+                Download your outline below. Use it as a guide to develop your digital product.
+              </p>
+              
+              <div className="mb-6">
+                <h3 className="text-lg font-medium text-gray-900 mb-3">Outline Structure</h3>
+                <div className="space-y-3">
+                  <div className="p-3 bg-gray-50 rounded-lg">
+                    <h4 className="font-medium text-gray-900">{generatedContent.title}</h4>
+                  </div>
+                  {generatedContent.sections.map((section, idx) => (
+                    <div key={idx} className="p-3 bg-gray-50 rounded-lg border-l-4 border-purple-500">
+                      <h4 className="font-medium text-gray-900 mb-1">{section.title}</h4>
+                      {section.content && (
+                        <p className="text-sm text-gray-600 mb-2">{section.content}</p>
+                      )}
+                      {section.items && section.items.length > 0 && (
+                        <ul className="text-sm text-gray-700 space-y-1 ml-4">
+                          {section.items.slice(0, 5).map((item, itemIdx) => (
+                            <li key={itemIdx} className="list-disc">{item}</li>
+                          ))}
+                          {section.items.length > 5 && (
+                            <li className="text-gray-500 italic">
+                              ... and {section.items.length - 5} more items
+                            </li>
+                          )}
+                        </ul>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Export Options */}
               <ExportOptions
                 content={generatedContent}
                 template={getDefaultTemplate(selectedProductIdea?.type || 'checklist')!}
@@ -445,7 +474,7 @@ export default function GeneratePage() {
                 }}
                 className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
               >
-                Generate Another
+                Generate Another Outline
               </button>
               <div className="flex items-center space-x-3">
                 <button
@@ -463,15 +492,6 @@ export default function GeneratePage() {
               </div>
             </div>
           </div>
-        )}
-
-        {/* Step 5: Edit */}
-        {step === 'edit' && generatedContent && (
-          <ProductEditor
-            content={generatedContent}
-            onSave={handleSaveEdit}
-            onCancel={() => setStep('preview')}
-          />
         )}
       </div>
     </div>

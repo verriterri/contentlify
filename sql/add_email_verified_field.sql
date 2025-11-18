@@ -4,12 +4,17 @@
 ALTER TABLE public.users 
 ADD COLUMN IF NOT EXISTS email_verified BOOLEAN DEFAULT FALSE;
 
--- Update the trigger function to sync verification status
+-- Update the trigger function to sync verification status and grant 1 free credit
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-  INSERT INTO public.users (id, email, email_verified)
-  VALUES (NEW.id, NEW.email, COALESCE(NEW.email_confirmed_at IS NOT NULL, false))
+  INSERT INTO public.users (id, email, email_verified, credits)
+  VALUES (
+    NEW.id, 
+    NEW.email, 
+    COALESCE(NEW.email_confirmed_at IS NOT NULL, false),
+    1  -- 1 free credit for new signups to analyze 1 post
+  )
   ON CONFLICT (id) DO UPDATE
   SET email_verified = COALESCE(NEW.email_confirmed_at IS NOT NULL, false),
       email = NEW.email;

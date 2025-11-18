@@ -4,7 +4,11 @@ import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 
-export function SignupForm() {
+interface SignupFormProps {
+  redirect?: string
+}
+
+export function SignupForm({ redirect }: SignupFormProps = {}) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -56,11 +60,13 @@ export function SignupForm() {
       }
       
       // Proceed with signup
+      // Use redirect parameter if provided, otherwise default to dashboard
+      const redirectPath = redirect ? decodeURIComponent(redirect) : '/dashboard'
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/dashboard`,
+          emailRedirectTo: `${window.location.origin}${redirectPath}`,
         },
       })
 
@@ -122,7 +128,9 @@ export function SignupForm() {
         await new Promise(resolve => setTimeout(resolve, 100))
         
         // Use window.location for a full page reload to ensure middleware picks up cookies
-        window.location.href = '/dashboard'
+        // Redirect to specified path or default to dashboard
+        const redirectPath = redirect ? decodeURIComponent(redirect) : '/dashboard'
+        window.location.href = redirectPath
       }
     } catch (error: any) {
       console.error('Signup error:', error)

@@ -37,7 +37,7 @@ interface GenerateProductParams {
 }
 
 /**
- * Generate product content based on product idea, original content, and affiliate opportunities
+ * Generate product outline based on product idea, original content, and affiliate opportunities
  */
 export async function generateProduct(
   params: GenerateProductParams
@@ -66,16 +66,16 @@ export async function generateProduct(
    - How to include: Mention naturally when discussing ${opp.category} or tools related to this topic`;
           })
           .join('\n\n')
-      : 'No affiliate opportunities available - focus on creating valuable content without affiliate links.';
+      : 'No affiliate opportunities available.';
 
-  // Get product type specific prompt
-  const typeSpecificPrompt = getProductTypePrompt(productIdea.type, template);
+  // Get product type specific prompt for outlines
+  const typeSpecificPrompt = getOutlineTypePrompt(productIdea.type, template);
 
-  // Increase content limit for better context
-  const contentLimit = productIdea.type === 'ebook' ? 20000 : 15000;
+  // Content limit for context (no need for as much since we're just creating an outline)
+  const contentLimit = 10000;
   const contentToUse = originalContent.substring(0, contentLimit);
 
-  const fullPrompt = `You are creating a PREMIUM ${productIdea.type.toUpperCase()} called "${productIdea.name}".
+  const fullPrompt = `You are creating an OUTLINE for a ${productIdea.type.toUpperCase()} called "${productIdea.name}".
 
 PRODUCT DETAILS:
 - Name: ${productIdea.name}
@@ -87,85 +87,57 @@ PRODUCT DETAILS:
 
 TEMPLATE: ${template}
 
-ORIGINAL BLOG CONTENT (use this as source material - EXPAND significantly beyond this):
+ORIGINAL BLOG CONTENT (use this as source material):
 ${contentToUse}
 
-AFFILIATE OPPORTUNITIES (weave these in naturally where relevant):
+AFFILIATE OPPORTUNITIES (note where these could be included):
 ${affiliateContext}
 
 ${typeSpecificPrompt}
 
-CRITICAL QUALITY REQUIREMENTS - THESE ARE NON-NEGOTIABLE:
+OUTLINE REQUIREMENTS:
 
-1. **DO NOT just rewrite or summarize** the blog post. You MUST add significant NEW value.
+1. **STRUCTURE**: Create a clear, logical outline that guides product development
+   - Each section should have a title and brief description (1-2 sentences)
+   - Include key points or subtopics for each section
+   - Show the flow and organization of the product
 
-2. **MINIMUM CONTENT DEPTH** (strictly enforced):
-   - Each section/chapter must have AT LEAST 300-500 words of substantive content
-   - For ebooks: Each chapter needs 2-4 FULL pages of content (800-1600 words minimum)
-   - For checklists: Each item needs explanation (not just a single sentence)
-   - For workbooks: Each exercise needs multiple paragraphs of instruction PLUS questions
+2. **DEPTH**: Provide enough detail to guide development, but keep it as an outline
+   - Section descriptions should explain WHAT needs to be covered (not the full content)
+   - Key points should indicate WHAT topics to include (not full explanations)
+   - Make it actionable - someone should know what to write/create in each section
 
-3. **EXPANSION REQUIREMENTS**:
-   - Add REAL examples and case studies (create realistic scenarios)
-   - Include step-by-step frameworks or processes
-   - Provide templates, worksheets, or fillable sections
-   - Explain the "why" behind each concept, not just the "what"
-   - Add actionable implementation strategies
+3. **ORGANIZATION**:
+   - Logical flow from introduction to conclusion
+   - Clear hierarchy: Main sections → Subsections → Key points
+   - Appropriate structure for the product type
 
-4. **WRITING QUALITY**:
-   - Use SPECIFIC, CONCRETE language (avoid vague statements like "consider", "think about")
-   - Use ACTION verbs and direct instructions ("Do this", "Follow these steps", "Complete this exercise")
-   - Write in active voice
-   - Break up text with bullets, numbered lists, and subheadings
-   - Each paragraph should be 2-4 sentences maximum
+4. **AFFILIATE INTEGRATION NOTES**:
+   - Note where affiliate opportunities could naturally fit
+   - Don't force them, just suggest placement opportunities
 
-5. **STRUCTURE REQUIREMENTS**:
-   - Logical flow from one section to the next
-   - Clear transitions between concepts
-   - Comprehensive coverage - don't leave gaps
-   - Professional formatting with proper headings and subheadings
-
-6. **VALUE CHECK**: Ask yourself - "Would someone actually pay ${productIdea.suggestedPrice} for this?" If not, ADD MORE VALUE:
-   - More examples
-   - More detailed explanations
-   - More actionable steps
-   - More templates or frameworks
-   - More depth and insight
-
-7. **AFFILIATE INTEGRATION**:
-   - Only mention affiliate products when naturally relevant
-   - Don't force them into every section
-   - Provide context for WHY the product helps (not just a name-drop)
-
-FORMATTING REQUIREMENTS:
-- Use proper section/chapter titles
-- Include subheadings to break up content
-- Use bullet points and numbered lists for readability
-- Format checklists with clear checkboxes and descriptions
-- Structure content for easy scanning and navigation
-
-REMEMBER: This is a PREMIUM digital product. It must be comprehensive, valuable, and professionally written. Sparse or shallow content is unacceptable.
+REMEMBER: This is an OUTLINE - a guide for developing the product. It should show structure, organization, and key points to cover, not the full content.
 
 Return as JSON:
 {
-  "title": "Full product title",
+  "title": "Product title",
   "sections": [
     {
-      "title": "Section title (for chapters: just descriptive name, NO 'Chapter X:' prefix)",
-      "type": "heading|paragraph|list|exercise|worksheet|chapter",
-      "content": "Main content text (can be multi-paragraph for ebooks/chapters)",
-      "items": ["item1", "item2"] // Only for lists/checklists
+      "title": "Section title",
+      "type": "heading|list|exercise|worksheet|chapter",
+      "content": "Brief description of what should be covered in this section (1-2 sentences)",
+      "items": ["Key point 1", "Key point 2", "Key point 3"] // Main topics/subtopics to cover in this section
     }
   ],
   "affiliateLinks": [
     {
       "product": "Product name",
-      "context": "Brief context of where this appears",
+      "context": "Brief context",
       "affiliateProgram": {
         "name": "Program name",
         "url": "Program URL"
       },
-      "placementNote": "Where/how to include this link naturally"
+      "placementNote": "Suggested placement (e.g., 'In the tools/resources section')"
     }
   ]
 }`;
@@ -176,47 +148,36 @@ Return as JSON:
       messages: [
         {
           role: 'system',
-          content: `You are a PREMIUM content creator specializing in creating high-value digital products that people actually pay for. Your products must be:
+          content: `You are a content strategist specializing in creating OUTLINES for digital products. Your outlines help creators develop valuable products by providing clear structure and guidance.
 
-QUALITY STANDARDS (NON-NEGOTIABLE):
-- Professional grade: Ready to sell immediately, no edits needed
-- Deep value: Adds significant depth beyond source material (NOT a summary)
-- Actionable: Every section has clear, specific, implementable steps
-- Comprehensive: Thorough coverage with 300-500+ words per section/chapter minimum
-- Engaging: Uses examples, case studies, real-world scenarios, and storytelling
-- Well-structured: Logical flow with clear sections, subheadings, and transitions
+OUTLINE QUALITY STANDARDS:
+- Well-organized: Clear structure showing logical flow
+- Comprehensive: Covers all important aspects needed for the product
+- Actionable: Each section description guides what content should be created
+- Balanced: Appropriate depth for an outline (not too detailed, not too sparse)
+- Professional: Shows thought and planning
 
-CONTENT REQUIREMENTS:
-- NEVER just summarize or rewrite the original content
-- ALWAYS expand significantly: add examples, frameworks, templates, step-by-step guides
-- Include real-world scenarios and use cases (create realistic examples if needed)
-- Provide actionable takeaways readers can implement immediately
-- Create content that stands alone as valuable, even without reading the source
-
-WRITING STYLE:
-- Professional but approachable and engaging
-- Specific and concrete (avoid vague language like "consider" or "think about")
-- Use action verbs and direct instructions
-- Active voice throughout
-- Short paragraphs (2-4 sentences max)
-- Use bullets, numbered lists, and subheadings for readability
+OUTLINE REQUIREMENTS:
+- Each section needs a clear title and brief description (1-2 sentences) of what should be covered
+- Include key points/items that indicate what topics or content should be included
+- Show the structure and organization, not the full content
+- Make it easy for someone to follow the outline and develop the actual product
 
 STRUCTURE:
-- Clear hierarchy: Main sections → Subsections → Detailed content
-- Smooth transitions between sections
-- Logical progression from concept to implementation
-- Professional formatting that's easy to scan
+- Clear hierarchy: Main sections → Subsections → Key points
+- Logical flow from introduction through to conclusion
+- Appropriate for the product type (checklist, workbook, ebook, newsletter)
 
-Return only valid JSON. Ensure each section has substantial content (minimum 300 words for major sections, 150+ words for subsections).`,
+Return only valid JSON. Each section should have a title, brief description, and key points/topics to cover.`,
         },
         {
           role: 'user',
           content: fullPrompt,
         },
       ],
-      temperature: 0.5, // Lower for more focused, consistent quality output
+      temperature: 0.7, // Slightly higher for creative outline generation
       response_format: { type: 'json_object' },
-      max_tokens: 12000, // Significantly increased for comprehensive content (was 4000)
+      max_tokens: 4000, // Less tokens needed for outlines vs full content
     });
 
     const result = response.choices[0]?.message?.content;
@@ -278,59 +239,32 @@ Return only valid JSON. Ensure each section has substantial content (minimum 300
         : [],
     };
 
-    // Quality validation - check minimum content depth
+    // Quality validation for outline structure
     const qualityIssues: string[] = [];
-    let totalWords = 0;
 
+    // Check that sections have descriptions
     generatedContent.sections.forEach((section, idx) => {
-      const sectionWords = 
-        (section.content || '').split(/\s+/).length +
-        (section.items || []).reduce((sum, item) => sum + item.split(/\s+/).length, 0);
-      
-      totalWords += sectionWords;
-
-      // Check minimum content based on type
-      if (productIdea.type === 'ebook' && section.type === 'chapter') {
-        if (sectionWords < 500) {
-          qualityIssues.push(
-            `Chapter "${section.title || `Chapter ${idx + 1}`}" is too short (${sectionWords} words, minimum 500)`
-          );
-        }
-      } else if (productIdea.type === 'workbook' && section.type === 'exercise') {
-        if (sectionWords < 150) {
-          qualityIssues.push(
-            `Exercise "${section.title || `Exercise ${idx + 1}`}" is too short (${sectionWords} words, minimum 150)`
-          );
-        }
-      } else if (section.content && sectionWords < 100) {
-        // General minimum for major sections
+      if (!section.content || section.content.trim().length < 20) {
         qualityIssues.push(
-          `Section "${section.title || `Section ${idx + 1}`}" is too short (${sectionWords} words, minimum 100)`
+          `Section "${section.title || `Section ${idx + 1}`}" needs a better description (at least 20 characters)`
+        );
+      }
+      // For outlines, items are key points/topics to cover
+      if (section.type === 'list' && (!section.items || section.items.length === 0)) {
+        qualityIssues.push(
+          `Section "${section.title || `Section ${idx + 1}`}" should include key points/topics`
         );
       }
     });
 
     // Log quality metrics
-    console.log(`[Product Generator] Generated ${generatedContent.sections.length} sections`);
-    console.log(`[Product Generator] Total word count: ${totalWords}`);
-    console.log(`[Product Generator] Average words per section: ${Math.round(totalWords / generatedContent.sections.length)}`);
+    console.log(`[Product Generator] Generated outline with ${generatedContent.sections.length} sections`);
+    const totalKeyPoints = generatedContent.sections.reduce((sum, s) => sum + (s.items?.length || 0), 0);
+    console.log(`[Product Generator] Total key points: ${totalKeyPoints}`);
 
     if (qualityIssues.length > 0) {
       console.warn('[Product Generator] Quality issues detected:');
       qualityIssues.forEach(issue => console.warn(`  - ${issue}`));
-      // Note: We still return the content, but log the issues for monitoring
-      // In production, you might want to retry or flag these for review
-    }
-
-    // Check overall word count minimum
-    const minimumWords = productIdea.type === 'ebook' ? 5000 : 
-                        productIdea.type === 'workbook' ? 2000 :
-                        productIdea.type === 'checklist' ? 1500 : 1000;
-
-    if (totalWords < minimumWords) {
-      console.warn(
-        `[Product Generator] WARNING: Total word count (${totalWords}) is below recommended minimum (${minimumWords}) for ${productIdea.type}`
-      );
     }
 
     return generatedContent;
@@ -342,198 +276,138 @@ Return only valid JSON. Ensure each section has substantial content (minimum 300
 }
 
 /**
- * Get product type specific prompt instructions
+ * Get product type specific prompt instructions for outlines
  */
-function getProductTypePrompt(type: ProductIdea['type'], template: string): string {
+function getOutlineTypePrompt(type: ProductIdea['type'], template: string): string {
   switch (type) {
     case 'checklist':
-      return `CREATE A COMPREHENSIVE CHECKLIST:
+      return `CREATE A CHECKLIST OUTLINE:
 
-Requirements:
-- Include 15-25 actionable items (no fewer than 15, no more than 25)
-- Group items into logical sections with clear headings and explanations
-- Each item should have:
-  * A clear, specific, actionable statement (not vague)
-  * Detailed explanation (2-3 sentences explaining WHY and HOW)
-  * Context or tips when helpful
-  * Checkbox format: "[ ] Item description"
-- Each section should have:
-  * Section introduction (2-3 paragraphs explaining the phase/stage)
-  * All checklist items with explanations
-  * Notes or tips for that section
+Outline Requirements:
+- Structure the checklist with logical sections
+- Each section should outline:
+  * Section title and purpose
+  * Key checklist items that should be included (10-20 items per section)
+  * Brief notes on what each item should cover
 - Organize by phases/stages of the process
-- Add comprehensive introduction (300-400 words) explaining:
-  * How to use this checklist
-  * What they'll achieve by completing it
-  * Best practices for using checklists
-- Include completion section at the end with:
-  * Summary of what they've accomplished
-  * Next steps or follow-up actions
-  * Reflection questions
-- Where relevant tools/products are mentioned, note affiliate opportunities
-- Make it printable and fillable (format for PDF)
-- Use clear, scannable formatting with adequate spacing
+- Include an introduction section outline
+- Include a completion/review section outline
+- Note where affiliate opportunities could be mentioned
 
-CRITICAL: Each checklist item must be substantial and valuable, not just a single sentence. Provide explanations and context.
+For each section, provide:
+- Section title
+- Brief description (1-2 sentences) of what this section covers
+- List of key checklist items that should be included (just the item topics, not full explanations)
 
 Template Style: ${template}
-- Minimal: Simple, clean list with minimal explanations
-- Detailed: Includes tips, notes, and expanded explanations
-- Visual: Uses icons, color coding, and visual hierarchy
+- Minimal: Simple, clean structure
+- Detailed: Includes tips and explanations section
+- Visual: Visual elements and formatting considerations
 
-Structure:
-1. Introduction (how to use this checklist)
-2. Preparation section (items to prepare before starting)
-3. Main action items (grouped by logical sections)
-4. Review/completion section
-5. Resources section (with affiliate links if relevant)`;
+Outline Structure:
+1. Introduction section (describe what should be covered)
+2. Preparation section (key items to include)
+3. Main action sections (group by theme/phases)
+4. Review/completion section (key items)
+5. Resources section (note affiliate opportunities)`;
 
     case 'workbook':
-      return `CREATE AN INTERACTIVE WORKBOOK:
+      return `CREATE A WORKBOOK OUTLINE:
 
-Requirements:
-- Include comprehensive introduction (400-500 words) explaining:
-  * How to use this workbook
-  * What they'll gain from completing it
-  * How to track progress
-  * Tips for getting the most value
-- Create 5-8 distinct exercises/worksheets, each FULLY DEVELOPED:
-  * Each exercise needs 200-300 words of instruction and context
-  * Fill-in-the-blank sections with prompts and examples
-  * Reflection questions (3-5 per exercise, not just 1-2)
-  * Action planning templates with guided sections
-  * Progress tracking sections with clear metrics
-  * Self-assessment areas with scoring or rating systems
-- Each exercise MUST include:
-  * Clear instructions (2-3 paragraphs)
-  * Why this exercise matters (context and purpose)
-  * Step-by-step guidance on how to complete it
-  * Examples or sample answers where helpful
-  * Space indicators for writing (format for PDF)
-  * Follow-up questions or next steps
-- Exercises should:
-  * Build progressively on concepts from the blog post
-  * Be immediately actionable with clear outcomes
-  * Include multiple components (not just one question)
-  * Have adequate space for detailed responses
-- Add comprehensive resource list section (200-300 words) including:
-  * Recommended tools and why
-  * Affiliate products where relevant
-  * Additional reading or resources
-- Include conclusion with next steps (300-400 words):
-  * Summary of progress
-  * Implementation plan
-  * Ongoing practice recommendations
-- Format for printing (adequate spacing, lines for writing, clear sections)
-- Make it engaging and motivating with encouraging language
+Outline Requirements:
+- Structure the workbook with an introduction section
+- Outline 5-8 exercises/worksheets
+- For each exercise, provide:
+  * Exercise title
+  * Brief description of what the exercise should cover (1-2 sentences)
+  * Key components that should be included (fill-in sections, questions, templates, etc.)
+  * Topics or prompts that should be part of the exercise
+- Include a resources section outline
+- Include a conclusion/next steps section outline
 
-CRITICAL: Each exercise must be substantial (200-300 words of content) with multiple components. Simple one-question exercises are insufficient.
+For each exercise section, provide:
+- Exercise title
+- Description of what the exercise should accomplish
+- Key points/components to include (instructions, questions, templates, etc.)
 
 Template Style: ${template}
-- Professional: Corporate style, lots of whitespace, formal tone
-- Creative: Colorful, hand-drawn elements, casual tone
-- Practical: Dense, information-focused, straightforward
+- Professional: Corporate style considerations
+- Creative: Creative elements to consider
+- Practical: Practical approach considerations
 
-Structure:
-1. Introduction & How to Use This Workbook
-2. Exercise 1: [Theme] (fill-in sections, questions)
+Outline Structure:
+1. Introduction section (describe what should be covered)
+2. Exercise 1: [Theme] (describe exercise structure and components)
 3. Exercise 2: [Theme]
 4. Exercise 3: [Theme]
 ... (continue for 5-8 exercises)
-N. Resources & Recommendations (affiliate links here)
-N+1. Conclusion & Action Plan`;
+N. Resources & Recommendations (note affiliate opportunities)
+N+1. Conclusion & Action Plan (describe what should be included)`;
 
     case 'ebook':
-      return `EXPAND INTO A COMPREHENSIVE EBOOK:
+      return `CREATE AN EBOOK OUTLINE:
 
-Requirements:
-- Transform the blog post into a FULL ebook (20-30 pages of SUBSTANTIVE content)
-- Each chapter MUST be comprehensive - MINIMUM 800-1200 words per chapter
-- Add significant depth and detail beyond the original post:
-  * Expand concepts with detailed explanations and examples
-  * Add realistic case studies or real-world application scenarios
-  * Include detailed step-by-step instructions with multiple steps
-  * Provide downloadable templates, frameworks, or worksheets
-  * Explain concepts in depth with context and background
-- Structure as chapters:
-  * Introduction chapter: 600-800 words setting up the book
-  * Each content chapter: 800-1200 words minimum (2-3 full pages)
-  * Conclusion chapter: 400-600 words with action items
-  * Clear chapter titles that describe the content (DO NOT include "Chapter X:" - just the title)
-  * Logical flow with smooth transitions between chapters
-- Each chapter must include:
-  * Opening hook or story (2-3 paragraphs)
-  * Main content with subheadings breaking up sections
-  * Real examples and case studies
-  * Actionable takeaways (3-5 per chapter)
-  * Closing summary or transition to next chapter
-- Include:
-  * Table of contents
-  * Introduction chapter (why this matters, what they'll learn)
-  * 5-8 content chapters (each fully developed)
-  * Conclusion chapter (recap, action plan, next steps)
-  * Resource recommendations chapter (with affiliate links)
-- Add descriptions for images/diagrams (use [IMAGE: description] format)
-- Professional tone but engaging - use stories and examples
-- NO short or sparse chapters - every chapter must be substantial
+Outline Requirements:
+- Structure as chapters (5-8 content chapters plus intro/conclusion)
+- For each chapter, provide:
+  * Chapter title (descriptive, no "Chapter X:" prefix)
+  * Brief description of what the chapter should cover (1-2 sentences)
+  * Key topics/points that should be included in the chapter
+  * Suggested structure (subheadings, examples, case studies, etc.)
+- Logical flow and progression through chapters
+- Include introduction and conclusion chapters
 
-CRITICAL: Each chapter section must be FULLY DEVELOPED with examples, explanations, and actionable content. Short or sparse chapters are unacceptable.
+For each chapter section, provide:
+- Chapter title (just the descriptive name)
+- Description of what the chapter should accomplish
+- Key topics/points to cover in the chapter
 
 Template Style: ${template}
-- Modern: Sans-serif fonts, image-heavy, contemporary design
-- Classic: Serif fonts, traditional book layout, formal tone
-- Magazine: Multi-column sections, editorial style, visual breaks
+- Modern: Contemporary design considerations
+- Classic: Traditional book layout considerations
+- Magazine: Editorial style considerations
 
-Structure:
-1. Cover Page / Title Page
-2. Table of Contents
-3. Introduction Chapter
-4. [Topic from blog, expanded] (just the topic name, no "Chapter X:" prefix)
-5. [Related topic, expanded] (just the topic name, no "Chapter X:" prefix)
+Outline Structure:
+1. Introduction Chapter (describe what should be covered)
+2. Chapter: [Topic] (describe content and key points)
+3. Chapter: [Related Topic] (describe content and key points)
 ... (continue for 5-8 chapters)
-N. Resource Recommendations Chapter (affiliate links here)
-N+1. Conclusion & Action Items
-
-CRITICAL: Section/chapter titles should be descriptive names only (e.g., "The Psychology of Confidence in Sports") - DO NOT include "Chapter 1:", "Chapter 2:", etc. in the title field. We will add chapter numbers programmatically.`;
+N. Resource Recommendations Chapter (note affiliate opportunities)
+N+1. Conclusion Chapter (describe what should be included)`;
 
     case 'newsletter':
-      return `CREATE A NEWSLETTER EDITION:
+      return `CREATE A NEWSLETTER OUTLINE:
 
-Requirements:
-- Engaging subject line (compelling, 50 characters max)
-- Preview text (100 characters max - appears in email client)
-- Personal introduction (2-3 paragraphs, conversational tone)
-- Main content (formatted for email):
-  * Break into short paragraphs (2-3 sentences each)
-  * Use subheadings to break up content
-  * Include key takeaways in bullet points
-  * Make it scannable and easy to read on mobile
-- Key Takeaways section (3-5 main points)
-- Recommended Tools/Products section (2-3 affiliate products):
-  * Brief description of each
-  * Why the reader should check it out
-  * Natural affiliate link placement
-- Call to action (relevant to the content)
-- P.S. section (personal touch, teaser for next newsletter)
-- Keep total length reasonable for email (1000-2000 words)
+Outline Requirements:
+- Structure the newsletter with key sections
+- For each section, provide:
+  * Section title/type
+  * Brief description of what should be covered
+  * Key points or topics to include
+- Note tone and formatting considerations
+
+For each section, provide:
+- Section name/type
+- Description of what should be included (1-2 sentences)
+- Key points/topics to cover
 
 Template Style: ${template}
-- Plain Text: No formatting, email-safe, works everywhere
-- Styled: HTML template with brand colors, proper formatting
-- Digest: Bullet points, quick reads, link roundup format
+- Plain Text: Plain text email considerations
+- Styled: HTML/styled email considerations
+- Digest: Digest format considerations
 
-Structure:
-1. Subject Line
-2. Preview Text
-3. Greeting / Introduction
-4. Main Content (with subheadings)
-5. Key Takeaways (bulleted)
-6. Recommended Products (2-3 with affiliate links)
-7. Call to Action
-8. Closing / P.S.`;
+Outline Structure:
+1. Subject Line (describe what it should convey)
+2. Preview Text (describe what it should convey)
+3. Introduction/Greeting (describe tone and content)
+4. Main Content Sections (describe topics and structure)
+5. Key Takeaways (note key points to include)
+6. Recommended Products (note affiliate opportunities)
+7. Call to Action (describe what it should be)
+8. Closing/P.S. (describe what should be included)`;
 
     default:
-      return `Create a comprehensive ${type} based on the blog content. Make it valuable, actionable, and professionally formatted. Include affiliate opportunities naturally where relevant.`;
+      return `Create an outline for a ${type} based on the blog content. The outline should show the structure, organization, and key points to cover. Include notes on where affiliate opportunities could be mentioned.`;
   }
 }
 

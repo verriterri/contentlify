@@ -148,17 +148,17 @@ function getTemplatePreviewColor(template: Template, colorType: 'primary' | 'sec
 function getTemplatePreviewPattern(template: Template): string {
   if ('layout' in template) {
     const layout = template.layout as any;
-    if (layout.structure?.includes('column')) return '📄 Multi-column';
-    if (layout.structure?.includes('icon')) return '🎨 Visual';
-    if (layout.structure?.includes('compact')) return '📋 Compact';
+    if (layout.structure?.includes('column')) return 'Multi-column';
+    if (layout.structure?.includes('icon')) return 'Visual';
+    if (layout.structure?.includes('compact')) return 'Compact';
   }
   
   // Default based on name
-  if (template.name.toLowerCase().includes('minimal')) return '✨ Minimal';
-  if (template.name.toLowerCase().includes('creative')) return '🎨 Creative';
-  if (template.name.toLowerCase().includes('professional')) return '💼 Professional';
+  if (template.name.toLowerCase().includes('minimal')) return 'Minimal';
+  if (template.name.toLowerCase().includes('creative')) return 'Creative';
+  if (template.name.toLowerCase().includes('professional')) return 'Professional';
   
-  return '📄 Preview';
+  return 'Preview';
 }
 
 /**
