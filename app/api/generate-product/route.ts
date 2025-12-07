@@ -157,7 +157,7 @@ export async function POST(req: NextRequest) {
         title: generatedOutline.title,
         content: JSON.stringify(generatedOutline), // Store as JSON
         template_used: null, // Templates not used for outlines
-        file_url: null, // No PDF file URL
+        file_url: null, // No file URL (files are generated on-demand via export)
         credits_used: creditsNeeded,
       };
 

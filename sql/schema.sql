@@ -128,7 +128,7 @@ CREATE TABLE public.generated_products (
   title TEXT NOT NULL,
   content JSONB NOT NULL, -- stores outline structure as JSON
   template_used TEXT,
-  file_url TEXT, -- URL to generated PDF if exported
+  file_url TEXT, -- URL to generated file if exported
   credits_used INTEGER NOT NULL DEFAULT 1, -- credits used for outline generation
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
