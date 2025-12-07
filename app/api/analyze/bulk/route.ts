@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
-import { scrapeUrl } from '@/lib/scrapers/url-scraper';
+import { scrapeUrl, extractStructuredContent } from '@/lib/scrapers/url-scraper';
 import { detectAffiliateOpportunities } from '@/lib/ai/affiliate-detector';
 import { generateProductIdeas } from '@/lib/ai/product-ideas-generator';
 import { calculateCreditsForAnalysis, getAnalyzedWordCount } from '@/lib/utils/credit-calculator';
 import { chunkContent, combineAnalysisResults, sortProductIdeasBySellability } from '@/lib/utils/content-chunker';
+import { auditContent } from '@/lib/audit/content-auditor';
 
 /**
  * POST /api/analyze/bulk
@@ -110,7 +111,9 @@ export async function POST(req: NextRequest) {
       for (const url of pageUrls) {
         const page = scanData.pages.find((p: any) => p.url === url);
         if (page) {
-          const chargeExtra = preferences?.[url] ?? globalChargeExtra;
+          // Handle both old format (boolean) and new format (object with chargeExtra and primaryKeyword)
+          const pref = preferences?.[url];
+          const chargeExtra = typeof pref === 'boolean' ? pref : (pref?.chargeExtra ?? globalChargeExtra);
           const credits = calculateCreditsForAnalysis(page.wordCount, chargeExtra);
           totalCreditsNeeded += credits;
           pageMetadata.push({ url, wordCount: page.wordCount });
@@ -195,7 +198,7 @@ async function processBulkAnalysis(
   jobId: string,
   userId: string,
   pageUrls: string[],
-  preferences: Record<string, boolean>,
+  preferences: Record<string, boolean | { chargeExtra: boolean; primaryKeyword?: string }>,
   globalChargeExtra: boolean,
   supabase: any
 ) {
@@ -236,8 +239,11 @@ async function processBulkAnalysis(
           continue;
         }
 
-        // Determine charge preference
-        const chargeExtra = preferences[url] ?? globalChargeExtra;
+        // Determine charge preference and primary keyword
+        // Handle both old format (boolean) and new format (object with chargeExtra and primaryKeyword)
+        const pref = preferences[url];
+        const chargeExtra = typeof pref === 'boolean' ? pref : (pref?.chargeExtra ?? globalChargeExtra);
+        const primaryKeyword = typeof pref === 'object' && pref?.primaryKeyword ? pref.primaryKeyword : undefined;
 
         // Calculate credits needed
         const creditsNeeded = calculateCreditsForAnalysis(scrapeResult.wordCount, chargeExtra);
@@ -316,6 +322,37 @@ async function processBulkAnalysis(
           console.error(`[Bulk Analysis] Error generating product ideas for ${url}:`, error);
         }
 
+        // Generate SEO/AEO audit
+        let auditResult: any = null;
+        try {
+          // Fetch HTML for audit (separate from scraping)
+          const htmlResponse = await fetch(url, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+              Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            },
+            signal: AbortSignal.timeout(15000),
+          });
+
+          if (htmlResponse.ok) {
+            const html = await htmlResponse.text();
+            const structuredContent = await extractStructuredContent(url, html, primaryKeyword);
+
+            // Run audit
+            auditResult = await auditContent(structuredContent, url, {
+              enabled: true,
+              skipBrokenLinkCheck: false,
+            });
+
+            console.log(`[Bulk Analysis] Audit complete for ${url}. Score: ${auditResult.score}/100`);
+          } else {
+            console.log(`[Bulk Analysis] Failed to fetch HTML for audit for ${url}, skipping...`);
+          }
+        } catch (error: any) {
+          console.error(`[Bulk Analysis] Error running audit for ${url}:`, error);
+          // Don't fail the entire analysis if audit fails
+        }
+
         // Save analysis
         const { error: saveError } = await supabase
           .from('content_analyses')
@@ -347,6 +384,19 @@ async function processBulkAnalysis(
               estimatedTime: idea.estimatedTime,
               targetAudience: idea.targetAudience,
             })),
+            seo_audit: auditResult ? {
+              score: auditResult.score,
+              tier1Passed: auditResult.tier1Passed,
+              tier1Total: auditResult.tier1Total,
+              tier2Passed: auditResult.tier2Passed,
+              tier2Total: auditResult.tier2Total,
+              criticalIssues: auditResult.criticalIssues,
+              warnings: auditResult.warnings,
+              optimizations: auditResult.optimizations,
+              recommendations: auditResult.recommendations,
+              checks: auditResult.checks,
+              analyzedAt: auditResult.analyzedAt,
+            } : null,
             status: 'completed',
           });
 

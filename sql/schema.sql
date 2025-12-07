@@ -114,6 +114,7 @@ CREATE TABLE public.content_analyses (
   credits_used INTEGER NOT NULL DEFAULT 1, -- credits used for this analysis
   affiliate_opportunities JSONB DEFAULT '[]'::jsonb,
   product_ideas JSONB DEFAULT '[]'::jsonb,
+  seo_audit JSONB, -- SEO/AEO content audit results
   status TEXT NOT NULL DEFAULT 'processing' CHECK (status IN ('processing', 'completed', 'failed')),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
   deleted_at TIMESTAMP WITH TIME ZONE -- soft delete

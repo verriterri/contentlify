@@ -91,6 +91,7 @@ export async function POST(request: NextRequest) {
         existingLinksCount: scrapeResult.existingLinks.length,
         existingLinks: scrapeResult.existingLinks.slice(0, 10), // First 10 links
       },
+      linkDetails: scrapeResult.linkDetails || [],
       affiliateOpportunities: affiliateOpportunities.map((opp) => ({
         product: opp.product,
         category: opp.category,

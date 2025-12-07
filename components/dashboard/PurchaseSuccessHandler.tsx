@@ -1,14 +1,13 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 
 interface PurchaseSuccessHandlerProps {
   initialCredits: number
 }
 
 export function PurchaseSuccessHandler({ initialCredits }: PurchaseSuccessHandlerProps) {
-  const router = useRouter()
   const searchParams = useSearchParams()
   const purchaseSuccess = searchParams?.get('purchase') === 'success'
   
@@ -21,7 +20,8 @@ export function PurchaseSuccessHandler({ initialCredits }: PurchaseSuccessHandle
       return
     }
     let pollCount = 0
-    const maxPolls = 20 // Poll for up to 20 seconds (20 attempts * 1 second)
+    const maxPolls = 30 // Poll for up to 30 seconds (30 attempts * 1 second)
+    let pollTimeout: NodeJS.Timeout | null = null
     
     const pollCredits = async () => {
       try {
@@ -30,13 +30,15 @@ export function PurchaseSuccessHandler({ initialCredits }: PurchaseSuccessHandle
           const data = await response.json()
           const newCredits = data.credits || 0
           
-          // If credits have increased, stop polling and refresh page after a moment
-          if (newCredits > initialCredits) {
+          // If credits have changed (increased), stop polling and reload page immediately
+          // Check for any change, not just increase, in case of edge cases
+          if (newCredits !== initialCredits) {
             setPolling(false)
-            // Wait a moment to show success message, then refresh
-            setTimeout(() => {
-              router.refresh()
-            }, 2000)
+            if (pollTimeout) clearTimeout(pollTimeout)
+            // Reload page to show updated credits everywhere (remove query param first)
+            const url = new URL(window.location.href)
+            url.searchParams.delete('purchase')
+            window.location.href = url.toString()
             return
           }
         }
@@ -47,25 +49,24 @@ export function PurchaseSuccessHandler({ initialCredits }: PurchaseSuccessHandle
       pollCount++
       if (pollCount < maxPolls && polling) {
         // Poll every second
-        setTimeout(pollCredits, 1000)
+        pollTimeout = setTimeout(pollCredits, 1000)
       } else {
         setPolling(false)
-        // If we've polled max times, refresh anyway (webhook might have processed)
-        setTimeout(() => {
-          router.refresh()
-        }, 1000)
+        // If we've polled max times, reload anyway (webhook might have processed)
+        // Remove the purchase parameter so we don't poll again
+        const url = new URL(window.location.href)
+        url.searchParams.delete('purchase')
+        window.location.href = url.toString()
       }
     }
 
-    // Start polling after a short delay to allow webhook to process
-    const timeout = setTimeout(() => {
-      pollCredits()
-    }, 1000)
+    // Start polling immediately (webhook should be fast)
+    pollTimeout = setTimeout(pollCredits, 500)
 
     return () => {
-      clearTimeout(timeout)
+      if (pollTimeout) clearTimeout(pollTimeout)
     }
-  }, [initialCredits, polling, router, purchaseSuccess])
+  }, [initialCredits, polling, purchaseSuccess])
 
   if (!showSuccess || !purchaseSuccess) {
     return null

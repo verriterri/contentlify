@@ -4,6 +4,9 @@ import { useState } from 'react'
 import { AffiliateOpportunities } from './AffiliateOpportunities'
 import { ProductIdeas } from './ProductIdeas'
 import { OverviewStats } from './OverviewStats'
+import { ContentAuditReport } from './ContentAuditReport'
+import { LinkHealth } from './LinkHealth'
+import type { AuditResult } from '@/lib/audit/types'
 
 interface AnalysisResult {
   analysisId: string
@@ -11,8 +14,11 @@ interface AnalysisResult {
   title: string
   wordCount: number
   creditsUsed: number
+  linkDetails?: any[]
   affiliateOpportunities: any[]
   productIdeas: any[]
+  seoAudit?: AuditResult | null
+  crossInsights?: string[]
 }
 
 interface ResultsProps {
@@ -20,7 +26,9 @@ interface ResultsProps {
 }
 
 export function Results({ analysis }: ResultsProps) {
-  const [activeTab, setActiveTab] = useState<'overview' | 'affiliates' | 'products'>('overview')
+  const [activeTab, setActiveTab] = useState<'audit' | 'affiliates' | 'products' | 'links'>(
+    analysis.seoAudit ? 'audit' : 'affiliates'
+  )
 
   return (
     <div className="space-y-6">
@@ -28,7 +36,8 @@ export function Results({ analysis }: ResultsProps) {
       <div className="border-b border-gray-200">
         <nav className="-mb-px flex space-x-8">
           {[
-            { id: 'overview', label: 'Overview' },
+            ...(analysis.seoAudit ? [{ id: 'audit', label: 'Content Optimization Report' }] : []),
+            { id: 'links', label: 'Link Health' },
             { id: 'affiliates', label: 'Affiliate Opportunities' },
             { id: 'products', label: 'Product Ideas' },
           ].map((tab) => (
@@ -48,11 +57,14 @@ export function Results({ analysis }: ResultsProps) {
       </div>
 
       {/* Tab Content */}
-      {activeTab === 'overview' && <OverviewStats analysis={analysis} />}
+      {activeTab === 'audit' && analysis.seoAudit && (
+        <ContentAuditReport audit={analysis.seoAudit} crossInsights={analysis.crossInsights} />
+      )}
       {activeTab === 'affiliates' && (
         <AffiliateOpportunities opportunities={analysis.affiliateOpportunities} />
       )}
       {activeTab === 'products' && <ProductIdeas ideas={analysis.productIdeas} />}
+      {activeTab === 'links' && <LinkHealth pageUrl={analysis.url} linkDetails={analysis.linkDetails} />}
     </div>
   )
 }

@@ -1,5 +1,7 @@
 // Database types matching Supabase schema
 
+import type { AuditResult } from '@/lib/audit/types'
+
 export type AnalysisStatus = 'processing' | 'completed' | 'failed'
 export type ProductType = 'checklist' | 'workbook' | 'ebook' | 'newsletter'
 export type SocialPlatform = 'facebook' | 'twitter' | 'instagram' | 'pinterest'
@@ -19,6 +21,7 @@ export interface ContentAnalysis {
   content: string | null
   affiliate_opportunities: AffiliateOpportunity[]
   product_ideas: ProductIdea[]
+  seo_audit: AuditResult | null
   status: AnalysisStatus
   created_at: string
 }

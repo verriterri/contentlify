@@ -1,125 +1,163 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
-import { stripe } from '@/lib/stripe';
+import { NextRequest, NextResponse } from 'next/server'
+import { createServerClient } from '@supabase/ssr'
+import { cookies } from 'next/headers'
+import { stripe } from '@/lib/stripe'
 
 /**
- * Admin endpoint to manually fix subscription tiers
  * POST /api/admin/fix-subscription
- * Body: { email?: string, userId?: string }
- * 
- * Looks up user's Stripe subscription and updates their tier in the database
+ * Admin endpoint to manually process a purchase if webhook failed
+ * This is a fallback for when webhooks don't process correctly
  */
 export async function POST(req: NextRequest) {
   try {
-    // Get authenticated user (must be admin or the user themselves)
-    const cookieStore = await cookies();
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+    const cookieStore = await cookies()
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
     const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
       cookies: {
         get(name: string) {
-          return cookieStore.get(name)?.value;
+          return cookieStore.get(name)?.value
         },
         set(name: string, value: string, options: any) {
-          cookieStore.set(name, value, options);
+          cookieStore.set(name, value, options)
         },
         remove(name: string, options: any) {
-          cookieStore.set(name, '', options);
+          cookieStore.set(name, '', options)
         },
       },
-    });
+    })
 
     const {
-      data: { user: currentUser },
-    } = await supabase.auth.getUser();
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser()
 
-    if (!currentUser) {
+    if (authError || !user) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
-      );
+      )
     }
 
-    const body = await req.json();
-    const { email, userId } = body;
+    // Get user's most recent pending or completed purchase
+    const { data: purchases, error: purchaseError } = await supabase
+      .from('credit_purchases')
+      .select('*')
+      .eq('user_id', user.id)
+      .in('status', ['pending', 'completed'])
+      .order('created_at', { ascending: false })
+      .limit(1)
 
-    // Find the target user
-    let targetUser;
-    if (email) {
-      const { data } = await supabase
-        .from('users')
-        .select('*')
-        .eq('email', email)
-        .single();
-      targetUser = data;
-    } else if (userId) {
-      const { data } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', userId)
-        .single();
-      targetUser = data;
-    } else {
-      // Default to current user
-      const { data } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', currentUser.id)
-        .single();
-      targetUser = data;
-    }
-
-    if (!targetUser) {
+    if (purchaseError || !purchases || purchases.length === 0) {
       return NextResponse.json(
-        { error: 'User not found' },
+        { error: 'No purchases found' },
         { status: 404 }
-      );
+      )
     }
 
-    // Check if user has a Stripe customer ID
-    if (!targetUser.stripe_customer_id) {
+    const purchase = purchases[0]
+
+    // If purchase is already completed, just return current credits
+    if (purchase.status === 'completed') {
+      const { data: userData } = await supabase
+        .from('users')
+        .select('credits')
+        .eq('id', user.id)
+        .single()
+
+      return NextResponse.json({
+        message: 'Purchase already processed',
+        credits: userData?.credits || 0,
+      })
+    }
+
+    // Check Stripe session status
+    if (!purchase.stripe_session_id) {
       return NextResponse.json(
-        { error: 'User does not have a Stripe customer ID. They may not have subscribed yet.' },
+        { error: 'No Stripe session ID found' },
         { status: 400 }
-      );
+      )
     }
 
-    // Get active subscriptions from Stripe
-    const subscriptions = await stripe.subscriptions.list({
-      customer: targetUser.stripe_customer_id,
-      status: 'all',
-      limit: 10,
-    });
+    try {
+      const session = await stripe.checkout.sessions.retrieve(purchase.stripe_session_id)
 
-    if (subscriptions.data.length === 0) {
+      // If session is completed but purchase is still pending, process it
+      if (session.payment_status === 'paid' && purchase.status === 'pending') {
+        const credits = purchase.amount
+        const metadata = session.metadata || {}
+
+        // Get user data
+        const { data: userData } = await supabase
+          .from('users')
+          .select('credits, has_made_first_purchase')
+          .eq('id', user.id)
+          .single()
+
+        if (!userData) {
+          return NextResponse.json(
+            { error: 'User not found' },
+            { status: 404 }
+          )
+        }
+
+        // Check if this is the first purchase (first purchase bonus: 2x credits)
+        const isFirstPurchase = !userData.has_made_first_purchase
+        const creditsToAdd = isFirstPurchase ? credits * 2 : credits
+        const newCredits = (userData.credits || 0) + creditsToAdd
+
+        // Update user credits
+        const { error: creditError } = await supabase
+          .from('users')
+          .update({
+            credits: newCredits,
+            has_made_first_purchase: true,
+          })
+          .eq('id', user.id)
+
+        if (creditError) {
+          console.error('[Fix Purchase] Error updating credits:', creditError)
+          return NextResponse.json(
+            { error: 'Failed to update credits', details: creditError.message },
+            { status: 500 }
+          )
+        }
+
+        // Update purchase status
+        await supabase
+          .from('credit_purchases')
+          .update({
+            status: 'completed',
+            stripe_payment_intent_id: session.payment_intent as string,
+          })
+          .eq('id', purchase.id)
+
+        return NextResponse.json({
+          success: true,
+          message: 'Purchase processed successfully',
+          creditsAdded: creditsToAdd,
+          newBalance: newCredits,
+          isFirstPurchase,
+        })
+      }
+
+      return NextResponse.json({
+        message: 'Purchase not yet paid',
+        paymentStatus: session.payment_status,
+      })
+    } catch (stripeError: any) {
+      console.error('[Fix Purchase] Stripe error:', stripeError)
       return NextResponse.json(
-        { error: 'No subscriptions found for this customer' },
-        { status: 404 }
-      );
+        { error: 'Failed to check Stripe session', details: stripeError.message },
+        { status: 500 }
+      )
     }
-
-    // Get the most recent active subscription
-    const activeSubscription = subscriptions.data.find((sub) => sub.status === 'active') || subscriptions.data[0];
-    const priceId = activeSubscription.items.data[0].price.id;
-
-    // Subscription tiers no longer used - product is credit-based
-    return NextResponse.json({
-      success: true,
-      message: 'Subscription fix no longer needed. Product uses credit-based system.',
-      note: 'All features are available based on credits, not subscription tiers.',
-      user: {
-        email: targetUser.email,
-        stripe_customer_id: targetUser.stripe_customer_id,
-      },
-    });
   } catch (error: any) {
-    console.error('[Fix Subscription] Error:', error);
+    console.error('[Fix Purchase] Error:', error)
     return NextResponse.json(
       { error: error.message || 'Internal server error' },
       { status: 500 }
-    );
+    )
   }
 }
-

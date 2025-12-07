@@ -233,7 +233,6 @@ export async function POST(req: NextRequest) {
       url: string;
       title: string;
       wordCount?: number;
-      affiliateLinkCount?: number;
       publishedDate: string | null;
     }> = [];
 
@@ -269,7 +268,6 @@ export async function POST(req: NextRequest) {
               url: normalizedUrl,
               title: result.value.title,
               wordCount: result.value.wordCount,
-              affiliateLinkCount: result.value.affiliateLinkCount,
               publishedDate: result.value.publishedDate?.toISOString() || null,
             });
           } else {
@@ -348,7 +346,7 @@ export async function POST(req: NextRequest) {
           url: normalized,
           title: page.title || 'Untitled Page',
           publishedDate: page.publishedDate?.toISOString() || null,
-          // wordCount and affiliateLinkCount will be undefined (not fetched)
+          // wordCount will be undefined (not fetched)
         });
       }
     }
@@ -358,20 +356,10 @@ export async function POST(req: NextRequest) {
     // Step 4: Calculate summary statistics (only for users with credits)
     let totalWords = 0;
     let avgWordsPerPage = 0;
-    let totalAffiliateLinks = 0;
-    let underMonetizedCount = 0;
-    let pagesWithNoAffiliateLinks = 0;
     
     if (hasCredits) {
       totalWords = uniquePages.reduce((sum, page) => sum + (page.wordCount || 0), 0);
       avgWordsPerPage = uniquePages.length > 0 ? Math.round(totalWords / uniquePages.length) : 0;
-      totalAffiliateLinks = uniquePages.reduce((sum, page) => sum + (page.affiliateLinkCount || 0), 0);
-      underMonetizedCount = uniquePages.filter(
-        (page) => (page.wordCount || 0) >= 1500 && (page.affiliateLinkCount || 0) <= 2
-      ).length;
-      pagesWithNoAffiliateLinks = uniquePages.filter(
-        (page) => (page.affiliateLinkCount || 0) === 0
-      ).length;
     }
 
     // Step 5: Store scan in database
@@ -418,9 +406,6 @@ export async function POST(req: NextRequest) {
             summary: {
               totalWords,
               avgWordsPerPage,
-              totalAffiliateLinks,
-              underMonetizedCount,
-              pagesWithNoAffiliateLinks,
             },
           },
           expires_at: expiresAt,
@@ -455,9 +440,6 @@ export async function POST(req: NextRequest) {
       summary: {
         totalWords,
         avgWordsPerPage,
-        totalAffiliateLinks,
-        underMonetizedCount,
-        pagesWithNoAffiliateLinks,
       },
     };
 

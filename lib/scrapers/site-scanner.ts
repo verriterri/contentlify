@@ -1,6 +1,5 @@
 import * as cheerio from 'cheerio';
 import { getUrlsFromSitemap, crawlSiteForUrls } from '@/lib/crawlers/site-crawler';
-import { countAffiliateLinks } from './affiliate-link-detector';
 
 export interface SitePage {
   url: string;
@@ -20,7 +19,6 @@ export interface PageMetadata {
   url: string;
   title: string;
   wordCount: number;
-  affiliateLinkCount: number;
   publishedDate: Date | null;
   contentPreview: string;
 }
@@ -694,9 +692,6 @@ export async function getPageMetadata(pageUrl: string, getUserMetadata: boolean 
       .split(/\s+/)
       .filter((word) => word.length > 0).length;
 
-    // Count affiliate links
-    const affiliateLinkCount = countAffiliateLinks(html);
-
     // Try to find date in content if not found in meta tags (for users with credits)
     if (!publishedDate && mainContent) {
       // Get first 5000 chars (should contain date if it's in the content)
@@ -747,7 +742,6 @@ export async function getPageMetadata(pageUrl: string, getUserMetadata: boolean 
       url: pageUrl,
       title,
       wordCount,
-      affiliateLinkCount,
       publishedDate,
       contentPreview,
     };

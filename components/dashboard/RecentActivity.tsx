@@ -174,7 +174,7 @@ export function RecentActivity({ analyses, scans }: RecentActivityProps) {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <Link
-                          href={`/scan/${scan.id}`}
+                          href={`/dashboard/analyze?scanId=${scan.id}`}
                           className="text-primary hover:text-primary-600"
                         >
                           View

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { BulkAnalysisProgress } from '@/components/analysis/BulkAnalysisProgress'
 
@@ -10,10 +10,17 @@ export default function BulkAnalysisPage() {
   const [jobId, setJobId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const hasStarted = useRef(false)
 
   useEffect(() => {
+    // Prevent multiple calls (e.g., React Strict Mode double-rendering)
+    if (hasStarted.current) {
+      return
+    }
+
     const startBulkAnalysis = async () => {
       try {
+        hasStarted.current = true
         // Get parameters from URL
         const scanId = searchParams?.get('scanId')
         const pagesParam = searchParams?.get('pages')
@@ -72,6 +79,7 @@ export default function BulkAnalysisPage() {
         console.error('[Bulk Analysis] Error:', err)
         setError(err.message || 'An error occurred while starting the analysis')
         setLoading(false)
+        hasStarted.current = false // Reset on error so user can retry
       }
     }
 

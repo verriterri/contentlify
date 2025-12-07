@@ -6,7 +6,6 @@ interface Page {
   url: string
   title: string
   wordCount: number
-  affiliateLinkCount: number
   publishedDate: string | null
   estimatedValue?: number // Total estimated value from analysis (sum of all opportunities)
   category?: string // Primary category from analysis (mapped to standard category)
@@ -22,6 +21,8 @@ interface PostSelectionTableProps {
   onChargeExtraChange: (prefs: Map<string, boolean>) => void
   globalChargeExtra: boolean
   hasCredits: boolean
+  primaryKeywords: Map<string, string>
+  onPrimaryKeywordsChange: (keywords: Map<string, string>) => void
 }
 
 const POSTS_PER_PAGE = 50
@@ -73,6 +74,8 @@ export function PostSelectionTable({
   onChargeExtraChange,
   globalChargeExtra,
   hasCredits,
+  primaryKeywords,
+  onPrimaryKeywordsChange,
 }: PostSelectionTableProps) {
   const [lastSelectedIndex, setLastSelectedIndex] = useState<number | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
@@ -88,12 +91,45 @@ export function PostSelectionTable({
   const endIndex = startIndex + POSTS_PER_PAGE
   const paginatedPosts = posts.slice(startIndex, endIndex)
 
+  // Helper function to get first 3 words from title, excluding stop words
+  const getFirstThreeWords = (title: string): string => {
+    // Common stop words to exclude
+    const stopWords = new Set([
+      'a', 'an', 'and', 'are', 'as', 'at', 'be', 'by', 'for', 'from',
+      'has', 'he', 'in', 'is', 'it', 'its', 'of', 'on', 'that', 'the',
+      'to', 'was', 'will', 'with', 'my', 'your', 'our', 'their', 'this',
+      'these', 'those', 'i', 'you', 'we', 'they', 'me', 'him', 'her', 'us',
+      'them', 'what', 'which', 'who', 'when', 'where', 'why', 'how', 'can',
+      'could', 'should', 'would', 'may', 'might', 'must', 'shall', 'the'
+    ])
+    
+    const words = title.trim().split(/\s+/).filter(word => {
+      // Remove empty strings and stop words (case-insensitive)
+      const lowerWord = word.toLowerCase().replace(/[^\w]/g, '') // Remove punctuation
+      return word.length > 0 && !stopWords.has(lowerWord)
+    })
+    
+    return words.slice(0, 3).join(' ')
+  }
+
   const toggleSelection = (url: string, index: number) => {
     const newSelected = new Set(selectedUrls)
-    if (newSelected.has(url)) {
+    const isCurrentlySelected = newSelected.has(url)
+    
+    if (isCurrentlySelected) {
       newSelected.delete(url)
     } else {
       newSelected.add(url)
+      // Auto-populate primary keyword with first 3 words of title if not already set
+      const page = posts.find(p => p.url === url)
+      if (page && !primaryKeywords.has(url)) {
+        const autoKeyword = getFirstThreeWords(page.title)
+        if (autoKeyword) {
+          const newKeywords = new Map(primaryKeywords)
+          newKeywords.set(url, autoKeyword)
+          onPrimaryKeywordsChange(newKeywords)
+        }
+      }
     }
     setLastSelectedIndex(index)
     onSelectionChange(newSelected)
@@ -171,7 +207,21 @@ export function PostSelectionTable({
                   checked={selectedUrls.size === posts.length && posts.length > 0}
                   onChange={(e) => {
                     if (e.target.checked) {
-                      onSelectionChange(new Set(posts.map((p) => p.url)))
+                      const allUrls = new Set(posts.map((p) => p.url))
+                      onSelectionChange(allUrls)
+                      // Auto-populate primary keywords for all selected pages
+                      const newKeywords = new Map(primaryKeywords)
+                      posts.forEach((page) => {
+                        if (!newKeywords.has(page.url)) {
+                          const autoKeyword = getFirstThreeWords(page.title)
+                          if (autoKeyword) {
+                            newKeywords.set(page.url, autoKeyword)
+                          }
+                        }
+                      })
+                      if (newKeywords.size > primaryKeywords.size) {
+                        onPrimaryKeywordsChange(newKeywords)
+                      }
                     } else {
                       onSelectionChange(new Set())
                     }
@@ -187,11 +237,6 @@ export function PostSelectionTable({
                   Word Count
                 </th>
               )}
-              {hasCredits && (
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Affiliate Links
-                </th>
-              )}
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">
                 Date
               </th>
@@ -205,6 +250,9 @@ export function PostSelectionTable({
                   Analyze Full Page
                 </th>
               )}
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Primary Keyword
+              </th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
@@ -212,9 +260,7 @@ export function PostSelectionTable({
               // Calculate actual index in full pages array for shift-click selection
               const actualIndex = startIndex + index
               const isSelected = selectedUrls.has(page.url)
-              const isHighPotential = hasCredits && (page.wordCount || 0) >= 1500 && (page.affiliateLinkCount || 0) <= 2
               const isShort = hasCredits && (page.wordCount || 0) < 800
-              const isWellMonetized = hasCredits && (page.affiliateLinkCount || 0) >= 10
               const isLongPage = hasCredits && (page.wordCount || 0) > 5000
               const chargeExtra = chargeExtraPreferences.has(page.url)
                 ? chargeExtraPreferences.get(page.url)!
@@ -230,6 +276,20 @@ export function PostSelectionTable({
                 }
                 onChargeExtraChange(newPrefs)
               }
+
+              const handlePrimaryKeywordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+                e.stopPropagation()
+                const newKeywords = new Map(primaryKeywords)
+                const value = e.target.value
+                if (value.trim()) {
+                  newKeywords.set(page.url, value)
+                } else {
+                  newKeywords.delete(page.url)
+                }
+                onPrimaryKeywordsChange(newKeywords)
+              }
+
+              const currentPrimaryKeyword = primaryKeywords.get(page.url) || ''
 
               return (
                 <tr
@@ -251,23 +311,6 @@ export function PostSelectionTable({
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-start gap-2">
-                      <div className="flex-shrink-0 flex gap-1">
-                        {isHighPotential && (
-                          <svg className="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" title="High potential (1500+ words, 0-2 links)">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                          </svg>
-                        )}
-                        {isShort && (
-                          <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" title="Short page (&lt;800 words)">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                          </svg>
-                        )}
-                        {isWellMonetized && (
-                          <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" title="Well monetized (10+ links)">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                        )}
-                      </div>
                       <div className="min-w-0 flex-1">
                         <div
                           className="text-sm font-medium text-gray-900 break-words pr-4"
@@ -305,23 +348,6 @@ export function PostSelectionTable({
                   {hasCredits && (
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {(page.wordCount || 0).toLocaleString()}
-                    </td>
-                  )}
-                  {hasCredits && (
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-gray-900">{page.affiliateLinkCount || 0}</span>
-                        {(page.affiliateLinkCount || 0) <= 2 && (page.wordCount || 0) >= 1500 && !isLegalOrAdminPage(page) && (
-                          <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">
-                            High potential
-                          </span>
-                        )}
-                        {(page.affiliateLinkCount || 0) >= 10 && (
-                          <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
-                            Well monetized
-                          </span>
-                        )}
-                      </div>
                     </td>
                   )}
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -364,6 +390,19 @@ export function PostSelectionTable({
                       )}
                     </td>
                   )}
+                  <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
+                    {isSelected ? (
+                      <input
+                        type="text"
+                        value={currentPrimaryKeyword}
+                        onChange={handlePrimaryKeywordChange}
+                        placeholder="Optional keyword"
+                        className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary"
+                      />
+                    ) : (
+                      <span className="text-xs text-gray-400">—</span>
+                    )}
+                  </td>
                 </tr>
               )
             })}

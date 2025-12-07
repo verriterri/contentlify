@@ -2,11 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { scrapeUrl } from '@/lib/scrapers/url-scraper';
+import { extractStructuredContent } from '@/lib/scrapers/url-scraper';
 import { detectAffiliateOpportunities } from '@/lib/ai/affiliate-detector';
 import { generateProductIdeas } from '@/lib/ai/product-ideas-generator';
 import { chunkContent, combineAnalysisResults, sortProductIdeasBySellability } from '@/lib/utils/content-chunker';
 import { calculateCreditsForAnalysis, getAnalyzedWordCount } from '@/lib/utils/credit-calculator';
 import { getClientIP, hashIPAddress, hashFingerprint, createUsageKey, hasUsedFreeTrial, recordFreeTrialUsage } from '@/lib/utils/abuse-prevention';
+import { auditContent, generateCrossInsights } from '@/lib/audit/content-auditor';
 
 /**
  * POST /api/analyze
@@ -93,7 +95,7 @@ export async function POST(req: NextRequest) {
 
     // Parse request body
     const body = await req.json();
-    const { url, chargeExtraForLongPages, fingerprint } = body;
+    const { url, chargeExtraForLongPages, fingerprint, primaryKeyword } = body;
     
     // For anonymous users, set up abuse tracking after we have the fingerprint
     if (isAnonymous) {
@@ -170,6 +172,54 @@ export async function POST(req: NextRequest) {
         },
         { status: 400 }
       );
+    }
+
+    // Step 1.5: Fetch HTML for structured content extraction (for SEO/AEO audit)
+    let structuredContent = null;
+    let auditResult = null;
+    let crossInsights: string[] = [];
+    
+    try {
+      // Check user preference for audit (default: enabled)
+      let auditEnabled = true;
+      if (!isAnonymous && user) {
+        const { data: userSettings } = await supabase
+          .from('user_settings')
+          .select('preferences')
+          .eq('user_id', user.id)
+          .single();
+        
+        auditEnabled = userSettings?.preferences?.seoAuditEnabled !== false; // Default to true
+      }
+      
+      if (auditEnabled) {
+        console.log('[Analyze] Running SEO/AEO content audit...');
+        const htmlResponse = await fetch(url, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          },
+          signal: AbortSignal.timeout(15000),
+        });
+        
+        if (htmlResponse.ok) {
+          const html = await htmlResponse.text();
+          structuredContent = await extractStructuredContent(url, html, primaryKeyword);
+          
+          // Run audit
+          auditResult = await auditContent(structuredContent, url, {
+            enabled: true,
+            skipBrokenLinkCheck: false, // Can be made configurable
+          });
+          
+          console.log(`[Analyze] Audit complete. Score: ${auditResult.score}/100`);
+        } else {
+          console.log('[Analyze] Failed to fetch HTML for audit, skipping...');
+        }
+      }
+    } catch (error: any) {
+      console.error('[Analyze] Error running audit:', error);
+      // Don't fail the entire analysis if audit fails
     }
 
     // Calculate credits needed (always 1 credit per page)
@@ -365,6 +415,15 @@ export async function POST(req: NextRequest) {
       // Continue only if it's not a rate limit error
     }
 
+    // Step 4.5: Generate cross-insights if audit and affiliate data are available
+    if (auditResult && structuredContent && affiliateOpportunities.length > 0) {
+      try {
+        crossInsights = generateCrossInsights(auditResult, structuredContent, affiliateOpportunities);
+      } catch (error: any) {
+        console.error('[Analyze] Error generating cross-insights:', error);
+      }
+    }
+
     // Step 5: Save analysis to database (only for logged-in users)
     // Only save and deduct credits if analysis completed successfully
     let savedAnalysis = null;
@@ -400,6 +459,19 @@ export async function POST(req: NextRequest) {
             estimatedTime: idea.estimatedTime,
             targetAudience: idea.targetAudience,
           })),
+          seo_audit: auditResult ? {
+            score: auditResult.score,
+            tier1Passed: auditResult.tier1Passed,
+            tier1Total: auditResult.tier1Total,
+            tier2Passed: auditResult.tier2Passed,
+            tier2Total: auditResult.tier2Total,
+            criticalIssues: auditResult.criticalIssues,
+            warnings: auditResult.warnings,
+            optimizations: auditResult.optimizations,
+            recommendations: auditResult.recommendations,
+            checks: auditResult.checks,
+            analyzedAt: auditResult.analyzedAt,
+          } : null,
           status: 'completed',
         };
 
@@ -494,6 +566,21 @@ export async function POST(req: NextRequest) {
       isFreeTrial,
       isAnonymous,
       chargeExtraForLongPages: chargeExtra,
+      linkDetails: scrapeResult.linkDetails || [],
+      seoAudit: auditResult ? {
+        score: auditResult.score,
+        tier1Passed: auditResult.tier1Passed,
+        tier1Total: auditResult.tier1Total,
+        tier2Passed: auditResult.tier2Passed,
+        tier2Total: auditResult.tier2Total,
+        criticalIssues: auditResult.criticalIssues,
+        warnings: auditResult.warnings,
+        optimizations: auditResult.optimizations,
+        recommendations: auditResult.recommendations,
+        checks: auditResult.checks,
+        analyzedAt: auditResult.analyzedAt,
+      } : null,
+      crossInsights,
       affiliateOpportunities: affiliateOpportunities.map((opp) => ({
         product: opp.product,
         category: opp.category,

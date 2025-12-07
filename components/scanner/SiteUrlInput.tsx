@@ -33,9 +33,9 @@ export function SiteUrlInput() {
         throw new Error(data.error || 'Failed to scan site')
       }
 
-      // Redirect to scan results page
+      // Redirect to analyze page with scanId
       if (data.scanId) {
-        router.push(`/scan/${data.scanId}`)
+        router.push(`/dashboard/analyze?scanId=${data.scanId}`)
       } else if (data.pages && data.pages.length > 0) {
         // If we have scan data but no scanId (database save failed), 
         // pass the data via query params as fallback
@@ -48,7 +48,7 @@ export function SiteUrlInput() {
           method: data.method,
           scannedAt: data.scannedAt,
         }))
-        router.push(`/scan/temp?data=${encodedData}`)
+        router.push(`/dashboard/analyze?scanId=temp&data=${encodedData}`)
       } else {
         // If no scanId and no data, show error
         throw new Error('Scan completed but no results returned')
@@ -95,7 +95,7 @@ export function SiteUrlInput() {
               Scanning...
             </span>
           ) : (
-            'Scan Site - 1 Credit'
+            'Scan Site'
           )}
         </button>
       </div>
