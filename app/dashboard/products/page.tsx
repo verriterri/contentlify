@@ -28,18 +28,8 @@ export default function ProductsPage() {
   }, []);
 
   async function loadUserTier() {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      const { data: userData } = await supabase
-        .from('users')
-        .select('subscription_tier')
-        .eq('id', user.id)
-        .single();
-
-      if (userData) {
-        setUserTier(userData.subscription_tier || 'free');
-      }
-    }
+    // Credit-based system, no tier needed
+    setUserTier('free');
   }
 
   async function loadProducts() {

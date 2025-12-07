@@ -14,7 +14,6 @@ interface UserBranding {
 interface ExportOptions {
   content: GeneratedProductContent;
   userBranding?: UserBranding;
-  subscriptionTier?: 'free' | 'starter' | 'pro' | 'agency';
   userId?: string;
 }
 

@@ -184,8 +184,6 @@ export async function POST(req: NextRequest) {
             const updateResult = await supabase
               .from('users')
               .update({
-                subscription_tier: tier,
-                subscription_status: 'active',
                 stripe_customer_id: customerId,
               })
               .eq('id', user.data.id)
@@ -212,61 +210,9 @@ export async function POST(req: NextRequest) {
         
         console.log(`[Webhook] Customer ID: ${customerId}, Price ID: ${priceId}`)
         
-        // Determine tier from product name - retrieve price and product directly
-        let tier: string = 'free'
-        
-        try {
-          const price = await stripe.prices.retrieve(priceId, { expand: ['product'] })
-          const product = typeof price.product === 'object' && price.product !== null
-            ? price.product
-            : await stripe.products.retrieve(price.product as string)
-          
-          const productName = product.name?.toLowerCase() || ''
-          console.log(`[Webhook] Product name: "${product.name}"`)
-          
-          if (productName.includes('starter')) {
-            tier = 'starter'
-          } else if (productName.includes('pro')) {
-            tier = 'pro'
-          } else if (productName.includes('agency')) {
-            tier = 'agency'
-          }
-          
-          console.log(`[Webhook] Determined tier: ${tier}`)
-        } catch (error) {
-          console.error('[Webhook] Error retrieving price/product:', error)
-        }
-
-        // Update user subscription
-        const { data: user, error: userError } = await supabase
-          .from('users')
-          .select('id, email')
-          .eq('stripe_customer_id', customerId)
-          .single()
-
-        if (userError) {
-          console.error(`[Webhook] Error finding user:`, userError)
-        }
-
-        if (user) {
-          console.log(`[Webhook] Found user: ${user.id} (${user.email})`)
-          
-          const updateResult = await supabase
-            .from('users')
-            .update({
-              subscription_tier: tier,
-              subscription_status: subscription.status === 'active' ? 'active' : 'canceled',
-            })
-            .eq('id', user.id)
-
-          if (updateResult.error) {
-            console.error('[Webhook] Error updating user subscription:', updateResult.error)
-          } else {
-            console.log(`[Webhook] Successfully updated user ${user.id} subscription to tier: ${tier}, status: ${subscription.status === 'active' ? 'active' : 'canceled'}`)
-          }
-        } else {
-          console.error(`[Webhook] User not found for customer ${customerId}`)
-        }
+        // Subscription tier no longer tracked (credit-based system)
+        // Just log the subscription update for reference
+        console.log(`[Webhook] Subscription updated for customer ${customerId}, status: ${subscription.status}`)
         break
       }
 
@@ -282,13 +228,8 @@ export async function POST(req: NextRequest) {
           .single()
 
         if (user) {
-          await supabase
-            .from('users')
-            .update({
-              subscription_tier: 'free',
-              subscription_status: 'canceled',
-            })
-            .eq('id', user.id)
+          // Subscription tier no longer tracked (credit-based system)
+          console.log(`[Webhook] Subscription deleted for user ${user.id}`)
         }
         break
       }

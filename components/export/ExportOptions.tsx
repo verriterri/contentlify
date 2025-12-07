@@ -23,14 +23,12 @@ interface UserBranding {
 interface ExportOptionsProps {
   content: GeneratedProductContent;
   userBranding?: UserBranding;
-  subscriptionTier?: 'free' | 'starter' | 'pro' | 'agency';
   userId?: string;
 }
 
 export function ExportOptions({
   content,
   userBranding,
-  subscriptionTier = 'free',
   userId,
 }: ExportOptionsProps) {
   const [loading, setLoading] = useState<string | null>(null);
@@ -46,7 +44,6 @@ export function ExportOptions({
           result = await exportToDocx({
             content,
             userBranding,
-            subscriptionTier,
             userId,
           });
           downloadFile(result.blob, result.fileName);
@@ -56,7 +53,6 @@ export function ExportOptions({
           result = exportToMarkdown({
             content,
             userBranding,
-            subscriptionTier,
             userId,
           });
           downloadFile(result.blob, result.fileName);
@@ -75,7 +71,6 @@ export function ExportOptions({
     const result = exportToMarkdown({
       content,
       userBranding,
-      subscriptionTier,
       userId,
     });
 

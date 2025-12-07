@@ -56,27 +56,8 @@ export default function AnalyzePage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         setIsAnonymous(false);
-        // Get user tier - handle case where subscription_tier column might not exist
-        try {
-          const { data: userData, error: userError } = await supabase
-            .from('users')
-            .select('subscription_tier, subscription_status')
-            .eq('id', user.id)
-            .single();
-
-          if (userError) {
-            console.warn('[Analyze] Error fetching user tier (column may not exist):', userError);
-            // Default to free tier if column doesn't exist
-            setUserTier('free');
-          } else if (userData) {
-            setUserTier(userData.subscription_tier || 'free');
-          } else {
-            setUserTier('free');
-          }
-        } catch (error) {
-          console.error('[Analyze] Error getting user tier:', error);
-          setUserTier('free'); // Default to free tier on error
-        }
+        // User is authenticated, no tier needed (credit-based system)
+        setUserTier('free');
       } else {
         setIsAnonymous(true);
         // Check free trial status for anonymous users

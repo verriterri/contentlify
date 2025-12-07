@@ -74,10 +74,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Get user subscription tier and credits
+    // Get user credits
     const { data: userData } = await supabase
       .from('users')
-      .select('subscription_tier, subscription_status, credits')
+      .select('credits')
       .eq('id', user.id)
       .single();
 
@@ -88,7 +88,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const subscriptionTier = (userData.subscription_tier || 'free') as 'free' | 'starter' | 'pro' | 'agency';
     const userCredits = userData.credits || 0;
     const creditsNeeded = 1;
 

@@ -68,79 +68,11 @@ export async function POST(req: NextRequest) {
       limit: 10,
     })
 
-    if (subscriptions.data.length === 0) {
-      // No subscription found - set to free tier
-      await supabase
-        .from('users')
-        .update({
-          subscription_tier: 'free',
-          subscription_status: 'canceled',
-        })
-        .eq('id', user.id)
-
-      return NextResponse.json({
-        success: true,
-        tier: 'free',
-        status: 'canceled',
-        message: 'No active subscription found. Set to free tier.',
-      })
-    }
-
-    // Get the most recent active subscription (or first subscription if none active)
-    const activeSubscription =
-      subscriptions.data.find((sub) => sub.status === 'active') ||
-      subscriptions.data[0]
-
-    const priceId = activeSubscription.items.data[0].price.id
-
-    // Determine tier from product name
-    let tier: string = 'free'
-    try {
-      const price = await stripe.prices.retrieve(priceId, { expand: ['product'] })
-      const product =
-        typeof price.product === 'object' && price.product !== null
-          ? price.product
-          : await stripe.products.retrieve(price.product as string)
-
-      const productName = product.name?.toLowerCase() || ''
-      if (productName.includes('starter')) {
-        tier = 'starter'
-      } else if (productName.includes('pro')) {
-        tier = 'pro'
-      } else if (productName.includes('agency')) {
-        tier = 'agency'
-      }
-    } catch (error) {
-      console.error('[Sync] Error retrieving price/product:', error)
-      return NextResponse.json(
-        { error: 'Failed to retrieve subscription details from Stripe' },
-        { status: 500 }
-      )
-    }
-
-    // Update user subscription in Supabase
-    const { error: updateError } = await supabase
-      .from('users')
-      .update({
-        subscription_tier: tier,
-        subscription_status:
-          activeSubscription.status === 'active' ? 'active' : 'canceled',
-      })
-      .eq('id', user.id)
-
-    if (updateError) {
-      console.error('[Sync] Error updating user:', updateError)
-      return NextResponse.json(
-        { error: 'Failed to update subscription in database' },
-        { status: 500 }
-      )
-    }
-
+    // Subscription tiers no longer used - product is credit-based
     return NextResponse.json({
       success: true,
-      tier,
-      status: activeSubscription.status === 'active' ? 'active' : 'canceled',
-      message: `Successfully synced subscription to ${tier} tier`,
+      message: 'Subscription sync no longer needed. Product uses credit-based system.',
+      note: 'All features are available based on credits, not subscription tiers.',
     })
   } catch (error: any) {
     console.error('[Sync] Error syncing subscription:', error)

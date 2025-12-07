@@ -104,50 +104,14 @@ export async function POST(req: NextRequest) {
     const activeSubscription = subscriptions.data.find((sub) => sub.status === 'active') || subscriptions.data[0];
     const priceId = activeSubscription.items.data[0].price.id;
 
-    // Determine tier from product name
-    let tier: string = 'free';
-    const price = await stripe.prices.retrieve(priceId);
-    const product = await stripe.products.retrieve(price.product as string);
-
-    const productName = product.name?.toLowerCase() || '';
-    if (productName.includes('starter')) {
-      tier = 'starter';
-    } else if (productName.includes('pro')) {
-      tier = 'pro';
-    } else if (productName.includes('agency')) {
-      tier = 'agency';
-    }
-
-    // Update user in database
-    const { data: updatedUser, error: updateError } = await supabase
-      .from('users')
-      .update({
-        subscription_tier: tier,
-        subscription_status: activeSubscription.status === 'active' ? 'active' : 'canceled',
-      })
-      .eq('id', targetUser.id)
-      .select()
-      .single();
-
-    if (updateError) {
-      return NextResponse.json(
-        { error: `Failed to update user: ${updateError.message}` },
-        { status: 500 }
-      );
-    }
-
+    // Subscription tiers no longer used - product is credit-based
     return NextResponse.json({
       success: true,
-      message: `Updated user ${targetUser.email} to tier: ${tier}`,
+      message: 'Subscription fix no longer needed. Product uses credit-based system.',
+      note: 'All features are available based on credits, not subscription tiers.',
       user: {
-        email: updatedUser.email,
-        subscription_tier: updatedUser.subscription_tier,
-        subscription_status: updatedUser.subscription_status,
-      },
-      subscription: {
-        id: activeSubscription.id,
-        status: activeSubscription.status,
-        product: product.name,
+        email: targetUser.email,
+        stripe_customer_id: targetUser.stripe_customer_id,
       },
     });
   } catch (error: any) {

@@ -46,10 +46,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Get user data including subscription tier
+    // Verify user exists
     const { data: userData, error: userError } = await supabase
       .from('users')
-      .select('id, subscription_tier, subscription_status')
+      .select('id')
       .eq('id', user.id)
       .single();
 
@@ -57,18 +57,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { error: 'User data not found' },
         { status: 404 }
-      );
-    }
-
-    // Check if user has Pro or Agency tier
-    const subscriptionTier = userData.subscription_tier || 'free';
-    if (subscriptionTier !== 'pro' && subscriptionTier !== 'agency') {
-      return NextResponse.json(
-        {
-          error: 'Site-wide audit is only available for Pro and Agency subscribers. Upgrade to unlock this feature.',
-          upgradeRequired: true,
-        },
-        { status: 403 }
       );
     }
 

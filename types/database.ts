@@ -1,7 +1,5 @@
 // Database types matching Supabase schema
 
-export type SubscriptionTier = 'free' | 'starter' | 'pro' | 'agency'
-export type SubscriptionStatus = 'active' | 'canceled' | 'past_due'
 export type AnalysisStatus = 'processing' | 'completed' | 'failed'
 export type ProductType = 'checklist' | 'workbook' | 'ebook' | 'newsletter'
 export type SocialPlatform = 'facebook' | 'twitter' | 'instagram' | 'pinterest'
@@ -9,8 +7,6 @@ export type SocialPlatform = 'facebook' | 'twitter' | 'instagram' | 'pinterest'
 export interface User {
   id: string
   email: string
-  subscription_tier: SubscriptionTier
-  subscription_status: SubscriptionStatus
   stripe_customer_id: string | null
   created_at: string
   updated_at: string

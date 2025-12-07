@@ -36,18 +36,8 @@ export default function ProductDetailPage() {
   }, [productId, isEditMode]);
 
   async function loadUserTier() {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      const { data: userData } = await supabase
-        .from('users')
-        .select('subscription_tier')
-        .eq('id', user.id)
-        .single();
-
-      if (userData) {
-        setUserTier(userData.subscription_tier || 'free');
-      }
-    }
+    // Credit-based system, no tier needed
+    setUserTier('free');
   }
 
   async function loadProduct() {
@@ -277,7 +267,6 @@ export default function ProductDetailPage() {
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
               <ExportOptions
                 content={productContent}
-                template={template!}
                 userBranding={{
                   name: 'Your Brand', // Could load from user settings
                   colors: {
@@ -285,7 +274,6 @@ export default function ProductDetailPage() {
                     secondary: '#A78BFA',
                   },
                 }}
-                subscriptionTier={userTier as any}
                 userId={product.user_id}
               />
             </div>

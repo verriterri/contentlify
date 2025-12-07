@@ -1,15 +1,30 @@
 -- ContentMaxer Database Schema (Credits Model)
 -- Run this SQL in your Supabase SQL Editor
--- WARNING: This will DROP ALL existing objects and start fresh!
+-- 
+-- ⚠️  WARNING: This will COMPLETELY RESET your database! ⚠️
+-- 
+-- This script will:
+-- - Drop ALL application tables and data (users, analyses, products, etc.)
+-- - Drop ALL custom functions and triggers
+-- - Delete ALL auth.users (all user accounts will be removed!)
+-- - Delete ALL auth sessions, identities, and refresh tokens
+-- - Recreate everything from scratch
 --
--- This schema includes all migrations:
+-- This is for COMPLETE reinitialization before production.
+-- 
+-- IMPORTANT: After running this script, you should also:
+-- 1. Delete all files in Supabase Storage buckets (products, etc.)
+-- 2. Clear any cached data
+-- 3. Re-test user signup and authentication flows
+--
+-- This schema includes:
 -- - email_verified field
 -- - free_trial_used and has_made_first_purchase fields
 -- - stripe_customer_id field
 -- - INSERT policy for users table
 -- - create_user_if_missing function
 -- - handle_email_confirmed function and trigger
--- - anonymous_usage table for abuse prevention
+-- - anonymous_usage table for abuse prevention (with scan_count)
 
 -- ============================================================================
 -- STEP 1: DROP ALL EXISTING OBJECTS
@@ -18,6 +33,17 @@
 -- Drop all triggers first (before dropping tables)
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 DROP TRIGGER IF EXISTS on_email_confirmed ON auth.users;
+
+-- Delete all auth users (all user accounts will be removed)
+-- NOTE: Cannot DROP auth.users as it's a Supabase system table, but we can delete all rows
+-- This will remove ALL user accounts from Supabase Auth
+DELETE FROM auth.users;
+
+-- Also delete any auth-related data
+DELETE FROM auth.identities;
+DELETE FROM auth.sessions;
+DELETE FROM auth.refresh_tokens;
+DELETE FROM auth.audit_log_entries;
 
 -- Drop all functions (CASCADE will handle dependencies)
 DROP FUNCTION IF EXISTS public.handle_new_user() CASCADE;
@@ -160,6 +186,7 @@ CREATE TABLE public.anonymous_usage (
   ip_hash TEXT NOT NULL, -- SHA256 hash of IP address - secondary check
   fingerprint_hash TEXT, -- SHA256 hash of browser fingerprint - secondary check
   analysis_count INTEGER NOT NULL DEFAULT 0,
+  scan_count INTEGER NOT NULL DEFAULT 0, -- Track site scans separately from analyses
   blocked_attempts INTEGER DEFAULT 0, -- Track abuse attempts
   last_analysis_at TIMESTAMP WITH TIME ZONE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
@@ -212,6 +239,7 @@ CREATE INDEX IF NOT EXISTS idx_analysis_jobs_created_at ON public.analysis_jobs(
 CREATE INDEX IF NOT EXISTS idx_anonymous_usage_usage_key ON public.anonymous_usage(usage_key);
 CREATE INDEX IF NOT EXISTS idx_anonymous_usage_ip_hash ON public.anonymous_usage(ip_hash);
 CREATE INDEX IF NOT EXISTS idx_anonymous_usage_fingerprint_hash ON public.anonymous_usage(fingerprint_hash);
+CREATE INDEX IF NOT EXISTS idx_anonymous_usage_scan_count ON public.anonymous_usage(scan_count);
 CREATE INDEX IF NOT EXISTS idx_anonymous_usage_last_analysis ON public.anonymous_usage(last_analysis_at);
 
 -- ============================================================================
@@ -546,9 +574,24 @@ COMMENT ON COLUMN public.generated_products.credits_used IS 'Credits deducted fo
 -- DONE! Schema is ready.
 -- ============================================================================
 
--- Next steps:
--- 1. Run this script in Supabase SQL Editor
--- 2. Verify all tables, indexes, and policies are created
--- 3. Test with a new user signup
+-- ============================================================================
+-- POST-SETUP: CLEANUP STORAGE BUCKETS
+-- ============================================================================
+-- After running this script, you should also clean up storage buckets:
+--
+-- 1. Go to Supabase Dashboard > Storage
+-- 2. Delete all files in the 'products' bucket (if it exists)
+-- 3. Or run this in SQL Editor to delete all files:
+--    DELETE FROM storage.objects WHERE bucket_id = 'products';
+--
+-- ============================================================================
+-- VERIFICATION & TESTING
+-- ============================================================================
+-- After running this script:
+-- 1. Verify all tables, indexes, and policies are created
+-- 2. Test with a new user signup (should create user in public.users)
+-- 3. Verify user gets 1 free credit on signup
 -- 4. Test credit purchase flow
 -- 5. Test analysis and outline generation
+-- 6. Test site scanning
+-- 7. Verify anonymous usage tracking works
