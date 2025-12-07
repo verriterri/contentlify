@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { Suspense } from 'react'
 import { CreditBalance } from '@/components/dashboard/CreditBalance'
 import { PurchaseSuccessHandler } from '@/components/dashboard/PurchaseSuccessHandler'
+import { RecentActivity } from '@/components/dashboard/RecentActivity'
 
 export default async function DashboardPage() {
   const cookieStore = await cookies()
@@ -48,6 +49,14 @@ export default async function DashboardPage() {
     .select('id, url, title, status, created_at, credits_used')
     .eq('user_id', user.id)
     .is('deleted_at', null)
+    .order('created_at', { ascending: false })
+    .limit(10)
+
+  // Get recent scans
+  const { data: recentScans } = await supabase
+    .from('site_scans')
+    .select('id, site_url, total_pages, scanned_pages, created_at, scan_data')
+    .eq('user_id', user.id)
     .order('created_at', { ascending: false })
     .limit(10)
 
@@ -102,8 +111,8 @@ export default async function DashboardPage() {
               </svg>
             </div>
             <div>
-              <h3 className="font-semibold text-gray-900">Analyze New Blog</h3>
-              <p className="text-sm text-gray-600">Scan and analyze blog posts</p>
+              <h3 className="font-semibold text-gray-900">Analyze New Site</h3>
+              <p className="text-sm text-gray-600">Scan and analyze pages</p>
             </div>
           </div>
         </Link>
@@ -202,80 +211,11 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      {/* Recent Analyses */}
-      <div className="bg-white rounded-lg shadow">
-        <div className="p-6 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-900">Recent Analyses</h2>
-        </div>
-        {recentAnalyses && recentAnalyses.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">URL</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Credits</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {recentAnalyses.map((analysis) => (
-                  <tr key={analysis.id}>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">
-                        {analysis.title || analysis.url}
-                      </div>
-                      <div className="text-sm text-gray-500 truncate max-w-xs">
-                        {analysis.url}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(analysis.created_at).toLocaleDateString()}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        analysis.status === 'completed' ? 'bg-green-100 text-green-800' :
-                        analysis.status === 'processing' ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-red-100 text-red-800'
-                      }`}>
-                        {analysis.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {analysis.credits_used || 1}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <Link
-                        href={`/dashboard/analyze?analysisId=${analysis.id}`}
-                        className="text-primary hover:text-primary-600"
-                      >
-                        View
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div className="p-12 text-center">
-            <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-            </svg>
-            <h3 className="mt-2 text-sm font-medium text-gray-900">No analyses yet</h3>
-            <p className="mt-1 text-sm text-gray-500">Get started by analyzing your first blog post.</p>
-            <div className="mt-6">
-              <Link
-                href="/dashboard/analyze"
-                className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary hover:bg-primary-600"
-              >
-                Analyze New Blog
-              </Link>
-            </div>
-          </div>
-        )}
-      </div>
+      {/* Recent Activity (Analyses & Scans) */}
+      <RecentActivity 
+        analyses={recentAnalyses || []} 
+        scans={recentScans || []} 
+      />
     </div>
   )
 }

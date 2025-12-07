@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { PricingTable } from '@/components/pricing/PricingTable'
-import { BlogUrlInput } from '@/components/scanner/BlogUrlInput'
+import { SiteUrlInput } from '@/components/scanner/SiteUrlInput'
 import { HomeHeader } from '@/components/HomeHeader'
 
 export default function Home() {
@@ -15,10 +15,10 @@ export default function Home() {
               Find the Money You're Leaving on the Table
             </h1>
             <p className="text-2xl text-gray-400 mb-12 max-w-2xl mx-auto leading-relaxed">
-              Scan your entire blog for missed affiliate opportunities and digital product ideas in one click
+              Scan your entire site for missed affiliate opportunities and digital product ideas in one click
             </p>
             <div className="max-w-2xl mx-auto">
-              <BlogUrlInput />
+              <SiteUrlInput />
             </div>
           </div>
         </div>
@@ -36,16 +36,16 @@ export default function Home() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                   </svg>
                 </div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-2">Blog Scanner</h3>
+                <h3 className="text-2xl font-bold text-gray-900 mb-2">Site Scanner</h3>
                 <p className="text-gray-600 leading-relaxed">
-                  Scan your entire blog for free. See all posts with titles, URLs, and dates. Purchase credits to unlock word counts, affiliate links, and opportunity scores.
+                  Scan your entire site for free. See all pages with titles, URLs, and dates. Purchase credits to unlock word counts, affiliate links, and opportunity scores.
                 </p>
               </div>
               <Link
                 href="/dashboard/analyze"
                 className="inline-flex items-center text-primary font-semibold hover:text-primary-600 transition-colors"
               >
-                Try Blog Scanner
+                Try Now
                 <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>
@@ -62,14 +62,14 @@ export default function Home() {
                 </div>
                 <h3 className="text-2xl font-bold text-gray-900 mb-2">Affiliate Detector</h3>
                 <p className="text-gray-600 leading-relaxed">
-                  AI finds every missed affiliate opportunity in your content. Get matched with the right programs automatically.
+                  AI finds potential affiliate opportunities that you may have missed in your content.
                 </p>
               </div>
               <Link
                 href="/dashboard/analyze"
                 className="inline-flex items-center text-primary font-semibold hover:text-primary-600 transition-colors"
               >
-                Try Affiliate Detector
+                Try Now
                 <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>
@@ -86,86 +86,14 @@ export default function Home() {
                 </div>
                 <h3 className="text-2xl font-bold text-gray-900 mb-2">Product Ideas</h3>
                 <p className="text-gray-600 leading-relaxed">
-                  Generate digital product ideas based on your content. Checklists, workbooks, ebooks, and more.
+                  Generate digital product ideas based on your content and get structured outlines for each idea. Checklists, workbooks, ebooks, and more.
                 </p>
               </div>
               <Link
                 href="/dashboard/generate"
                 className="inline-flex items-center text-primary font-semibold hover:text-primary-600 transition-colors"
               >
-                Try Product Ideas
-                <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </Link>
-            </div>
-
-            {/* Product Outlines Card */}
-            <div className="bg-white rounded-2xl p-8 shadow-sm hover:shadow-lg transition-all border border-gray-100">
-              <div className="mb-6">
-                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
-                  <svg className="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                </div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-2">Product Outlines</h3>
-                <p className="text-gray-600 leading-relaxed">
-                  Generate structured outlines for digital products. Ready-to-develop templates with clear sections.
-                </p>
-              </div>
-              <Link
-                href="/dashboard/generate"
-                className="inline-flex items-center text-primary font-semibold hover:text-primary-600 transition-colors"
-              >
-                Try Product Outlines
-                <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </Link>
-            </div>
-
-            {/* Social Posts Card */}
-            <div className="bg-white rounded-2xl p-8 shadow-sm hover:shadow-lg transition-all border border-gray-100">
-              <div className="mb-6">
-                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
-                  <svg className="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-                  </svg>
-                </div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-2">Social Posts</h3>
-                <p className="text-gray-600 leading-relaxed">
-                  Generate platform-optimized social posts. Ready to copy-paste for Twitter, LinkedIn, Facebook, and Instagram.
-                </p>
-              </div>
-              <Link
-                href="/dashboard/generate"
-                className="inline-flex items-center text-primary font-semibold hover:text-primary-600 transition-colors"
-              >
-                Try Social Posts
-                <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </Link>
-            </div>
-
-            {/* Newsletter Templates Card */}
-            <div className="bg-white rounded-2xl p-8 shadow-sm hover:shadow-lg transition-all border border-gray-100">
-              <div className="mb-6">
-                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
-                  <svg className="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                  </svg>
-                </div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-2">Newsletter Templates</h3>
-                <p className="text-gray-600 leading-relaxed">
-                  Create engaging newsletter editions with affiliate recommendations built right in.
-                </p>
-              </div>
-              <Link
-                href="/dashboard/generate"
-                className="inline-flex items-center text-primary font-semibold hover:text-primary-600 transition-colors"
-              >
-                Try Newsletter Templates
+                Try Now
                 <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>
@@ -187,9 +115,9 @@ export default function Home() {
               <div className="inline-flex items-center justify-center w-12 h-12 bg-primary text-white rounded-full text-xl font-bold mb-4">
                 1
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Enter Blog URL</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Enter Site URL</h3>
               <p className="text-gray-600 text-sm">
-                We scan your entire blog (free)
+                We scan your entire site (free)
               </p>
             </div>
             <div className="text-center">
@@ -210,32 +138,25 @@ export default function Home() {
                 Choose which ones to analyze (smart filters included)
               </p>
             </div>
-            <div className="text-center">
-              <div className="inline-flex items-center justify-center w-12 h-12 bg-primary text-white rounded-full text-xl font-bold mb-4">
-                4
+            <div className="lg:col-span-3 flex flex-col md:flex-row justify-center items-center gap-8 lg:gap-16">
+              <div className="text-center">
+                <div className="inline-flex items-center justify-center w-12 h-12 bg-primary text-white rounded-full text-xl font-bold mb-4">
+                  4
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Get Opportunities</h3>
+                <p className="text-gray-600 text-sm">
+                  AI finds missed affiliate links and product ideas
+                </p>
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Get Opportunities</h3>
-              <p className="text-gray-600 text-sm">
-                AI finds missed affiliate links and product ideas
-              </p>
-            </div>
-            <div className="text-center">
-              <div className="inline-flex items-center justify-center w-12 h-12 bg-primary text-white rounded-full text-xl font-bold mb-4">
-                5
+              <div className="text-center">
+                <div className="inline-flex items-center justify-center w-12 h-12 bg-primary text-white rounded-full text-xl font-bold mb-4">
+                  5
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Generate Outlines</h3>
+                <p className="text-gray-600 text-sm">
+                  Create digital product outlines to guide development
+                </p>
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Generate Outlines</h3>
-              <p className="text-gray-600 text-sm">
-                Create digital product outlines to guide development
-              </p>
-            </div>
-            <div className="text-center">
-              <div className="inline-flex items-center justify-center w-12 h-12 bg-primary text-white rounded-full text-xl font-bold mb-4">
-                6
-              </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Promote</h3>
-              <p className="text-gray-600 text-sm">
-                Get social posts ready to copy-paste
-              </p>
             </div>
           </div>
         </div>
@@ -327,7 +248,7 @@ export default function Home() {
                 How does it work?
               </h3>
               <p className="text-gray-600 leading-relaxed">
-                Enter any blog post URL and our AI analyzes it for affiliate opportunities and digital product ideas. You can also scan your entire blog from the dashboard to see all posts at once.
+                Enter any page URL and our AI analyzes it for affiliate opportunities and digital product ideas. You can also scan your entire site from the dashboard to see all pages at once.
               </p>
             </div>
             <div>
@@ -335,7 +256,7 @@ export default function Home() {
                 What counts as one analysis?
               </h3>
               <p className="text-gray-600 leading-relaxed">
-                One analysis = one blog post. Posts up to 5,000 words cost 1 credit. For longer posts, we charge 1 additional credit for each additional 5,000 words (or portion).
+                One analysis = one page. Pages up to 5,000 words cost 1 credit. For longer pages, we charge 1 additional credit for each additional 5,000 words (or portion). You can also choose to only analyze the first 5,000 words of the page.
               </p>
             </div>
             <div>
@@ -348,10 +269,10 @@ export default function Home() {
             </div>
             <div>
               <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                Can I scan my entire blog?
+                Can I scan my entire site?
               </h3>
               <p className="text-gray-600 leading-relaxed">
-                Yes! You can scan your entire blog for free (no signup required). See all your posts with titles, URLs, and dates. Purchase credits to unlock word counts, affiliate links, and opportunity scores, then choose which ones to analyze.
+                Yes! You can scan your entire site for free (no signup required). See all your pages with titles, URLs, and dates. Purchase credits to unlock word counts, affiliate links, and opportunity scores, then choose which ones to analyze.
               </p>
             </div>
           </div>

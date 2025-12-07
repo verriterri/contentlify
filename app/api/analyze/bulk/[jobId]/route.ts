@@ -77,12 +77,12 @@ export async function GET(
       jobId: job.id,
       status: job.status,
       progress: {
-        completed: job.completed_posts || 0,
-        total: job.total_posts,
-        failed: job.failed_posts || 0,
+        completed: job.completed_pages || 0,
+        total: job.total_pages,
+        failed: job.failed_pages || 0,
       },
       results: analyses?.map((analysis) => ({
-        postUrl: analysis.url,
+        pageUrl: analysis.url,
         status: analysis.status,
         analysisId: analysis.id,
       })) || [],

@@ -3,11 +3,9 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { TemplateSelector } from '@/components/templates/TemplateSelector';
 import { ExportOptions } from '@/components/export/ExportOptions';
 import { ProductIdea } from '@/lib/ai/product-ideas-generator';
 import { GeneratedProductContent } from '@/lib/ai/product-generator';
-import { getDefaultTemplate, Template } from '@/lib/templates';
 
 interface Analysis {
   id: string;
@@ -27,7 +25,6 @@ export default function GeneratePage() {
   const [analyses, setAnalyses] = useState<Analysis[]>([]);
   const [selectedAnalysis, setSelectedAnalysis] = useState<Analysis | null>(null);
   const [selectedProductIdea, setSelectedProductIdea] = useState<ProductIdea | null>(null);
-  const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
   const [productTitle, setProductTitle] = useState('');
   const [brandName, setBrandName] = useState('');
   const [includeAffiliateLinks, setIncludeAffiliateLinks] = useState(true);
@@ -75,10 +72,6 @@ export default function GeneratePage() {
               if (product) {
                 setSelectedProductIdea(product);
                 setProductTitle(product.name);
-                const defaultTemplate = getDefaultTemplate(product.type);
-                if (defaultTemplate) {
-                  setSelectedTemplateId(defaultTemplate.id);
-                }
                 setStep('customize');
               }
             }
@@ -108,8 +101,8 @@ export default function GeneratePage() {
   }, []);
 
   const handleGenerate = async () => {
-    if (!selectedAnalysis || !selectedProductIdea || !selectedTemplateId) {
-      setError('Please select an analysis, product idea, and template');
+    if (!selectedAnalysis || !selectedProductIdea) {
+      setError('Please select an analysis and product idea');
       return;
     }
 
@@ -142,7 +135,6 @@ export default function GeneratePage() {
         body: JSON.stringify({
           productIdea: selectedProductIdea,
           analysisId: selectedAnalysis.id,
-          templateId: selectedTemplateId,
           productTitle: productTitle || undefined,
           includeAffiliateLinks,
           userBranding: {
@@ -173,12 +165,6 @@ export default function GeneratePage() {
     }
   };
 
-  const handleSaveToLibrary = async () => {
-    if (!generatedContent || !generatedProductId) return;
-
-    // Outline is already saved during generation, just show success
-    alert('Outline saved to your library!');
-  };
 
   if (loadingAnalyses) {
     return (
@@ -242,10 +228,6 @@ export default function GeneratePage() {
                               setSelectedAnalysis(analysis);
                               setSelectedProductIdea(idea);
                               setProductTitle(idea.name);
-                              const defaultTemplate = getDefaultTemplate(idea.type);
-                              if (defaultTemplate) {
-                                setSelectedTemplateId(defaultTemplate.id);
-                              }
                               setStep('customize');
                             }}
                             className="text-left p-3 border border-gray-200 rounded-lg hover:border-purple-500 hover:bg-purple-50 transition-all"
@@ -297,16 +279,6 @@ export default function GeneratePage() {
                   onChange={(e) => setProductTitle(e.target.value)}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900 bg-white"
                   placeholder="Enter product title"
-                />
-              </div>
-
-              {/* Template Selector */}
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-4">Choose Template</label>
-                <TemplateSelector
-                  productType={selectedProductIdea.type}
-                  selectedTemplateId={selectedTemplateId}
-                  onSelect={setSelectedTemplateId}
                 />
               </div>
 
@@ -453,7 +425,6 @@ export default function GeneratePage() {
               {/* Export Options */}
               <ExportOptions
                 content={generatedContent}
-                template={getDefaultTemplate(selectedProductIdea?.type || 'checklist')!}
                 userBranding={{
                   name: brandName,
                   colors: {
@@ -476,20 +447,12 @@ export default function GeneratePage() {
               >
                 Generate Another Outline
               </button>
-              <div className="flex items-center space-x-3">
-                <button
-                  onClick={handleSaveToLibrary}
-                  className="px-4 py-2 text-sm font-medium text-purple-600 bg-purple-50 rounded-lg hover:bg-purple-100"
-                >
-                  Save to Library
-                </button>
-                <button
-                  onClick={() => router.push('/dashboard/products')}
-                  className="px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700"
-                >
-                  View Library
-                </button>
-              </div>
+              <button
+                onClick={() => router.push('/dashboard/products')}
+                className="px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700"
+              >
+                View Library
+              </button>
             </div>
           </div>
         )}

@@ -76,10 +76,10 @@ export async function POST(req: NextRequest) {
       freeTrialUsed = userData.free_trial_used || false;
       
       // If user has 0 credits, they can still use free trial (abuse prevention handled separately)
-      // This allows logged-in users to analyze 1 post for free even without credits
+      // This allows logged-in users to analyze 1 page for free even without credits
     }
 
-    // Get user's global preference for charging extra for long posts (only for logged-in users)
+    // Get user's global preference for charging extra for long pages (only for logged-in users)
     let globalChargeExtra = false;
     if (!isAnonymous && user) {
       const { data: userSettings } = await supabase
@@ -88,12 +88,12 @@ export async function POST(req: NextRequest) {
         .eq('user_id', user.id)
         .single();
 
-      globalChargeExtra = userSettings?.preferences?.chargeExtraForLongPosts ?? false;
+      globalChargeExtra = userSettings?.preferences?.chargeExtraForLongPages ?? false;
     }
 
     // Parse request body
     const body = await req.json();
-    const { url, forceRecrawl, chargeExtraForLongPosts, fingerprint } = body;
+    const { url, chargeExtraForLongPages, fingerprint } = body;
     
     // For anonymous users, set up abuse tracking after we have the fingerprint
     if (isAnonymous) {
@@ -136,9 +136,9 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Use per-post preference if provided, otherwise use global preference
-    const chargeExtra = chargeExtraForLongPosts !== undefined 
-      ? chargeExtraForLongPosts 
+    // Use per-page preference if provided, otherwise use global preference
+    const chargeExtra = chargeExtraForLongPages !== undefined 
+      ? chargeExtraForLongPages 
       : globalChargeExtra;
 
     if (!url || typeof url !== 'string') {
@@ -158,74 +158,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Check for existing analysis (cache check - no expiration)
-    // Skip cache if forceRecrawl is true
-    // Only check cache for logged-in users (anonymous users can't access cached results)
-    if (!forceRecrawl && !isAnonymous && userId) {
-      // Check for existing non-deleted analysis (cache check - no expiration)
-      const { data: recentAnalysis, error: recentError } = await supabase
-        .from('content_analyses')
-        .select('*')
-        .eq('user_id', userId)
-        .eq('url', url)
-        .eq('status', 'completed')
-        .is('deleted_at', null)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (recentAnalysis && !recentError) {
-        console.log(`[Analyze] Found recent analysis for ${url} (created ${recentAnalysis.created_at}), returning cached result`);
-        
-        // Calculate word count from content if available
-        const wordCount = recentAnalysis.content
-          ? recentAnalysis.content.split(/\s+/).filter((w: string) => w.length > 0).length
-          : 0;
-
-        return NextResponse.json({
-          success: true,
-          analysisId: recentAnalysis.id,
-          url: recentAnalysis.url,
-          title: recentAnalysis.title || recentAnalysis.content?.substring(0, 100) || 'Previous Analysis',
-          wordCount,
-        affiliateOpportunities: Array.isArray(recentAnalysis.affiliate_opportunities)
-          ? recentAnalysis.affiliate_opportunities.map((opp: any) => ({
-              product: opp.product,
-              category: opp.category,
-              context: opp.context,
-              confidence: opp.confidence,
-              relevance: opp.relevance,
-              isAlreadyLinked: opp.isAlreadyLinked,
-              linkedUrl: opp.linkedUrl,
-              linkAnchorText: opp.linkAnchorText,
-              estimatedValue: opp.estimatedValue,
-              affiliatePrograms: opp.affiliatePrograms || [],
-            }))
-          : [],
-          productIdeas: Array.isArray(recentAnalysis.product_ideas)
-            ? recentAnalysis.product_ideas.map((idea: any) => ({
-                name: idea.name,
-                type: idea.type,
-                description: idea.description,
-                valueProposition: idea.valueProposition,
-                suggestedPrice: idea.suggestedPrice,
-                estimatedTime: idea.estimatedTime,
-                targetAudience: idea.targetAudience,
-              }))
-            : [],
-          warnings: ['This is a cached result from a previous analysis (cached indefinitely - use Force Re-crawl to refresh)'],
-          cached: true,
-        });
-      }
-    }
-
-    // Step 1: Scrape the URL (if no existing analysis found or forceRecrawl is true)
-    // Note: When forceRecrawl is true, we create a new analysis entry, preserving all history
-    if (forceRecrawl) {
-      console.log(`[Analyze] ${isAnonymous ? 'Anonymous user' : `User ${userId}`} analyzing URL: ${url} (force re-crawl requested - will create new analysis entry)`);
-    } else {
-      console.log(`[Analyze] ${isAnonymous ? 'Anonymous user' : `User ${userId}`} analyzing URL: ${url} (no cached analysis found - creating new entry)`);
-    }
+    // Step 1: Scrape the URL (always create a new analysis - no caching)
+    console.log(`[Analyze] ${isAnonymous ? 'Anonymous user' : `User ${userId}`} analyzing URL: ${url} (creating new analysis entry)`);
     const scrapeResult = await scrapeUrl(url);
 
     if (scrapeResult.error) {
@@ -238,14 +172,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Calculate credits needed (always 1 credit per post)
+    // Calculate credits needed (always 1 credit per page)
     const creditsNeeded = calculateCreditsForAnalysis(scrapeResult.wordCount, chargeExtra);
     
     // Determine how many words will actually be analyzed
     const analyzedWordCount = getAnalyzedWordCount(scrapeResult.wordCount, chargeExtra);
     
     // Check free trial eligibility
-    // Free trial available if: not used yet, analyzing 1 post, and (anonymous OR logged-in with 0 credits)
+    // Free trial available if: not used yet, analyzing 1 page, and (anonymous OR logged-in with 0 credits)
     const canUseFreeTrial = !freeTrialUsed && creditsNeeded === 1 && (isAnonymous || userCredits === 0);
     const isFreeTrial = canUseFreeTrial;
     
@@ -278,7 +212,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Always analyze full content (simplified pricing: 1 credit per post)
+    // Always analyze full content (simplified pricing: 1 credit per page)
     const contentToAnalyze = scrapeResult.content;
 
     // Step 2: Check if content needs chunking (>8000 chars)
@@ -559,7 +493,7 @@ export async function POST(req: NextRequest) {
       remainingCredits: isAnonymous ? 0 : userCredits,
       isFreeTrial,
       isAnonymous,
-      chargeExtraForLongPosts: chargeExtra,
+      chargeExtraForLongPages: chargeExtra,
       affiliateOpportunities: affiliateOpportunities.map((opp) => ({
         product: opp.product,
         category: opp.category,
@@ -584,8 +518,8 @@ export async function POST(req: NextRequest) {
       warnings: [
         ...(affiliateError ? [`Affiliate detection: ${affiliateError}`] : []),
         ...(productIdeasError ? [`Product ideas: ${productIdeasError}`] : []),
-        ...(isAnonymous ? ['This is a free trial analysis. Sign up to save your results and analyze more posts.'] : []),
-        ...(isFreeTrial && !isAnonymous ? ['You used your free trial! Purchase credits to analyze more posts.'] : []),
+        ...(isAnonymous ? ['This is a free trial analysis. Sign up to save your results and analyze more pages.'] : []),
+        ...(isFreeTrial && !isAnonymous ? ['You used your free trial! Purchase credits to analyze more pages.'] : []),
       ].filter(Boolean),
     });
 

@@ -8,7 +8,7 @@ import { GeneratedProductContent } from '@/lib/ai/product-generator';
 
 type ViewMode = 'grid' | 'list';
 type SortOption = 'date_desc' | 'date_asc' | 'name_asc' | 'name_desc';
-type ProductTypeFilter = 'all' | 'checklist' | 'workbook' | 'ebook' | 'newsletter';
+type ProductTypeFilter = 'all' | 'checklist' | 'workbook' | 'ebook' | 'newsletter' | 'template';
 
 export default function ProductsPage() {
   const router = useRouter();
@@ -86,13 +86,6 @@ export default function ProductsPage() {
     }
   };
 
-  const handleDownload = (product: GeneratedProduct) => {
-    if (product.file_url) {
-      window.open(product.file_url, '_blank');
-    } else {
-      alert('PDF file not available. Please regenerate the product.');
-    }
-  };
 
   // Filter and sort products
   const filteredAndSortedProducts = products
@@ -148,7 +141,7 @@ export default function ProductsPage() {
             onClick={() => router.push('/dashboard/generate')}
             className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium"
           >
-            Generate New Product
+            Generate New Outline
           </button>
         </div>
 
@@ -184,6 +177,7 @@ export default function ProductsPage() {
                 <option value="workbook">Workbook</option>
                 <option value="ebook">Ebook</option>
                 <option value="newsletter">Newsletter</option>
+                <option value="template">Template</option>
               </select>
             </div>
 
@@ -286,7 +280,6 @@ export default function ProductsPage() {
                 product={product}
                 viewMode={viewMode}
                 onView={() => router.push(`/dashboard/products/${product.id}`)}
-                onDownload={() => handleDownload(product)}
                 onEdit={() => router.push(`/dashboard/products/${product.id}?edit=true`)}
                 onDelete={() => handleDelete(product.id)}
                 userTier={userTier}
@@ -303,7 +296,6 @@ interface ProductCardProps {
   product: GeneratedProduct;
   viewMode: ViewMode;
   onView: () => void;
-  onDownload: () => void;
   onEdit: () => void;
   onDelete: () => void;
   userTier: string;
@@ -313,7 +305,6 @@ function ProductCard({
   product,
   viewMode,
   onView,
-  onDownload,
   onEdit,
   onDelete,
   userTier,
@@ -409,12 +400,6 @@ function ProductCard({
               View
             </button>
             <button
-              onClick={onDownload}
-              className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-50 rounded-lg hover:bg-gray-100"
-            >
-              Download
-            </button>
-            <button
               onClick={onEdit}
               className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-50 rounded-lg hover:bg-gray-100"
             >
@@ -466,20 +451,6 @@ function ProductCard({
             className="flex-1 px-3 py-2 text-sm font-medium text-purple-600 bg-purple-50 rounded-lg hover:bg-purple-100"
           >
             View
-          </button>
-          <button
-            onClick={onDownload}
-            className="px-3 py-2 text-sm font-medium text-gray-700 bg-gray-50 rounded-lg hover:bg-gray-100"
-            title="Download PDF"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-              />
-            </svg>
           </button>
           <button
             onClick={onEdit}

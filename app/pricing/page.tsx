@@ -8,7 +8,7 @@ export default function PricingPage() {
           Purchase Credits
         </h1>
         <p className="text-xl text-gray-600">
-          1 credit = 1 post analysis. Credits never expire.
+          1 credit = 1 page analysis. Credits never expire.
         </p>
       </div>
       <PricingTable />

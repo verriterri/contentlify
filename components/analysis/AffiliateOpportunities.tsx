@@ -38,7 +38,6 @@ interface AffiliateOpportunitiesProps {
 
 export function AffiliateOpportunities({ opportunities }: AffiliateOpportunitiesProps) {
   const [filterCategory, setFilterCategory] = useState<string>('all')
-  const [showLinked, setShowLinked] = useState(true)
   const [showOnlyBroken, setShowOnlyBroken] = useState(false)
   const [sortBy, setSortBy] = useState<'confidence' | 'relevance' | 'value'>('confidence')
   const [checkingHealth, setCheckingHealth] = useState(false)
@@ -60,7 +59,6 @@ export function AffiliateOpportunities({ opportunities }: AffiliateOpportunities
   // Filter opportunities
   let filtered = currentOpportunities.filter((opp) => {
     if (filterCategory !== 'all' && opp.category !== filterCategory) return false
-    if (!showLinked && opp.isAlreadyLinked) return false
     if (showOnlyBroken) {
       // Show only opportunities with broken links
       const hasBrokenLink = opp.linkHealth?.status === 'broken' ||
@@ -86,7 +84,7 @@ export function AffiliateOpportunities({ opportunities }: AffiliateOpportunities
 
   const copyAllLinks = () => {
     const links = filtered
-      .filter((opp) => !opp.isAlreadyLinked && opp.affiliatePrograms.length > 0)
+      .filter((opp) => opp.affiliatePrograms.length > 0)
       .map((opp) => opp.affiliatePrograms[0].url)
       .join('\n')
     navigator.clipboard.writeText(links)
@@ -256,7 +254,6 @@ export function AffiliateOpportunities({ opportunities }: AffiliateOpportunities
                 const csv = [
                   ['Product', 'Category', 'Program', 'URL', 'Commission', 'Link Health'].join(','),
                   ...filtered
-                    .filter((opp) => !opp.isAlreadyLinked)
                     .map((opp) =>
                       [
                         opp.product,
@@ -316,18 +313,6 @@ export function AffiliateOpportunities({ opportunities }: AffiliateOpportunities
           <div className="flex items-center gap-2">
             <input
               type="checkbox"
-              id="showLinked"
-              checked={showLinked}
-              onChange={(e) => setShowLinked(e.target.checked)}
-              className="rounded border-gray-300 text-primary focus:ring-primary"
-            />
-            <label htmlFor="showLinked" className="text-sm text-gray-700">
-              Show already linked
-            </label>
-          </div>
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
               id="showOnlyBroken"
               checked={showOnlyBroken}
               onChange={(e) => setShowOnlyBroken(e.target.checked)}
@@ -383,9 +368,6 @@ export function AffiliateOpportunities({ opportunities }: AffiliateOpportunities
                       <div className="text-sm font-medium text-gray-900">{opp.product}</div>
                       {opp.linkHealth && getHealthIcon(opp.linkHealth)}
                     </div>
-                    {opp.isAlreadyLinked && (
-                      <span className="text-xs text-green-600">Already linked</span>
-                    )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className="px-2 py-1 text-xs font-medium bg-gray-100 text-gray-800 rounded">

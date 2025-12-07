@@ -3,7 +3,7 @@ import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 
 /**
- * GET /api/blog/scan/[scanId]
+ * GET /api/site/scan/[scanId]
  * Get scan data by scan ID
  * No auth required (allows viewing anonymous scans)
  */
@@ -41,7 +41,7 @@ export async function GET(
 
     // Get scan from database
     const { data: scan, error: scanError } = await supabase
-      .from('blog_scans')
+      .from('site_scans')
       .select('*')
       .eq('id', scanId)
       .single();
@@ -61,19 +61,67 @@ export async function GET(
       );
     }
 
+    // Get authenticated user to fetch analysis data
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    const pages = scan.scan_data.pages || [];
+    
+    // If user is authenticated, fetch latest analysis for each page
+    let analysisMap = new Map<string, { id: string; created_at: string }>();
+    if (user) {
+      const pageUrls = pages.map((p: any) => p.url).filter(Boolean);
+      
+      if (pageUrls.length > 0) {
+        // Fetch latest analysis for each URL (only completed analyses)
+        const { data: analyses, error: analysesError } = await supabase
+          .from('content_analyses')
+          .select('id, url, created_at')
+          .eq('user_id', user.id)
+          .eq('status', 'completed')
+          .in('url', pageUrls)
+          .is('deleted_at', null)
+          .order('created_at', { ascending: false });
+
+        if (!analysesError && analyses) {
+          // Create a map of URL -> latest analysis
+          // Since we ordered by created_at DESC, first occurrence is latest
+          analyses.forEach((analysis) => {
+            if (!analysisMap.has(analysis.url)) {
+              analysisMap.set(analysis.url, {
+                id: analysis.id,
+                created_at: analysis.created_at,
+              });
+            }
+          });
+        }
+      }
+    }
+
+    // Add analysis info to each page
+    const pagesWithAnalysis = pages.map((page: any) => {
+      const analysis = analysisMap.get(page.url);
+      return {
+        ...page,
+        lastAnalyzedAt: analysis?.created_at || null,
+        analysisId: analysis?.id || null,
+      };
+    });
+
     // Return scan data
     return NextResponse.json({
       scanId: scan.id,
-      blogUrl: scan.blog_url,
-      totalPosts: scan.total_posts,
-      scannedPosts: scan.scanned_posts,
-      posts: scan.scan_data.posts || [],
+      siteUrl: scan.site_url,
+      totalPages: scan.total_pages,
+      scannedPages: scan.scanned_pages,
+      pages: pagesWithAnalysis,
       summary: scan.scan_data.summary || {
         totalWords: 0,
-        avgWordsPerPost: 0,
+        avgWordsPerPage: 0,
         totalAffiliateLinks: 0,
         underMonetizedCount: 0,
-        postsWithNoAffiliateLinks: 0,
+        pagesWithNoAffiliateLinks: 0,
       },
       method: scan.scan_data.method || 'crawl',
       scannedAt: scan.created_at,

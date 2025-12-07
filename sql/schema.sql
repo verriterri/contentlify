@@ -31,7 +31,7 @@ DROP TABLE IF EXISTS public.social_posts CASCADE;
 DROP TABLE IF EXISTS public.generated_products CASCADE;
 DROP TABLE IF EXISTS public.content_analyses CASCADE;
 DROP TABLE IF EXISTS public.analysis_jobs CASCADE;
-DROP TABLE IF EXISTS public.blog_scans CASCADE;
+DROP TABLE IF EXISTS public.site_scans CASCADE;
 DROP TABLE IF EXISTS public.credit_purchases CASCADE;
 DROP TABLE IF EXISTS public.user_settings CASCADE;
 DROP TABLE IF EXISTS public.anonymous_usage CASCADE;
@@ -118,14 +118,14 @@ CREATE TABLE public.social_posts (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
 
--- 6. Blog scans table (for free blog scanning)
-CREATE TABLE public.blog_scans (
+-- 6. Site scans table (for free site scanning)
+CREATE TABLE public.site_scans (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID REFERENCES public.users(id) ON DELETE CASCADE, -- null if anonymous user
-  blog_url TEXT NOT NULL,
-  total_posts INTEGER NOT NULL,
-  scanned_posts INTEGER NOT NULL,
-  scan_data JSONB NOT NULL, -- stores all post metadata and summary
+  site_url TEXT NOT NULL,
+  total_pages INTEGER NOT NULL,
+  scanned_pages INTEGER NOT NULL,
+  scan_data JSONB NOT NULL, -- stores all page metadata and summary
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
   expires_at TIMESTAMP WITH TIME ZONE -- anonymous scans expire after 7 days
 );
@@ -134,10 +134,10 @@ CREATE TABLE public.blog_scans (
 CREATE TABLE public.analysis_jobs (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
-  scan_id UUID REFERENCES public.blog_scans(id) ON DELETE SET NULL,
-  total_posts INTEGER NOT NULL,
-  completed_posts INTEGER DEFAULT 0,
-  failed_posts INTEGER DEFAULT 0,
+  scan_id UUID REFERENCES public.site_scans(id) ON DELETE SET NULL,
+  total_pages INTEGER NOT NULL,
+  completed_pages INTEGER DEFAULT 0,
+  failed_pages INTEGER DEFAULT 0,
   status TEXT NOT NULL DEFAULT 'queued' CHECK (status IN ('queued', 'processing', 'completed', 'failed', 'cancelled')),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
   completed_at TIMESTAMP WITH TIME ZONE,
@@ -197,11 +197,11 @@ CREATE INDEX IF NOT EXISTS idx_generated_products_product_type ON public.generat
 CREATE INDEX IF NOT EXISTS idx_social_posts_product_id ON public.social_posts(product_id);
 CREATE INDEX IF NOT EXISTS idx_social_posts_platform ON public.social_posts(platform);
 
--- Blog scans indexes
-CREATE INDEX IF NOT EXISTS idx_blog_scans_user_id ON public.blog_scans(user_id);
-CREATE INDEX IF NOT EXISTS idx_blog_scans_blog_url ON public.blog_scans(blog_url);
-CREATE INDEX IF NOT EXISTS idx_blog_scans_expires_at ON public.blog_scans(expires_at) WHERE expires_at IS NOT NULL;
-CREATE INDEX IF NOT EXISTS idx_blog_scans_created_at ON public.blog_scans(created_at DESC);
+-- Site scans indexes
+CREATE INDEX IF NOT EXISTS idx_site_scans_user_id ON public.site_scans(user_id);
+CREATE INDEX IF NOT EXISTS idx_site_scans_site_url ON public.site_scans(site_url);
+CREATE INDEX IF NOT EXISTS idx_site_scans_expires_at ON public.site_scans(expires_at) WHERE expires_at IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_site_scans_created_at ON public.site_scans(created_at DESC);
 
 -- Analysis jobs indexes
 CREATE INDEX IF NOT EXISTS idx_analysis_jobs_user_id ON public.analysis_jobs(user_id);
@@ -365,7 +365,7 @@ ALTER TABLE public.credit_purchases ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.content_analyses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.generated_products ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.social_posts ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.blog_scans ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.site_scans ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.analysis_jobs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.anonymous_usage ENABLE ROW LEVEL SECURITY;
@@ -465,26 +465,26 @@ CREATE POLICY "Users can delete posts for own products"
     )
   );
 
--- Blog scans policies
+-- Site scans policies
 -- Allow viewing scans if user owns them OR if they're anonymous (for temporary access)
 CREATE POLICY "Users can view own scans or anonymous scans"
-  ON public.blog_scans FOR SELECT
+  ON public.site_scans FOR SELECT
   USING (
     auth.uid() = user_id OR user_id IS NULL
   );
 
 CREATE POLICY "Users can insert own scans or anonymous scans"
-  ON public.blog_scans FOR INSERT
+  ON public.site_scans FOR INSERT
   WITH CHECK (
     auth.uid() = user_id OR user_id IS NULL
   );
 
 CREATE POLICY "Users can update own scans"
-  ON public.blog_scans FOR UPDATE
+  ON public.site_scans FOR UPDATE
   USING (auth.uid() = user_id);
 
 CREATE POLICY "Users can delete own scans"
-  ON public.blog_scans FOR DELETE
+  ON public.site_scans FOR DELETE
   USING (auth.uid() = user_id);
 
 -- Analysis jobs policies
@@ -531,7 +531,7 @@ CREATE POLICY "Server-side API access" ON public.anonymous_usage
 
 COMMENT ON TABLE public.users IS 'User profiles with credit balance';
 COMMENT ON TABLE public.credit_purchases IS 'Credit purchase transactions';
-COMMENT ON TABLE public.content_analyses IS 'Blog post analyses with affiliate opportunities and product ideas';
+COMMENT ON TABLE public.content_analyses IS 'Page analyses with affiliate opportunities and product ideas';
 COMMENT ON TABLE public.generated_products IS 'Generated product outlines (not full content)';
 COMMENT ON TABLE public.social_posts IS 'Generated social media posts for products';
 COMMENT ON TABLE public.user_settings IS 'User preferences and affiliate IDs';

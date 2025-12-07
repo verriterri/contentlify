@@ -59,93 +59,48 @@ export async function middleware(request: NextRequest) {
     },
   })
 
-  // Get authenticated user and session - getUser() validates the session server-side
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  // Get session to check expiration
+  // Get session and user
   const {
     data: { session },
   } = await supabase.auth.getSession()
 
-  // Check if session exists and enforce inactivity timeout (1 hour) and maximum session age (7 days)
-  if (session) {
-    const now = Math.floor(Date.now() / 1000) // Current time in seconds (Unix timestamp)
-    const inactivityTimeout = 60 * 60 // 1 hour in seconds
-    const maxSessionAge = 7 * 24 * 60 * 60 // 7 days in seconds
-    
-    // Check if session has expired (expires_at is in seconds)
-    const isExpired = session.expires_at && session.expires_at < now
-    
-    // Check inactivity timeout using last_activity cookie
-    const lastActivityCookie = request.cookies.get('last_activity')
-    const sessionStartedCookie = request.cookies.get('session_started_at')
-    
-    let inactivityExceeded = false
-    let sessionAgeExceeded = false
-    
-    // Check inactivity (1 hour of no activity)
-    if (lastActivityCookie?.value) {
-      const lastActivity = parseInt(lastActivityCookie.value, 10)
-      const inactivitySeconds = now - lastActivity
-      inactivityExceeded = inactivitySeconds > inactivityTimeout
-    } else {
-      // If no last_activity cookie exists, this is a new session or very old session
-      // Set it now, but if session_started_at exists and is old, expire it
-      if (sessionStartedCookie?.value) {
-        const sessionStartedAt = parseInt(sessionStartedCookie.value, 10)
-        const ageInSeconds = now - sessionStartedAt
-        // If session is older than inactivity timeout and we don't have last_activity, expire it
-        if (ageInSeconds > inactivityTimeout) {
-          inactivityExceeded = true
-        }
-      }
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  const { pathname } = request.nextUrl
+  const now = Math.floor(Date.now() / 1000)
+  const inactivityTimeout = 60 * 60 // 1 hour in seconds
+  const maxSessionAge = 7 * 24 * 60 * 60 // 7 days in seconds
+
+  // Protect dashboard routes (except /dashboard/analyze which allows anonymous free trial)
+  if (pathname.startsWith('/dashboard')) {
+    // Allow anonymous access to /dashboard/analyze for free trial
+    if (pathname === '/dashboard/analyze' || pathname.startsWith('/dashboard/analyze/')) {
+      return response
     }
     
-    // Check maximum session age (7 days)
-    if (sessionStartedCookie?.value) {
-      const sessionStartedAt = parseInt(sessionStartedCookie.value, 10)
-      const ageInSeconds = now - sessionStartedAt
-      sessionAgeExceeded = ageInSeconds > maxSessionAge
-    } else {
-      // If no cookie exists, set it now (for new sessions)
-      // But also check if expires_at suggests the session is too old
-      if (session.expires_at) {
-        // If expires_at is more than 8 days from now, it's suspiciously long
-        const suspiciousExpiration = session.expires_at > (now + 8 * 24 * 60 * 60)
-        if (suspiciousExpiration) {
-          sessionAgeExceeded = true
-        }
-      }
-    }
-    
-    // If session is expired, inactive too long, or too old, sign out
-    if (isExpired || inactivityExceeded || sessionAgeExceeded) {
-      await supabase.auth.signOut()
-      // Clear session tracking cookies
-      response.cookies.delete('session_started_at')
-      response.cookies.delete('last_activity')
+    // FIRST: Check if we have a session - if yes, allow access immediately
+    // This ensures new logins work without any blocking
+    if (session) {
+      // Check if this is a new session (no session_id cookie)
+      const sessionIdCookie = request.cookies.get('session_id')
+      const isNewSession = !sessionIdCookie?.value
       
-      const { pathname } = request.nextUrl
-      if (pathname.startsWith('/dashboard')) {
-        const redirectUrl = new URL('/login', request.url)
-        redirectUrl.searchParams.set('redirectedFrom', pathname)
-        redirectUrl.searchParams.set('sessionExpired', 'true')
-        return NextResponse.redirect(redirectUrl)
-      }
-    } else {
-      // Update last activity time on every request
-      response.cookies.set('last_activity', now.toString(), {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: inactivityTimeout,
-        path: '/',
-      })
-      
-      // Set session start time cookie if it doesn't exist
-      if (!sessionStartedCookie?.value) {
+      // For new sessions, set up tracking cookies but don't check expiration
+      if (isNewSession) {
+        // Set up tracking cookies for new sessions
+        // Use user ID from session if getUser() hasn't completed yet
+        const userId = user?.id || session.user?.id || 'unknown'
+        const sessionIdentifier = `${userId}-${now}`
+        
+        response.cookies.set('session_id', sessionIdentifier, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          maxAge: maxSessionAge,
+          path: '/',
+        })
         response.cookies.set('session_started_at', now.toString(), {
           httpOnly: true,
           secure: process.env.NODE_ENV === 'production',
@@ -153,39 +108,107 @@ export async function middleware(request: NextRequest) {
           maxAge: maxSessionAge,
           path: '/',
         })
+        response.cookies.set('last_activity', now.toString(), {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          maxAge: inactivityTimeout,
+          path: '/',
+        })
+      } else if (!isNewSession) {
+        // Existing session - check for expiration and inactivity
+        const lastActivityCookie = request.cookies.get('last_activity')
+        const sessionStartedCookie = request.cookies.get('session_started_at')
+        
+        // If tracking cookies don't exist, this might be a session that was just set up
+        // but cookies haven't propagated yet - set them up now and allow access
+        if (!sessionStartedCookie?.value || !lastActivityCookie?.value) {
+          // Missing tracking cookies - set them up now (likely cookie propagation delay)
+          const userId = user?.id || session.user?.id || 'unknown'
+          const sessionIdentifier = `${userId}-${now}`
+          
+          response.cookies.set('session_id', sessionIdentifier, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            maxAge: maxSessionAge,
+            path: '/',
+          })
+          response.cookies.set('session_started_at', now.toString(), {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            maxAge: maxSessionAge,
+            path: '/',
+          })
+          response.cookies.set('last_activity', now.toString(), {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            maxAge: inactivityTimeout,
+            path: '/',
+          })
+        } else {
+          // We have tracking cookies - check for expiration
+          // Check Supabase session expiration
+          const isExpired = session.expires_at && session.expires_at < now
+          
+          let inactivityExceeded = false
+          let sessionAgeExceeded = false
+          
+          // Check inactivity (1 hour) - use last_activity if available
+          if (lastActivityCookie?.value) {
+            const lastActivity = parseInt(lastActivityCookie.value, 10)
+            // Add a 5-minute grace period to account for cookie propagation delays
+            const gracePeriod = 5 * 60 // 5 minutes
+            inactivityExceeded = (now - lastActivity) > (inactivityTimeout + gracePeriod)
+          }
+          
+          // Check max session age (7 days)
+          if (sessionStartedCookie?.value) {
+            const sessionStartedAt = parseInt(sessionStartedCookie.value, 10)
+            sessionAgeExceeded = (now - sessionStartedAt) > maxSessionAge
+          }
+          
+          // If expired, inactive, or too old, sign out and redirect
+          if (isExpired || inactivityExceeded || sessionAgeExceeded) {
+            await supabase.auth.signOut()
+            response.cookies.delete('session_started_at')
+            response.cookies.delete('last_activity')
+            response.cookies.delete('session_id')
+            
+            const redirectUrl = new URL('/login', request.url)
+            redirectUrl.searchParams.set('redirectedFrom', pathname)
+            redirectUrl.searchParams.set('sessionExpired', 'true')
+            return NextResponse.redirect(redirectUrl)
+          } else {
+            // Update last activity
+            response.cookies.set('last_activity', now.toString(), {
+              httpOnly: true,
+              secure: process.env.NODE_ENV === 'production',
+              sameSite: 'lax',
+              maxAge: inactivityTimeout,
+              path: '/',
+            })
+          }
+        }
       }
-    }
-  }
-
-  const { pathname } = request.nextUrl
-
-  // Protect dashboard routes (except /dashboard/analyze which allows anonymous free trial)
-  if (pathname.startsWith('/dashboard')) {
-    // Allow anonymous access to /dashboard/analyze for free trial
-    if (pathname === '/dashboard/analyze' || pathname.startsWith('/dashboard/analyze/')) {
-      // Allow anonymous users to access analyze page
+      
+      // Allow access - new sessions are always allowed, existing sessions are checked above
       return response
     }
     
-    if (!user || !session) {
-      // Only redirect if not already going to login (prevents loops)
-      if (!pathname.includes('/login')) {
-        const redirectUrl = new URL('/login', request.url)
-        redirectUrl.searchParams.set('redirectedFrom', pathname)
-        return NextResponse.redirect(redirectUrl)
-      }
+    // No session - redirect to login
+    if (!pathname.includes('/login')) {
+      const redirectUrl = new URL('/login', request.url)
+      redirectUrl.searchParams.set('redirectedFrom', pathname)
+      return NextResponse.redirect(redirectUrl)
     }
   }
 
   // Redirect authenticated users away from auth pages
-  // getUser() already validates the session, so if user exists, session is valid
-  // But only redirect if we have a valid session (not just a user object)
   if ((pathname === '/login' || pathname === '/signup') && user && session) {
-    // Double-check session is not expired
-    const now = Math.floor(Date.now() / 1000)
-    if (session.expires_at && session.expires_at > now) {
-      return NextResponse.redirect(new URL('/dashboard', request.url))
-    }
+    return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
   return response
@@ -203,4 +226,3 @@ export const config = {
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }
-

@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
     if (authError || !user) {
       return NextResponse.json({
         preferences: {
-          chargeExtraForLongPosts: false, // Default for anonymous users
+          chargeExtraForLongPages: false, // Default for anonymous users
         },
       })
     }
@@ -54,7 +54,7 @@ export async function GET(req: NextRequest) {
         .insert({
           user_id: user.id,
           preferences: {
-            chargeExtraForLongPosts: false, // Default: don't charge extra
+            chargeExtraForLongPages: false, // Default: don't charge extra
           },
         })
         .select('preferences')
@@ -79,9 +79,9 @@ export async function GET(req: NextRequest) {
       )
     }
 
-    // Ensure chargeExtraForLongPosts exists (default to false)
+    // Ensure chargeExtraForLongPages exists (default to false)
     const preferences = {
-      chargeExtraForLongPosts: false,
+      chargeExtraForLongPages: false,
       ...userSettings?.preferences,
     }
 
@@ -132,12 +132,12 @@ export async function PATCH(req: NextRequest) {
     }
 
     const body = await req.json()
-    const { chargeExtraForLongPosts } = body
+    const { chargeExtraForLongPages } = body
 
     // Validate input
-    if (chargeExtraForLongPosts !== undefined && typeof chargeExtraForLongPosts !== 'boolean') {
+    if (chargeExtraForLongPages !== undefined && typeof chargeExtraForLongPages !== 'boolean') {
       return NextResponse.json(
-        { error: 'chargeExtraForLongPosts must be a boolean' },
+        { error: 'chargeExtraForLongPages must be a boolean' },
         { status: 400 }
       )
     }
@@ -152,7 +152,7 @@ export async function PATCH(req: NextRequest) {
     // Merge with existing preferences
     const updatedPreferences = {
       ...existingSettings?.preferences,
-      ...(chargeExtraForLongPosts !== undefined && { chargeExtraForLongPosts }),
+      ...(chargeExtraForLongPages !== undefined && { chargeExtraForLongPages }),
     }
 
     // Upsert settings

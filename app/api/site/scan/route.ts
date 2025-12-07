@@ -1,37 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { scanBlog, getPostMetadata } from '@/lib/scrapers/blog-scanner';
+import { scanSite, getPageMetadata } from '@/lib/scrapers/site-scanner';
 import { createServerClient } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 
 /**
- * POST /api/blog/scan
- * Scans a blog to discover all posts and get metadata
+ * POST /api/site/scan
+ * Scans a site to discover all pages and get metadata
  * Costs 1 credit per scan
  * Anonymous users get 2 free credits (1 for scanning, 1 for analyzing)
  */
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { blogUrl, fingerprint } = body;
+    const { siteUrl, fingerprint } = body;
 
-    if (!blogUrl || typeof blogUrl !== 'string') {
+    if (!siteUrl || typeof siteUrl !== 'string') {
       return NextResponse.json(
-        { error: 'blogUrl is required' },
+        { error: 'siteUrl is required' },
         { status: 400 }
       );
     }
 
     // Validate URL format
     try {
-      let normalizedUrl = blogUrl.trim();
+      let normalizedUrl = siteUrl.trim();
       if (!normalizedUrl.startsWith('http://') && !normalizedUrl.startsWith('https://')) {
         normalizedUrl = `https://${normalizedUrl}`;
       }
       new URL(normalizedUrl);
     } catch {
       return NextResponse.json(
-        { error: 'Invalid blog URL format' },
+        { error: 'Invalid site URL format' },
         { status: 400 }
       );
     }
@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
       if (userCredits < SCAN_COST) {
         return NextResponse.json(
           { 
-            error: `Insufficient credits. Blog scanning costs ${SCAN_COST} credit. You have ${userCredits} credits. Please purchase more credits to continue.`,
+            error: `Insufficient credits. Site scanning costs ${SCAN_COST} credit. You have ${userCredits} credits. Please purchase more credits to continue.`,
             insufficientCredits: true,
             creditsNeeded: SCAN_COST,
             currentCredits: userCredits,
@@ -106,7 +106,7 @@ export async function POST(req: NextRequest) {
       }
 
       creditsRemaining = newCredits;
-      console.log(`[Blog Scan] Deducted ${SCAN_COST} credit from user ${user.id}. New balance: ${newCredits}`);
+      console.log(`[Site Scan] Deducted ${SCAN_COST} credit from user ${user.id}. New balance: ${newCredits}`);
     } else {
       // Anonymous user: check free credits (2 total: 1 scan + 1 analysis)
       const { getClientIP, hashIPAddress, hashFingerprint, createUsageKey } = await import('@/lib/utils/abuse-prevention');
@@ -131,7 +131,7 @@ export async function POST(req: NextRequest) {
       if (scanCount >= 1) {
         return NextResponse.json(
           { 
-            error: 'You have already used your free blog scan. Sign up to get more credits and unlimited scans.',
+            error: 'You have already used your free site scan. Sign up to get more credits and unlimited scans.',
             insufficientCredits: true,
             requiresAuth: true,
           },
@@ -173,14 +173,14 @@ export async function POST(req: NextRequest) {
       }
 
       creditsRemaining = 2 - (totalUsage + 1); // Remaining free credits
-      console.log(`[Blog Scan] Recorded free scan for anonymous user. Usage: ${scanCount + 1} scans, ${analysisCount} analyses`);
+      console.log(`[Site Scan] Recorded free scan for anonymous user. Usage: ${scanCount + 1} scans, ${analysisCount} analyses`);
     }
 
-    // Step 2: Scan blog to find all posts
-    console.log(`[Blog Scan] Scanning blog: ${blogUrl}`);
-    const scanResult = await scanBlog(blogUrl);
+    // Step 2: Scan site to find all pages
+    console.log(`[Site Scan] Scanning site: ${siteUrl}`);
+    const scanResult = await scanSite(siteUrl);
     
-    if (scanResult.posts.length === 0) {
+    if (scanResult.pages.length === 0) {
       // Refund the credit if no posts found
       if (user) {
         const { data: userData } = await supabaseAuth
@@ -194,7 +194,7 @@ export async function POST(req: NextRequest) {
             .from('users')
             .update({ credits: (userData.credits || 0) + SCAN_COST })
             .eq('id', user.id);
-          console.log(`[Blog Scan] No posts found, refunded ${SCAN_COST} credit to user ${user.id}`);
+          console.log(`[Site Scan] No pages found, refunded ${SCAN_COST} credit to user ${user.id}`);
         }
       } else {
         // Refund anonymous scan
@@ -213,23 +213,23 @@ export async function POST(req: NextRequest) {
             .from('anonymous_usage')
             .update({ scan_count: usageData.scan_count - 1 })
             .eq('usage_key', usageKey);
-          console.log(`[Blog Scan] No posts found, refunded free scan for anonymous user`);
+          console.log(`[Site Scan] No pages found, refunded free scan for anonymous user`);
         }
       }
       
       return NextResponse.json(
-        { error: 'No posts found. Make sure the blog URL is correct and accessible.' },
+        { error: 'No pages found. Make sure the site URL is correct and accessible.' },
         { status: 404 }
       );
     }
 
     const hasCredits = creditsRemaining !== null && creditsRemaining > 0;
 
-    // Step 3: Get metadata for each post
-    // For users with credits: process all posts
-    // For users without credits: limit to 100 posts (free scan)
-    const postsToScan = hasCredits ? scanResult.posts : scanResult.posts.slice(0, 100);
-    const postMetadata: Array<{
+    // Step 3: Get metadata for each page
+    // For users with credits: process all pages
+    // For users without credits: limit to 100 pages (free scan)
+    const pagesToScan = hasCredits ? scanResult.pages : scanResult.pages.slice(0, 100);
+    const pageMetadata: Array<{
       url: string;
       title: string;
       wordCount?: number;
@@ -237,13 +237,13 @@ export async function POST(req: NextRequest) {
       publishedDate: string | null;
     }> = [];
 
-    // Process posts in batches to avoid overwhelming the server
+    // Process pages in batches to avoid overwhelming the server
     const batchSize = 10;
-    for (let i = 0; i < postsToScan.length; i += batchSize) {
-      const batch = postsToScan.slice(i, i + batchSize);
+    for (let i = 0; i < pagesToScan.length; i += batchSize) {
+      const batch = pagesToScan.slice(i, i + batchSize);
       
       const batchResults = await Promise.allSettled(
-        batch.map((post) => getPostMetadata(post.url, hasCredits))
+        batch.map((page) => getPageMetadata(page.url, hasCredits))
       );
 
       for (const result of batchResults) {
@@ -265,7 +265,7 @@ export async function POST(req: NextRequest) {
           })();
 
           if (hasCredits) {
-            postMetadata.push({
+            pageMetadata.push({
               url: normalizedUrl,
               title: result.value.title,
               wordCount: result.value.wordCount,
@@ -274,25 +274,25 @@ export async function POST(req: NextRequest) {
             });
           } else {
             // For users without credits, only return basic info
-            postMetadata.push({
+            pageMetadata.push({
               url: normalizedUrl,
               title: result.value.title,
               publishedDate: result.value.publishedDate?.toISOString() || null,
             });
           }
         } else {
-          console.error('[Blog Scan] Error fetching post metadata:', result.reason);
-          // Continue with other posts even if one fails
+          console.error('[Site Scan] Error fetching page metadata:', result.reason);
+          // Continue with other pages even if one fails
         }
       }
     }
 
-    // Step 4.5: Create a map of processed posts with metadata
-    const processedPostsMap = new Map<string, typeof postMetadata[0]>();
-    for (const post of postMetadata) {
+    // Step 4.5: Create a map of processed pages with metadata
+    const processedPagesMap = new Map<string, typeof pageMetadata[0]>();
+    for (const page of pageMetadata) {
       const normalized = (() => {
         try {
-          const urlObj = new URL(post.url);
+          const urlObj = new URL(page.url);
           urlObj.hash = '';
           let path = urlObj.pathname;
           if (path.length > 1 && path.endsWith('/')) {
@@ -301,25 +301,25 @@ export async function POST(req: NextRequest) {
           urlObj.pathname = path;
           return urlObj.toString();
         } catch {
-          return post.url;
+          return page.url;
         }
       })();
       
       // Keep the first occurrence (or merge if needed)
-      if (!processedPostsMap.has(normalized)) {
-        processedPostsMap.set(normalized, { ...post, url: normalized });
+      if (!processedPagesMap.has(normalized)) {
+        processedPagesMap.set(normalized, { ...page, url: normalized });
       }
     }
 
-    // Step 4.6: Include ALL posts from scan, even if metadata wasn't fetched
-    // For posts without metadata, use basic info from scan result
-    const allPosts: typeof postMetadata = [];
+    // Step 4.6: Include ALL pages from scan, even if metadata wasn't fetched
+    // For pages without metadata, use basic info from scan result
+    const allPages: typeof pageMetadata = [];
     const seenUrls = new Set<string>();
     
-    for (const post of scanResult.posts) {
+    for (const page of scanResult.pages) {
       const normalized = (() => {
         try {
-          const urlObj = new URL(post.url);
+          const urlObj = new URL(page.url);
           urlObj.hash = '';
           let path = urlObj.pathname;
           if (path.length > 1 && path.endsWith('/')) {
@@ -328,7 +328,7 @@ export async function POST(req: NextRequest) {
           urlObj.pathname = path;
           return urlObj.toString();
         } catch {
-          return post.url;
+          return page.url;
         }
       })();
       
@@ -338,39 +338,39 @@ export async function POST(req: NextRequest) {
       }
       seenUrls.add(normalized);
       
-      // If we have metadata for this post, use it; otherwise use basic info
-      if (processedPostsMap.has(normalized)) {
-        allPosts.push(processedPostsMap.get(normalized)!);
+      // If we have metadata for this page, use it; otherwise use basic info
+      if (processedPagesMap.has(normalized)) {
+        allPages.push(processedPagesMap.get(normalized)!);
       } else {
-        // Post wasn't processed (e.g., free user beyond first 100)
+        // Page wasn't processed (e.g., free user beyond first 100)
         // Include it with basic info only
-        allPosts.push({
+        allPages.push({
           url: normalized,
-          title: post.title || 'Untitled Post',
-          publishedDate: post.publishedDate?.toISOString() || null,
+          title: page.title || 'Untitled Page',
+          publishedDate: page.publishedDate?.toISOString() || null,
           // wordCount and affiliateLinkCount will be undefined (not fetched)
         });
       }
     }
     
-    const uniquePosts = allPosts;
+    const uniquePages = allPages;
 
     // Step 4: Calculate summary statistics (only for users with credits)
     let totalWords = 0;
-    let avgWordsPerPost = 0;
+    let avgWordsPerPage = 0;
     let totalAffiliateLinks = 0;
     let underMonetizedCount = 0;
-    let postsWithNoAffiliateLinks = 0;
+    let pagesWithNoAffiliateLinks = 0;
     
     if (hasCredits) {
-      totalWords = uniquePosts.reduce((sum, post) => sum + (post.wordCount || 0), 0);
-      avgWordsPerPost = uniquePosts.length > 0 ? Math.round(totalWords / uniquePosts.length) : 0;
-      totalAffiliateLinks = uniquePosts.reduce((sum, post) => sum + (post.affiliateLinkCount || 0), 0);
-      underMonetizedCount = uniquePosts.filter(
-        (post) => (post.wordCount || 0) >= 1500 && (post.affiliateLinkCount || 0) <= 2
+      totalWords = uniquePages.reduce((sum, page) => sum + (page.wordCount || 0), 0);
+      avgWordsPerPage = uniquePages.length > 0 ? Math.round(totalWords / uniquePages.length) : 0;
+      totalAffiliateLinks = uniquePages.reduce((sum, page) => sum + (page.affiliateLinkCount || 0), 0);
+      underMonetizedCount = uniquePages.filter(
+        (page) => (page.wordCount || 0) >= 1500 && (page.affiliateLinkCount || 0) <= 2
       ).length;
-      postsWithNoAffiliateLinks = uniquePosts.filter(
-        (post) => (post.affiliateLinkCount || 0) === 0
+      pagesWithNoAffiliateLinks = uniquePages.filter(
+        (page) => (page.affiliateLinkCount || 0) === 0
       ).length;
     }
 
@@ -398,28 +398,32 @@ export async function POST(req: NextRequest) {
       }
 
       // Save scan to database
-      const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + 7); // Expires in 7 days
+      // Only set expires_at for anonymous users (logged-in users' scans don't expire)
+      const expiresAt = userId ? null : (() => {
+        const date = new Date();
+        date.setDate(date.getDate() + 7); // Expires in 7 days for anonymous users
+        return date.toISOString();
+      })();
 
       const { data: savedScan, error: saveError } = await supabase
-        .from('blog_scans')
+        .from('site_scans')
         .insert({
           user_id: userId,
-          blog_url: blogUrl,
-          total_posts: scanResult.totalPosts,
-          scanned_posts: uniquePosts.length, // All posts (with or without metadata)
+          site_url: siteUrl,
+          total_pages: scanResult.totalPages,
+          scanned_pages: uniquePages.length, // All pages (with or without metadata)
           scan_data: {
-            posts: uniquePosts, // Include all posts, not just those with metadata
+            pages: uniquePages, // Include all pages, not just those with metadata
             method: scanResult.method,
             summary: {
               totalWords,
-              avgWordsPerPost,
+              avgWordsPerPage,
               totalAffiliateLinks,
               underMonetizedCount,
-              postsWithNoAffiliateLinks,
+              pagesWithNoAffiliateLinks,
             },
           },
-          expires_at: expiresAt.toISOString(),
+          expires_at: expiresAt,
         })
         .select('id')
         .single();
@@ -427,57 +431,57 @@ export async function POST(req: NextRequest) {
       if (!saveError && savedScan) {
         scanId = savedScan.id;
       } else {
-        console.error('[Blog Scan] Error saving scan:', saveError);
+        console.error('[Site Scan] Error saving scan:', saveError);
         if (!serviceRoleKey) {
-          console.warn('[Blog Scan] Consider setting SUPABASE_SERVICE_ROLE_KEY for reliable server-side inserts');
+          console.warn('[Site Scan] Consider setting SUPABASE_SERVICE_ROLE_KEY for reliable server-side inserts');
         }
       }
     } catch (error) {
-      console.error('[Blog Scan] Error saving scan to database:', error);
+      console.error('[Site Scan] Error saving scan to database:', error);
       // Continue even if save fails - we'll return data without scanId
     }
 
     // Step 6: Return results
     const response: any = {
       scanId,
-      blogUrl: scanResult.blogUrl,
-      totalPosts: scanResult.totalPosts,
-      scannedPosts: uniquePosts.length,
-      posts: uniquePosts,
+      siteUrl: scanResult.siteUrl,
+      totalPages: scanResult.totalPages,
+      scannedPages: uniquePages.length,
+      pages: uniquePages,
       method: scanResult.method,
       scannedAt: scanResult.scannedAt.toISOString(),
       creditsRemaining: creditsRemaining,
       isAnonymous,
       summary: {
         totalWords,
-        avgWordsPerPost,
+        avgWordsPerPage,
         totalAffiliateLinks,
         underMonetizedCount,
-        postsWithNoAffiliateLinks,
+        pagesWithNoAffiliateLinks,
       },
     };
 
     return NextResponse.json(response);
   } catch (error: any) {
-    console.error('[Blog Scan] Error:', error);
+    console.error('[Site Scan] Error:', error);
     
-    if (error.message?.includes('Invalid blog URL')) {
+    if (error.message?.includes('Invalid site URL')) {
       return NextResponse.json(
-        { error: 'Invalid blog URL format' },
+        { error: 'Invalid site URL format' },
         { status: 400 }
       );
     }
     
     if (error.message?.includes('Timeout')) {
       return NextResponse.json(
-        { error: 'Request timeout. The blog may be too large or slow to respond.' },
+        { error: 'Request timeout. The site may be too large or slow to respond.' },
         { status: 408 }
       );
     }
 
     return NextResponse.json(
       {
-        error: error.message || 'Failed to scan blog',
+        error: error.message || 'Failed to scan site',
         details: process.env.NODE_ENV === 'development' ? error.stack : undefined,
       },
       { status: 500 }

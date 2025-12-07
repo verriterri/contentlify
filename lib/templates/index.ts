@@ -26,6 +26,10 @@ export function getTemplatesForType(type: ProductType): Template[] {
       return EBOOK_TEMPLATES as Template[];
     case 'newsletter':
       return NEWSLETTER_TEMPLATES as Template[];
+    case 'template':
+      // Template products (like template packs) use workbook templates
+      // since they're typically collections of reusable worksheets/templates
+      return WORKBOOK_TEMPLATES as Template[];
     default:
       return [];
   }
@@ -44,6 +48,9 @@ export function getTemplate(type: ProductType, id: string): Template | undefined
       return EBOOK_TEMPLATES.find((t) => t.id === id);
     case 'newsletter':
       return NEWSLETTER_TEMPLATES.find((t) => t.id === id);
+    case 'template':
+      // Template products use workbook templates
+      return WORKBOOK_TEMPLATES.find((t) => t.id === id);
     default:
       return undefined;
   }
@@ -62,6 +69,9 @@ export function getDefaultTemplate(type: ProductType): Template | undefined {
       return EBOOK_TEMPLATES[0];
     case 'newsletter':
       return NEWSLETTER_TEMPLATES[0];
+    case 'template':
+      // Template products use workbook templates
+      return WORKBOOK_TEMPLATES[0];
     default:
       return undefined;
   }

@@ -7,9 +7,9 @@ import { SmartFilters } from '@/components/scanner/SmartFilters'
 import { SelectionSummary } from '@/components/scanner/SelectionSummary'
 import { calculateCreditsForAnalysis } from '@/lib/utils/credit-calculator'
 import { ClientHeader } from '@/components/ClientHeader'
-import { BlogUrlInput } from '@/components/scanner/BlogUrlInput'
+import { SiteUrlInput } from '@/components/scanner/SiteUrlInput'
 
-interface Post {
+interface Page {
   url: string
   title: string
   wordCount: number
@@ -17,19 +17,21 @@ interface Post {
   publishedDate: string | null
   estimatedValue?: number // Total estimated value from analysis
   category?: string // Primary category from analysis
+  lastAnalyzedAt?: string | null // Timestamp of last analysis
+  analysisId?: string | null // ID of the latest analysis
 }
 
 interface ScanData {
-  blogUrl: string
-  totalPosts: number
-  scannedPosts: number
-  posts: Post[]
+  siteUrl: string
+  totalPages: number
+  scannedPages: number
+  pages: Page[]
   summary: {
     totalWords: number
-    avgWordsPerPost: number
+    avgWordsPerPage: number
     totalAffiliateLinks: number
     underMonetizedCount: number
-    postsWithNoAffiliateLinks: number
+    pagesWithNoAffiliateLinks: number
   }
   method: string
   scannedAt: string
@@ -48,8 +50,8 @@ export default function ScanResultsPage() {
   const [chargeExtraPreferences, setChargeExtraPreferences] = useState<Map<string, boolean>>(new Map()) // url -> chargeExtra
   const [globalChargeExtra, setGlobalChargeExtra] = useState<boolean | null>(null) // null = not loaded yet
   const [filters, setFilters] = useState({
-    wordCount: 'all' as 'all' | '<500' | '500-1000' | '1000-2000' | '2000+',
-    affiliateLinks: 'all' as 'all' | '0-2' | '3-9' | '10+',
+    wordCount: 'all' as 'all' | '<500' | '500-1000' | '1000-2000' | '2000+' | '<800' | '1500+',
+    affiliateLinks: 'all' as 'all' | '0-2' | '3-9' | '10+' | '0',
     date: 'all' as 'all' | 'last-month' | 'last-6-months' | 'last-year',
     status: 'all' as 'all' | 'not-analyzed' | 'analyzed',
     name: '' as string,
@@ -71,7 +73,7 @@ export default function ScanResultsPage() {
       const response = await fetch('/api/settings/preferences')
       if (response.ok) {
         const data = await response.json()
-        setGlobalChargeExtra(data.preferences?.chargeExtraForLongPosts ?? false)
+        setGlobalChargeExtra(data.preferences?.chargeExtraForLongPages ?? false)
       } else {
         // If not authenticated (401), just use default - this is fine for anonymous users
         setGlobalChargeExtra(false) // Default
@@ -102,7 +104,7 @@ export default function ScanResultsPage() {
       }
 
       // Otherwise, fetch from API using scanId
-      const response = await fetch(`/api/blog/scan/${scanId}`)
+      const response = await fetch(`/api/site/scan/${scanId}`)
       if (!response.ok) {
         throw new Error('Failed to load scan data')
       }
@@ -153,22 +155,22 @@ export default function ScanResultsPage() {
 
   const handleAnalyzeSelected = async () => {
     if (selectedUrls.size === 0) {
-      alert('Please select at least one post to analyze')
+      alert('Please select at least one page to analyze')
       return
     }
 
-    const selectedPosts = scanData?.posts.filter((p) => selectedUrls.has(p.url)) || []
+    const selectedPages = scanData?.pages.filter((p) => selectedUrls.has(p.url)) || []
     const isAnonymous = userCredits === null
-    const isSinglePost = selectedUrls.size === 1
+    const isSinglePage = selectedUrls.size === 1
 
-    // For single post analysis, always use the single post endpoint (better UX - immediate results)
+    // For single page analysis, always use the single page endpoint (better UX - immediate results)
     // This works for both free trial users and users with credits
-    if (isSinglePost) {
-      const postUrl = Array.from(selectedUrls)[0]
+    if (isSinglePage) {
+      const pageUrl = Array.from(selectedUrls)[0]
       
       // Check if user can analyze (has credits or can use free trial)
       if (isAnonymous || userCredits === 0) {
-        // Free trial: Anonymous users OR logged-in users with 0 credits can analyze 1 post for free
+        // Free trial: Anonymous users OR logged-in users with 0 credits can analyze 1 page for free
         if (freeTrialUsed) {
           // Free trial already used, require signup
           router.push(`/login?redirect=/scan/${scanId}`)
@@ -180,12 +182,12 @@ export default function ScanResultsPage() {
         return
       }
       
-      // Redirect to analyze page - single post analysis shows results immediately
-      router.push(`/dashboard/analyze?url=${encodeURIComponent(postUrl)}`)
+      // Redirect to analyze page - single page analysis shows results immediately
+      router.push(`/dashboard/analyze?url=${encodeURIComponent(pageUrl)}&scanId=${scanId}`)
       return
     }
 
-    // Anonymous user trying to analyze multiple posts - require signup
+    // Anonymous user trying to analyze multiple pages - require signup
     if (isAnonymous) {
       router.push(`/login?redirect=/scan/${scanId}`)
       return
@@ -193,13 +195,13 @@ export default function ScanResultsPage() {
 
     // Logged-in users with credits: Check if they have enough credits
 
-    // Calculate credits needed using per-post preferences
-    const totalCredits = selectedPosts.reduce((sum, post) => {
-      // Use per-post preference if set, otherwise use global preference
-      const chargeExtra = chargeExtraPreferences.has(post.url)
-        ? chargeExtraPreferences.get(post.url)!
+    // Calculate credits needed using per-page preferences
+    const totalCredits = selectedPages.reduce((sum, page) => {
+      // Use per-page preference if set, otherwise use global preference
+      const chargeExtra = chargeExtraPreferences.has(page.url)
+        ? chargeExtraPreferences.get(page.url)!
         : (globalChargeExtra ?? false)
-      return sum + calculateCreditsForAnalysis(post.wordCount || 0, chargeExtra)
+      return sum + calculateCreditsForAnalysis(page.wordCount || 0, chargeExtra)
     }, 0)
 
     if (userCredits < totalCredits) {
@@ -209,11 +211,11 @@ export default function ScanResultsPage() {
 
     // Build preferences object for bulk analysis
     const preferences: Record<string, boolean> = {}
-    selectedPosts.forEach((post) => {
-      const chargeExtra = chargeExtraPreferences.has(post.url)
-        ? chargeExtraPreferences.get(post.url)!
+    selectedPages.forEach((page) => {
+      const chargeExtra = chargeExtraPreferences.has(page.url)
+        ? chargeExtraPreferences.get(page.url)!
         : (globalChargeExtra ?? false)
-      preferences[post.url] = chargeExtra
+      preferences[page.url] = chargeExtra
     })
 
     // Start bulk analysis
@@ -222,7 +224,7 @@ export default function ScanResultsPage() {
     if (scanId !== 'temp') {
       params.set('scanId', scanId)
     }
-    params.set('posts', Array.from(selectedUrls).join(','))
+    params.set('pages', Array.from(selectedUrls).join(','))
     params.set('preferences', JSON.stringify(preferences))
     router.push(`/dashboard/analyze/bulk?${params.toString()}`)
   }
@@ -261,12 +263,12 @@ export default function ScanResultsPage() {
   const hasCredits = userCredits !== null && userCredits > 0
 
   // Apply filters and sorting
-  let filteredPosts = [...scanData.posts]
+  let filteredPages = [...scanData.pages]
 
   // Apply name/title filter (works for all users)
   if (filters.name.trim()) {
     const searchTerm = filters.name.toLowerCase().trim()
-    filteredPosts = filteredPosts.filter((p) =>
+    filteredPages = filteredPages.filter((p) =>
       p.title.toLowerCase().includes(searchTerm) ||
       p.url.toLowerCase().includes(searchTerm)
     )
@@ -275,23 +277,29 @@ export default function ScanResultsPage() {
   // Apply filters (only if user has credits and metadata is available)
   if (hasCredits && filters.wordCount !== 'all') {
     if (filters.wordCount === '<500') {
-      filteredPosts = filteredPosts.filter((p) => (p.wordCount || 0) < 500)
+      filteredPages = filteredPages.filter((p) => (p.wordCount || 0) < 500)
+    } else if (filters.wordCount === '<800') {
+      filteredPages = filteredPages.filter((p) => (p.wordCount || 0) < 800)
     } else if (filters.wordCount === '500-1000') {
-      filteredPosts = filteredPosts.filter((p) => (p.wordCount || 0) >= 500 && (p.wordCount || 0) <= 1000)
+      filteredPages = filteredPages.filter((p) => (p.wordCount || 0) >= 500 && (p.wordCount || 0) <= 1000)
     } else if (filters.wordCount === '1000-2000') {
-      filteredPosts = filteredPosts.filter((p) => (p.wordCount || 0) >= 1000 && (p.wordCount || 0) <= 2000)
+      filteredPages = filteredPages.filter((p) => (p.wordCount || 0) >= 1000 && (p.wordCount || 0) <= 2000)
+    } else if (filters.wordCount === '1500+') {
+      filteredPages = filteredPages.filter((p) => (p.wordCount || 0) >= 1500)
     } else if (filters.wordCount === '2000+') {
-      filteredPosts = filteredPosts.filter((p) => (p.wordCount || 0) >= 2000)
+      filteredPages = filteredPages.filter((p) => (p.wordCount || 0) >= 2000)
     }
   }
 
   if (hasCredits && filters.affiliateLinks !== 'all') {
-    if (filters.affiliateLinks === '0-2') {
-      filteredPosts = filteredPosts.filter((p) => (p.affiliateLinkCount || 0) <= 2)
+    if (filters.affiliateLinks === '0') {
+      filteredPages = filteredPages.filter((p) => (p.affiliateLinkCount || 0) === 0)
+    } else if (filters.affiliateLinks === '0-2') {
+      filteredPages = filteredPages.filter((p) => (p.affiliateLinkCount || 0) <= 2)
     } else if (filters.affiliateLinks === '3-9') {
-      filteredPosts = filteredPosts.filter((p) => (p.affiliateLinkCount || 0) >= 3 && (p.affiliateLinkCount || 0) <= 9)
+      filteredPages = filteredPages.filter((p) => (p.affiliateLinkCount || 0) >= 3 && (p.affiliateLinkCount || 0) <= 9)
     } else if (filters.affiliateLinks === '10+') {
-      filteredPosts = filteredPosts.filter((p) => (p.affiliateLinkCount || 0) >= 10)
+      filteredPages = filteredPages.filter((p) => (p.affiliateLinkCount || 0) >= 10)
     }
   }
 
@@ -306,14 +314,14 @@ export default function ScanResultsPage() {
       cutoffDate = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate())
     }
 
-    filteredPosts = filteredPosts.filter((p) => {
+    filteredPages = filteredPages.filter((p) => {
       if (!p.publishedDate) return false
       return new Date(p.publishedDate) >= cutoffDate
     })
   }
 
   // Apply sorting
-  filteredPosts.sort((a, b) => {
+  filteredPages.sort((a, b) => {
     switch (sortBy) {
       case 'recent':
         if (!a.publishedDate || !b.publishedDate) return 0
@@ -336,20 +344,21 @@ export default function ScanResultsPage() {
     }
   })
 
-  // Calculate credits needed for selected posts using per-post preferences
-  const selectedPosts = filteredPosts.filter((p) => selectedUrls.has(p.url))
-  const creditsNeeded = selectedPosts.reduce((sum, post) => {
-    const chargeExtra = chargeExtraPreferences.has(post.url)
-      ? chargeExtraPreferences.get(post.url)!
+  // Calculate credits needed for selected pages using per-page preferences
+  const selectedPages = filteredPages.filter((p) => selectedUrls.has(p.url))
+  const creditsNeeded = selectedPages.reduce((sum, page) => {
+    const chargeExtra = chargeExtraPreferences.has(page.url)
+      ? chargeExtraPreferences.get(page.url)!
       : (globalChargeExtra ?? false)
-    return sum + calculateCreditsForAnalysis(post.wordCount || 0, chargeExtra)
+    return sum + calculateCreditsForAnalysis(page.wordCount || 0, chargeExtra)
   }, 0)
 
-  // Calculate stats (only if user has credits and data is available)
-  const underMonetized = hasCredits ? filteredPosts.filter((p) => (p.wordCount || 0) >= 1500 && (p.affiliateLinkCount || 0) <= 2) : []
-  const partiallyMonetized = hasCredits ? filteredPosts.filter((p) => (p.affiliateLinkCount || 0) >= 3 && (p.affiliateLinkCount || 0) <= 9) : []
-  const wellMonetized = hasCredits ? filteredPosts.filter((p) => (p.affiliateLinkCount || 0) >= 10) : []
-  const shortPosts = hasCredits ? filteredPosts.filter((p) => (p.wordCount || 0) < 800) : []
+  // Calculate stats from original unfiltered data (so numbers don't change when filters are applied)
+  const allPages = scanData.pages
+  const underMonetized = hasCredits ? allPages.filter((p) => (p.wordCount || 0) >= 1500 && (p.affiliateLinkCount || 0) <= 2) : []
+  const partiallyMonetized = hasCredits ? allPages.filter((p) => (p.affiliateLinkCount || 0) >= 3 && (p.affiliateLinkCount || 0) <= 9) : []
+  const wellMonetized = hasCredits ? allPages.filter((p) => (p.affiliateLinkCount || 0) >= 10) : []
+  const shortPages = hasCredits ? allPages.filter((p) => (p.wordCount || 0) < 800) : []
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -362,9 +371,9 @@ export default function ScanResultsPage() {
             Scan Another Site
           </h2>
           <p className="text-sm text-gray-600 mb-4">
-            Discover all blog posts from another site. Free to scan - see titles, URLs, and dates instantly.
+            Discover all pages from another site. See titles, URLs, and dates instantly.
           </p>
-          <BlogUrlInput />
+          <SiteUrlInput />
           <div className="mt-4">
             <button
               onClick={() => setIsExamplesExpanded(!isExamplesExpanded)}
@@ -428,11 +437,11 @@ export default function ScanResultsPage() {
                   Purchase credits to see:
                 </p>
                 <ul className="list-disc list-inside text-blue-700 mb-4 space-y-1">
-                  <li>Word counts for each post</li>
+                  <li>Word counts for each page</li>
                   <li>Affiliate link analysis</li>
                   <li>Opportunity scores</li>
                   <li>Smart filters (under-monetized, etc)</li>
-                  <li>Batch post selection</li>
+                  <li>Batch page selection</li>
                 </ul>
                 <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-3">
                   <p className="text-green-800 font-medium flex items-center gap-2">
@@ -457,13 +466,13 @@ export default function ScanResultsPage() {
           </div>
         )}
 
-        {/* Blog Summary Card */}
+        {/* Site Summary Card */}
         <div className="bg-white rounded-lg shadow p-6 mb-6">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">{scanData.blogUrl}</h1>
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">{scanData.siteUrl}</h1>
           <div className={`grid grid-cols-2 ${hasCredits ? 'md:grid-cols-6' : 'md:grid-cols-2'} gap-4`}>
             <div>
-              <p className="text-sm text-gray-600">Total Posts</p>
-              <p className="text-2xl font-bold text-gray-900">{scanData.totalPosts}</p>
+              <p className="text-sm text-gray-600">Total Pages</p>
+              <p className="text-2xl font-bold text-gray-900">{scanData.totalPages}</p>
             </div>
             {hasCredits && scanData.summary && (
               <>
@@ -473,7 +482,7 @@ export default function ScanResultsPage() {
                 </div>
                 <div>
                   <p className="text-sm text-gray-600">Avg Words</p>
-                  <p className="text-2xl font-bold text-gray-900">{scanData.summary.avgWordsPerPost.toLocaleString()}</p>
+                  <p className="text-2xl font-bold text-gray-900">{scanData.summary.avgWordsPerPage.toLocaleString()}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-600">Affiliate Links</p>
@@ -481,7 +490,7 @@ export default function ScanResultsPage() {
                 </div>
                 <div>
                   <p className="text-sm text-gray-600">No Affiliate Links</p>
-                  <p className="text-2xl font-bold text-gray-900">{scanData.summary.postsWithNoAffiliateLinks || 0}</p>
+                  <p className="text-2xl font-bold text-gray-900">{scanData.summary.pagesWithNoAffiliateLinks || 0}</p>
                 </div>
               </>
             )}
@@ -494,67 +503,21 @@ export default function ScanResultsPage() {
           </div>
         </div>
 
-        {/* Quick Stats Breakdown (only for users with credits) */}
-        {hasCredits && (
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-              </svg>
-              <p className="font-semibold text-gray-900">Under-Monetized</p>
-            </div>
-            <p className="text-2xl font-bold text-gray-900">{underMonetized.length}</p>
-            <p className="text-sm text-gray-600">1500+ words, 0-2 links</p>
-          </div>
-
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-              </svg>
-              <p className="font-semibold text-gray-900">Partially Monetized</p>
-            </div>
-            <p className="text-2xl font-bold text-gray-900">{partiallyMonetized.length}</p>
-            <p className="text-sm text-gray-600">3-9 affiliate links</p>
-          </div>
-
-          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <p className="font-semibold text-gray-900">Well Monetized</p>
-            </div>
-            <p className="text-2xl font-bold text-gray-900">{wellMonetized.length}</p>
-            <p className="text-sm text-gray-600">10+ affiliate links</p>
-          </div>
-
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
-              <p className="font-semibold text-gray-900">Short Posts</p>
-            </div>
-            <p className="text-2xl font-bold text-gray-900">{shortPosts.length}</p>
-            <p className="text-sm text-gray-600">&lt;800 words</p>
-          </div>
-
-          {scanData.summary && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-              </svg>
-              <p className="font-semibold text-gray-900">No Affiliate Links</p>
-            </div>
-            <p className="text-2xl font-bold text-gray-900">{scanData.summary.postsWithNoAffiliateLinks || 0}</p>
-            <p className="text-sm text-gray-600">Posts with 0 links</p>
-          </div>
-          )}
-        </div>
-        )}
+        {/* Filters & Sorting */}
+        <SmartFilters
+          filters={filters}
+          onFiltersChange={setFilters}
+          sortBy={sortBy}
+          onSortChange={setSortBy}
+          hasCredits={hasCredits}
+          categoryCounts={hasCredits ? {
+            underMonetized: underMonetized.length,
+            partiallyMonetized: partiallyMonetized.length,
+            wellMonetized: wellMonetized.length,
+            shortPages: shortPages.length,
+            noAffiliateLinks: scanData.summary?.pagesWithNoAffiliateLinks || 0,
+          } : undefined}
+        />
 
         {/* Smart Selection Buttons (only for users with credits) */}
         {hasCredits && (
@@ -566,13 +529,13 @@ export default function ScanResultsPage() {
             }}
             className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-600 transition-colors text-sm font-medium"
           >
-            Select Under-Monetized ({underMonetized.length} posts)
+            Select Under-Monetized ({underMonetized.length} pages)
           </button>
           <button
             onClick={() => {
               const sixMonthsAgo = new Date()
               sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
-              const recent = filteredPosts.filter((p) => {
+              const recent = filteredPages.filter((p) => {
                 if (!p.publishedDate) return false
                 return new Date(p.publishedDate) >= sixMonthsAgo
               })
@@ -580,28 +543,28 @@ export default function ScanResultsPage() {
             }}
             className="px-4 py-2 bg-gray-100 text-gray-900 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
           >
-            Select Recent Posts (Last 6 Months)
+            Select Recent Pages (Last 6 Months)
           </button>
           <button
             onClick={() => {
-              const long = filteredPosts.filter((p) => p.wordCount >= 1500)
+              const long = filteredPages.filter((p) => p.wordCount >= 1500)
               setSelectedUrls(new Set(long.map((p) => p.url)))
             }}
             className="px-4 py-2 bg-gray-100 text-gray-900 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
           >
-            Select Long Posts (1500+ words)
+            Select Long Pages (1500+ words)
           </button>
           <button
             onClick={() => {
-              const unmonetized = filteredPosts.filter((p) => p.affiliateLinkCount === 0)
+              const unmonetized = filteredPages.filter((p) => p.affiliateLinkCount === 0)
               setSelectedUrls(new Set(unmonetized.map((p) => p.url)))
             }}
             className="px-4 py-2 bg-gray-100 text-gray-900 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
           >
-            Select All Unmonetized (0 links)
+            Select All Unmonetized ({filteredPages.filter((p) => p.affiliateLinkCount === 0).length} pages)
           </button>
           <button
-            onClick={() => setSelectedUrls(new Set(filteredPosts.map((p) => p.url)))}
+            onClick={() => setSelectedUrls(new Set(filteredPages.map((p) => p.url)))}
             className="px-4 py-2 bg-gray-100 text-gray-900 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
           >
             Select All
@@ -615,18 +578,9 @@ export default function ScanResultsPage() {
         </div>
         )}
 
-        {/* Filters & Sorting */}
-        <SmartFilters
-          filters={filters}
-          onFiltersChange={setFilters}
-          sortBy={sortBy}
-          onSortChange={setSortBy}
-          hasCredits={hasCredits}
-        />
-
-        {/* Post Selection Table */}
+        {/* Page Selection Table */}
         <PostSelectionTable
-          posts={filteredPosts}
+          posts={filteredPages}
           selectedUrls={selectedUrls}
           onSelectionChange={setSelectedUrls}
           chargeExtraPreferences={chargeExtraPreferences}
@@ -639,7 +593,7 @@ export default function ScanResultsPage() {
         {selectedUrls.size > 0 && (
         <SelectionSummary
           selectedCount={selectedUrls.size}
-          selectedPosts={selectedPosts}
+          selectedPosts={selectedPages}
           chargeExtraPreferences={chargeExtraPreferences}
           globalChargeExtra={globalChargeExtra ?? false}
           userCredits={userCredits}

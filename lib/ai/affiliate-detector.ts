@@ -1,5 +1,6 @@
 import { openai, isOpenAIConfigured } from '../openai';
 import { CURATED_PROGRAMS, DEFAULT_SUGGESTION } from '../data/affiliate-programs';
+import { isAffiliateLink } from '../utils/affiliate-link-detector';
 
 import { LinkInfo } from '../scrapers/url-scraper';
 
@@ -46,6 +47,29 @@ export interface AffiliateOpportunity {
 }
 
 /**
+ * Check if a URL is a social sharing link
+ */
+function isSocialSharingLink(url: string): boolean {
+  const urlLower = url.toLowerCase();
+  const socialPatterns = [
+    /facebook\.com\/sharer\.php/,
+    /twitter\.com\/intent\/tweet/,
+    /linkedin\.com\/sharing\/share-offsite/,
+    /linkedin\.com\/shareArticle/,
+    /pinterest\.com\/pin\/create\/button/,
+    /reddit\.com\/submit/,
+    /whatsapp\.com\/send/,
+    /telegram\.me\/share/,
+    /mailto:/,
+    /share\.php/,
+    /\/share\?/,
+    /\/sharer\?/,
+  ];
+  
+  return socialPatterns.some(pattern => pattern.test(urlLower));
+}
+
+/**
  * Helper function to check if a product is already linked
  * @param productName - The product name to check
  * @param linkDetails - Array of link information
@@ -58,7 +82,19 @@ function checkIfProductIsLinked(
 ): { isLinked: boolean; linkedUrl?: string; anchorText?: string } {
   const productLower = productName.toLowerCase();
   
+  // Collect all potential matches with their match quality scores
+  const matches: Array<{
+    link: LinkInfo;
+    score: number; // Higher = better match
+    matchType: 'domain' | 'anchor' | 'context';
+  }> = [];
+  
   for (const link of linkDetails) {
+    // Skip social sharing links (Facebook, Twitter, LinkedIn, etc.)
+    if (isSocialSharingLink(link.url)) {
+      continue;
+    }
+    
     // Skip internal links (links to the same domain as the article)
     if (rootDomain) {
       try {
@@ -72,41 +108,284 @@ function checkIfProductIsLinked(
       }
     }
     
+    // CRITICAL: Only consider affiliate links
+    if (!isAffiliateLink(link.url)) {
+      continue;
+    }
+    
     const anchorLower = link.anchorText.toLowerCase();
     const urlLower = link.url.toLowerCase();
-    const contextLower = (link.context || '').toLowerCase();
     
-    // Check if product name appears in anchor text or near it
-    if (
-      anchorLower.includes(productLower) ||
-      productLower.includes(anchorLower) ||
-      contextLower.includes(productLower)
-    ) {
-      // Also check if URL domain might match the product
-      let urlDomain = '';
-      try {
-        urlDomain = new URL(link.url).hostname.toLowerCase();
-      } catch {
-        // Skip URL parsing errors
+    // Check if URL domain matches the product (highest priority)
+    let urlDomain = '';
+    let isAmazonLink = false;
+    try {
+      urlDomain = new URL(link.url).hostname.toLowerCase();
+      // Check if this is an Amazon affiliate link (including shorteners)
+      isAmazonLink = urlDomain.includes('amazon.') || urlDomain.includes('amzn.to') || urlDomain.includes('amzn.com');
+    } catch {
+      // Skip URL parsing errors
+    }
+    
+    // Normalize strings for better matching (remove articles, punctuation, parentheticals)
+    const normalizeForMatch = (str: string): string => {
+      return str
+        .toLowerCase()
+        .replace(/\([^)]*\)/g, '') // Remove parentheticals like "(book)", "(2024)"
+        .replace(/[^\w\s]/g, ' ') // Replace punctuation with spaces
+        .replace(/\b(the|a|an)\b/g, '') // Remove articles
+        .replace(/\s+/g, ' ') // Normalize whitespace
+        .trim();
+    };
+    
+    const normalizedProduct = normalizeForMatch(productLower);
+    const normalizedAnchor = normalizeForMatch(anchorLower);
+    
+    // Extract the core product name (remove common words like "help", "a", "out", etc.)
+    // This helps avoid false matches with generic words
+    const getCoreProductName = (product: string): string => {
+      const words = product.split(/\s+/).filter(w => {
+        const lower = w.toLowerCase();
+        // Filter out common words that appear in many contexts
+        const commonWords = ['help', 'a', 'an', 'the', 'out', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by'];
+        return w.length > 3 && !commonWords.includes(lower);
+      });
+      return words.join(' ');
+    };
+    
+    const coreProductName = getCoreProductName(normalizedProduct);
+    
+    // Check if URL domain matches the product (highest priority)
+    // STRICT: Only match if the domain contains the core product name or a significant brand word
+    let domainMatch = false;
+    if (urlDomain && coreProductName) {
+      // Check if domain contains the core product name (all words must be present)
+      const coreWords = coreProductName.split(/\s+/).filter(w => w.length > 3);
+      if (coreWords.length > 0) {
+        // All core words must appear in the domain (as substrings)
+        const allWordsMatch = coreWords.every(word => {
+          const cleanedWord = word.replace(/[^a-z0-9]/g, '');
+          return urlDomain.includes(cleanedWord);
+        });
+        
+        // Additionally, check if the domain contains a significant portion of the product name
+        // For single-word products, require exact match in domain
+        if (coreWords.length === 1) {
+          const productWord = coreWords[0].replace(/[^a-z0-9]/g, '');
+          // For single words, require the word to be a significant part of the domain
+          // (at least 50% of the word length should match, or it's the main domain word)
+          domainMatch = urlDomain.includes(productWord) && productWord.length >= 4;
+        } else {
+          // For multi-word products, require at least 2 core words to match
+          domainMatch = allWordsMatch && coreWords.length >= 2;
+        }
       }
       
-      const productWords = productLower.split(/\s+/);
-      
-      // Check if any product word appears in domain
-      const domainMatch = urlDomain
-        ? productWords.some(
-            (word) => word.length > 3 && urlDomain.includes(word.replace(/[^a-z0-9]/g, ''))
-          )
-        : false;
-      
-      if (domainMatch || anchorLower.includes(productLower) || productLower.includes(anchorLower)) {
-        return {
-          isLinked: true,
-          linkedUrl: link.url,
-          anchorText: link.anchorText,
-        };
+      // Also check if the domain is the exact product name (e.g., "notion.so" for "Notion")
+      if (!domainMatch) {
+        const productWithoutSpaces = normalizedProduct.replace(/\s+/g, '').replace(/[^a-z0-9]/g, '');
+        const domainWithoutDots = urlDomain.replace(/\./g, '');
+        if (productWithoutSpaces.length >= 4 && domainWithoutDots.includes(productWithoutSpaces)) {
+          domainMatch = true;
+        }
       }
     }
+    
+    // Check anchor text match - prioritize exact/substring matches
+    // CRITICAL: Be very strict to avoid false positives
+    const isSingleWordProduct = normalizedProduct.split(/\s+/).length === 1;
+    
+    let anchorMatch = false;
+    
+    if (isSingleWordProduct && normalizedProduct.length >= 4) {
+      // For single-word products, ONLY use word boundary matching
+      // e.g., "work" shouldn't match "Upwork" or "framework"
+      // "wix" should match "wix" or "wix website" but not "website" or "critterdepot"
+      const productWord = normalizedProduct.replace(/[^\w]/g, '');
+      const wordBoundaryRegex = new RegExp(`\\b${productWord}\\b`, 'i');
+      anchorMatch = wordBoundaryRegex.test(anchorLower);
+      
+      // Also check if the anchor text is exactly the product name (case-insensitive)
+      if (!anchorMatch) {
+        anchorMatch = normalizedAnchor.trim() === normalizedProduct.trim();
+      }
+    } else {
+      // For multi-word products, use stricter matching
+      const normalizedProductWords = normalizedProduct.split(/\s+/).filter(w => w.length > 0);
+      const anchorWords = normalizedAnchor.split(/\s+/).filter(w => w.length > 0);
+      
+      // CRITICAL: Exclude common words from matching to avoid false positives
+      const commonWords = ['help', 'a', 'an', 'the', 'out', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'and', 'or', 'but'];
+      const significantProductWords = normalizedProductWords.filter(w => !commonWords.includes(w.toLowerCase()));
+      const significantAnchorWords = anchorWords.filter(w => !commonWords.includes(w.toLowerCase()));
+      
+      // Primary: Check if normalized anchor contains normalized product (or vice versa for short anchors)
+      // But only if the product name is substantial (not just common words)
+      if (significantProductWords.length > 0) {
+        const significantProductName = significantProductWords.join(' ');
+        const significantAnchorName = significantAnchorWords.join(' ');
+        
+        // Check if anchor contains the significant product name
+        let anchorContainsProduct = significantAnchorName.includes(significantProductName);
+        let productContainsAnchor = significantProductName.includes(significantAnchorName);
+        
+        // For Amazon links, also check if anchor contains most of the product words (more lenient)
+        if (!anchorContainsProduct && isAmazonLink && significantProductWords.length >= 2) {
+          // Check if at least 2/3 of significant product words appear in anchor
+          const wordsInAnchor = significantProductWords.filter(word => 
+            significantAnchorName.includes(word)
+          );
+          if (wordsInAnchor.length >= Math.ceil(significantProductWords.length * 0.67)) {
+            anchorContainsProduct = true;
+          }
+        }
+        
+        // For very short anchors, allow product to contain anchor
+        if (significantAnchorName.length < significantProductName.length * 0.5) {
+          anchorMatch = productContainsAnchor;
+        } else {
+          anchorMatch = anchorContainsProduct;
+        }
+      }
+      
+      // Secondary: Word overlap - require at least 75% of significant product words to match
+      // and at least 2 significant words must match
+      // For Amazon links, be more lenient (50% match ratio instead of 75%)
+      if (!anchorMatch && significantProductWords.length > 1) {
+        const matchingWords = significantProductWords.filter(w => significantAnchorWords.includes(w));
+        const matchRatio = matchingWords.length / Math.max(significantProductWords.length, 1);
+        
+        // Additional check: the product name should be a substantial part of the anchor
+        // (at least 30% of anchor words should be product words, or anchor should be similar length)
+        const anchorMatchRatio = matchingWords.length / Math.max(significantAnchorWords.length, 1);
+        const lengthSimilarity = Math.min(normalizedProduct.length, normalizedAnchor.length) / Math.max(normalizedProduct.length, normalizedAnchor.length);
+        
+        // For Amazon links, use more lenient matching (50% instead of 75%)
+        // For other links, require stricter matching (75%)
+        const requiredMatchRatio = isAmazonLink ? 0.5 : 0.75;
+        const requiredWords = isAmazonLink ? 1 : 2; // Amazon: at least 1 word, others: at least 2 words
+        
+        // Require significant words to match (not counting common words)
+        anchorMatch = matchingWords.length >= requiredWords && 
+                      matchRatio >= requiredMatchRatio && 
+                      (anchorMatchRatio >= 0.3 || lengthSimilarity >= 0.7);
+      }
+    }
+    
+    // Final check: product name must be substantial (at least 3 chars after normalization)
+    if (normalizedProduct.length < 3) {
+      anchorMatch = false;
+    }
+    
+    // Reject matches if anchor text is too short or empty (unreliable)
+    if (anchorMatch && (!anchorLower || anchorLower.trim().length < 3)) {
+      anchorMatch = false;
+    }
+    
+    // CRITICAL SAFEGUARD: If domain doesn't match, require even stronger anchor text evidence
+    // This prevents false matches like "Wix" matching to "thecritterdepot.com" with unrelated anchor text
+    // EXCEPTION: For Amazon links, be more lenient since Amazon short links don't contain product names in domain
+    if (!domainMatch && anchorMatch && !isAmazonLink) {
+      if (isSingleWordProduct) {
+        // For single-word products without domain match, require anchor to be exactly the product
+        // or the product to be the primary/only word in the anchor
+        const productWord = normalizedProduct.replace(/[^\w]/g, '');
+        const anchorWords = normalizedAnchor.split(/\s+/).filter(w => w.length > 0);
+        
+        // Anchor should be exactly the product, or the product should be the only significant word
+        const isExactMatch = normalizedAnchor.trim() === normalizedProduct.trim();
+        const isPrimaryWord = anchorWords.length <= 3 && anchorWords.some(w => w.replace(/[^\w]/g, '') === productWord);
+        
+        if (!isExactMatch && !isPrimaryWord) {
+          anchorMatch = false;
+        }
+      } else {
+        // For multi-word products without domain match, require the product name to appear
+        // as a clear, contiguous phrase in the anchor text
+        const significantProductWords = normalizedProduct.split(/\s+/).filter(w => {
+          const lower = w.toLowerCase();
+          const commonWords = ['help', 'a', 'an', 'the', 'out', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'and', 'or', 'but'];
+          return w.length > 0 && !commonWords.includes(lower);
+        });
+        
+        if (significantProductWords.length >= 2) {
+          // Check if the significant product words appear as a phrase (in order) in the anchor
+          const productPhrase = significantProductWords.join(' ');
+          const anchorPhrase = normalizedAnchor.replace(/\s+/g, ' ');
+          
+          // The phrase should appear in the anchor text
+          // This is stricter than word overlap - requires the words to appear together
+          if (!anchorPhrase.includes(productPhrase)) {
+            // If not as exact phrase, check if words appear in order (allowing small gaps)
+            const wordsInOrder = significantProductWords.every((word, idx) => {
+              if (idx === 0) {
+                return anchorPhrase.includes(word);
+              }
+              const prevWord = significantProductWords[idx - 1];
+              const prevIndex = anchorPhrase.indexOf(prevWord);
+              const currIndex = anchorPhrase.indexOf(word, prevIndex);
+              // Current word should appear after previous word
+              return currIndex > prevIndex;
+            });
+            
+            if (!wordsInOrder) {
+              anchorMatch = false;
+            }
+          }
+        }
+      }
+    }
+    
+    // For Amazon links, use more lenient matching since domain won't match product names
+    // But still require anchor text to contain significant product words
+    if (isAmazonLink && !domainMatch && anchorMatch) {
+      const significantProductWords = normalizedProduct.split(/\s+/).filter(w => {
+        const lower = w.toLowerCase();
+        const commonWords = ['help', 'a', 'an', 'the', 'out', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'and', 'or', 'but'];
+        return w.length > 0 && !commonWords.includes(lower);
+      });
+      
+      if (significantProductWords.length > 0) {
+        // For Amazon links, require at least one significant word to appear in anchor
+        // This is more lenient than the strict phrase matching above
+        const anchorWords = normalizedAnchor.split(/\s+/).filter(w => w.length > 0);
+        const hasSignificantMatch = significantProductWords.some(word => 
+          anchorWords.some(anchorWord => anchorWord.includes(word) || word.includes(anchorWord))
+        );
+        
+        if (!hasSignificantMatch) {
+          anchorMatch = false;
+        }
+      }
+    }
+    
+    // Only use domain or anchor matches - context matching is too error-prone
+    // and causes incorrect associations between products and links
+    if (domainMatch) {
+      matches.push({ link, score: 3, matchType: 'domain' });
+    } else if (anchorMatch) {
+      matches.push({ link, score: 2, matchType: 'anchor' });
+    }
+  }
+  
+  // Return the best match (highest score)
+  if (matches.length > 0) {
+    // Sort by score (descending), then by match type priority
+    matches.sort((a, b) => {
+      if (a.score !== b.score) {
+        return b.score - a.score; // Higher score first
+      }
+      // If same score, prefer domain > anchor > context
+      const typePriority = { domain: 3, anchor: 2, context: 1 };
+      return typePriority[b.matchType] - typePriority[a.matchType];
+    });
+    
+    const bestMatch = matches[0];
+    return {
+      isLinked: true,
+      linkedUrl: bestMatch.link.url,
+      anchorText: bestMatch.link.anchorText,
+    };
   }
   
   return { isLinked: false };
@@ -156,16 +435,10 @@ export async function detectProducts(
   // Extract root domain to filter out own site
   const rootDomain = articleUrl ? extractRootDomain(articleUrl) : null;
 
-  // Prepare link information for the AI
-  const linkInfoForAI = linkDetails
-    .slice(0, 30) // Increased from 20
-    .map((link, idx) => `${idx + 1}. "${link.anchorText}" → ${link.url}`)
-    .join('\n');
-
   // More proactive prompt that emphasizes relevance
   const articleTopic = articleTitle || 'this article';
   
-  const prompt = `Your task is to find products, services, or tools mentioned in this blog post that are RELEVANT to the main topic and could potentially have affiliate programs.
+  const prompt = `Your task is to find products, services, or tools mentioned in this page that are RELEVANT to the main topic and could potentially have affiliate programs.
 
 ARTICLE TOPIC: ${articleTopic}
 
@@ -206,20 +479,8 @@ For each RELEVANT product/service found:
    - This helps prioritize high-value affiliate opportunities
    - Low-value items (under $10-15) are often not worth linking
    - Use null or omit if you truly cannot estimate
-7. isAlreadyLinked: true ONLY if you see this exact product linked in the links below
 
 IMPORTANT: The article is about "${articleTopic}". Only suggest products that make sense for this topic.
-
-EXISTING LINKS IN CONTENT:
-${linkInfoForAI || 'No links found - all products are potential opportunities!'}
-
-IMPORTANT FOR isAlreadyLinked:
-- Compare the product name to the anchor text and URLs above
-- IGNORE internal links (links to the same domain as this article) - only count external links to other websites
-- If product "Notion" appears and there's an EXTERNAL link with anchor "Notion" or URL contains "notion.so" → isAlreadyLinked = true
-- If product is only linked internally (same domain) or not linked at all → isAlreadyLinked = false
-- Internal links don't count as affiliate links - only external links to other websites
-- When in doubt, mark as false (not linked) - it's better to show an opportunity
 
 Return as JSON:
 {
@@ -230,8 +491,7 @@ Return as JSON:
       "context": "full sentence from content",
       "confidence": 0.7,
       "relevance": 0.9,
-      "estimatedValue": 299.99,
-      "isAlreadyLinked": false
+      "estimatedValue": 299.99
     }
   ]
 }
@@ -302,7 +562,7 @@ ${content.substring(0, 12000)}`;
 
     console.log(`[AI Detection] Found ${products.length} products before filtering`);
 
-    // Validate and normalize products, then cross-check with actual links
+    // Validate and normalize products
     const normalizedProducts = products
       .filter((p: any) => {
         const isValid = p.product && p.category && typeof p.confidence === 'number';
@@ -330,14 +590,6 @@ ${content.substring(0, 12000)}`;
       })
       .map((p: any) => {
         const productName = String(p.product).trim();
-        const aiSaysLinked = Boolean(p.isAlreadyLinked);
-        
-        // Double-check with actual link data (pass rootDomain to filter internal links)
-        const linkCheck = checkIfProductIsLinked(productName, linkDetails, rootDomain);
-        
-        // Only consider it linked if our checker confirms AND it's not an internal link
-        // If AI says it's linked but our checker says it's only internal links, mark as not linked
-        const isActuallyLinked = linkCheck.isLinked || (aiSaysLinked && !rootDomain);
         
         return {
           product: productName,
@@ -345,9 +597,7 @@ ${content.substring(0, 12000)}`;
           context: String(p.context || '').trim(),
           confidence: Math.max(0, Math.min(1, Number(p.confidence))),
           relevance: typeof p.relevance === 'number' ? Math.max(0, Math.min(1, Number(p.relevance))) : 0.7,
-          isAlreadyLinked: isActuallyLinked,
-          linkedUrl: linkCheck.linkedUrl,
-          linkAnchorText: linkCheck.anchorText,
+          isAlreadyLinked: false, // Always false - we don't check for existing links anymore
           estimatedValue: typeof p.estimatedValue === 'number' && p.estimatedValue > 0 ? Number(p.estimatedValue) : undefined,
         };
       });

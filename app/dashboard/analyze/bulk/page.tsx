@@ -16,20 +16,20 @@ export default function BulkAnalysisPage() {
       try {
         // Get parameters from URL
         const scanId = searchParams?.get('scanId')
-        const postsParam = searchParams?.get('posts')
+        const pagesParam = searchParams?.get('pages')
         const preferencesParam = searchParams?.get('preferences')
 
-        if (!postsParam) {
-          setError('No posts specified for analysis')
+        if (!pagesParam) {
+          setError('No pages specified for analysis')
           setLoading(false)
           return
         }
 
-        // Parse posts (comma-separated URLs)
-        const postUrls = postsParam.split(',').filter(url => url.trim())
+        // Parse pages (comma-separated URLs)
+        const pageUrls = pagesParam.split(',').filter(url => url.trim())
 
-        if (postUrls.length === 0) {
-          setError('No valid posts found')
+        if (pageUrls.length === 0) {
+          setError('No valid pages found')
           setLoading(false)
           return
         }
@@ -52,7 +52,7 @@ export default function BulkAnalysisPage() {
           },
           body: JSON.stringify({
             scanId: scanId || null,
-            postUrls,
+            pageUrls,
             preferences,
           }),
         })
@@ -79,9 +79,9 @@ export default function BulkAnalysisPage() {
   }, [searchParams])
 
   const handleComplete = () => {
-    // Redirect to dashboard after a short delay
+    // Redirect to history page to see completed analyses after a short delay
     setTimeout(() => {
-      router.push('/dashboard/analyze')
+      router.push('/dashboard/history')
     }, 2000)
   }
 
@@ -141,7 +141,7 @@ export default function BulkAnalysisPage() {
     <div className="max-w-4xl mx-auto">
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Bulk Analysis</h1>
-        <p className="text-gray-600">Your posts are being analyzed. This may take a few minutes.</p>
+        <p className="text-gray-600">Your pages are being analyzed. This may take a few minutes.</p>
       </div>
       <BulkAnalysisProgress jobId={jobId} onComplete={handleComplete} />
     </div>

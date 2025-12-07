@@ -26,7 +26,7 @@ export async function generateProductIdeas(
     throw new Error('OpenAI API key is not configured');
   }
 
-  const prompt = `Based on this blog post, suggest the TOP 5 BEST digital products the author could create and sell.
+  const prompt = `Based on this page, suggest the TOP 5 BEST digital products the author could create and sell.
 
 ARTICLE TITLE: ${title}
 

@@ -1,6 +1,4 @@
 import { GeneratedProductContent, ProductSection } from '../ai/product-generator';
-import { Template } from '../templates';
-import { generatePDF, uploadPDFToStorage } from './pdf-generator';
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } from 'docx';
 import { saveAs } from 'file-saver';
 
@@ -15,7 +13,6 @@ interface UserBranding {
 
 interface ExportOptions {
   content: GeneratedProductContent;
-  template: Template;
   userBranding?: UserBranding;
   subscriptionTier?: 'free' | 'starter' | 'pro' | 'agency';
   userId?: string;
@@ -29,49 +26,14 @@ interface ExportResult {
 }
 
 /**
- * Export product to PDF format
- */
-export async function exportToPDF(options: ExportOptions): Promise<ExportResult> {
-  const { content, template, userBranding, subscriptionTier, userId } = options;
-
-  const result = await generatePDF({
-    content,
-    template,
-    userBranding,
-    subscriptionTier,
-    userId,
-  });
-
-  const fileName = `${sanitizeFileName(content.title)}.pdf`;
-
-  // Upload to storage if userId provided
-  let url: string | undefined;
-  if (userId) {
-    try {
-      url = await uploadPDFToStorage(result.buffer, fileName, userId);
-    } catch (error) {
-      console.error('Failed to upload PDF to storage:', error);
-      // Continue with download even if upload fails
-    }
-  }
-
-  return {
-    blob: result.blob,
-    fileName,
-    size: result.size,
-    url,
-  };
-}
-
-/**
  * Export product to DOCX format
  */
 export async function exportToDocx(options: ExportOptions): Promise<ExportResult> {
-  const { content, template, userBranding } = options;
+  const { content, userBranding } = options;
 
-  // Get template colors for styling
-  const colors = getTemplateColors(template, userBranding);
-  const typography = getTemplateTypography(template);
+  // Get colors for styling (use user branding or defaults)
+  const colors = getUserBrandingColors(userBranding);
+  const typography = getDefaultTypography();
 
   // Build DOCX document
   const children: Paragraph[] = [];
@@ -202,33 +164,6 @@ export function exportToMarkdown(options: ExportOptions): ExportResult {
     blob,
     fileName,
     size: blob.size,
-  };
-}
-
-/**
- * Export product to Google Doc format (generates DOCX with instructions)
- */
-export async function exportToGoogleDoc(options: ExportOptions): Promise<ExportResult> {
-  // Generate DOCX first
-  const docxResult = await exportToDocx(options);
-
-  // Create instructions document
-  const instructions = `
-# How to Import This Document to Google Docs
-
-1. Go to https://docs.google.com
-2. Click "New" → "File upload"
-3. Select the ${docxResult.fileName} file
-4. Google Docs will automatically convert it
-5. Your document is ready to edit!
-
-Note: All formatting and links will be preserved.
-  `.trim();
-
-  // Return the DOCX (user can upload it)
-  return {
-    ...docxResult,
-    // Add instructions in metadata or return separately
   };
 }
 
@@ -364,38 +299,22 @@ function convertSectionToMarkdown(section: ProductSection): string {
 }
 
 /**
- * Get template colors for export formatting
+ * Get colors for export formatting (from user branding or defaults)
  */
-function getTemplateColors(template: Template, userBranding?: UserBranding): any {
-  if (!('colors' in template)) {
-    return {
-      primary: '#1F2937',
-      secondary: '#6B7280',
-    };
-  }
-
-  const templateColors = template.colors as any;
+function getUserBrandingColors(userBranding?: UserBranding): any {
   return {
-    primary: userBranding?.colors?.primary || templateColors.primary || '#1F2937',
-    secondary: userBranding?.colors?.secondary || templateColors.secondary || '#6B7280',
+    primary: userBranding?.colors?.primary || '#1F2937',
+    secondary: userBranding?.colors?.secondary || '#6B7280',
   };
 }
 
 /**
- * Get template typography for export formatting
+ * Get default typography for export formatting
  */
-function getTemplateTypography(template: Template): any {
-  if (!('typography' in template)) {
-    return {
-      fontFamily: 'Calibri',
-      fontSize: 11,
-    };
-  }
-
-  const typo = template.typography as any;
+function getDefaultTypography(): any {
   return {
-    fontFamily: typo.fontFamily === 'serif' ? 'Times New Roman' : 'Calibri',
-    fontSize: parseInt(typo.bodyFontSize || typo.itemFontSize || '11'),
+    fontFamily: 'Calibri',
+    fontSize: 11,
   };
 }
 
@@ -436,22 +355,18 @@ export async function copyMarkdownToClipboard(content: string): Promise<boolean>
  */
 export function estimateFileSize(
   content: GeneratedProductContent,
-  format: 'pdf' | 'docx' | 'markdown' | 'googledoc'
+  format: 'docx' | 'markdown'
 ): number {
   // Rough estimates based on content length
   const textLength = JSON.stringify(content).length;
   
   switch (format) {
-    case 'pdf':
-      // PDF is typically larger due to formatting
-      return Math.round(textLength * 1.5);
     case 'docx':
       // DOCX has more overhead
       return Math.round(textLength * 1.2);
     case 'markdown':
-    case 'googledoc':
-      // Markdown is similar to text, Google Doc is DOCX
-      return format === 'markdown' ? textLength : Math.round(textLength * 1.2);
+      // Markdown is similar to text
+      return textLength;
     default:
       return textLength;
   }

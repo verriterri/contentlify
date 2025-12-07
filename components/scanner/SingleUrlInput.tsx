@@ -54,7 +54,7 @@ export function SingleUrlInput() {
           value={url}
           onChange={(e) => setUrl(e.target.value)}
           onKeyPress={handleKeyPress}
-          placeholder="Enter a blog post URL (e.g., yourblog.com/post-title)"
+          placeholder="Enter a page URL (e.g., yoursite.com/page-title)"
           className="w-full px-6 py-4 border-2 border-gray-300 rounded-lg text-lg bg-white text-gray-900 focus:outline-none focus:border-primary transition-colors"
           disabled={loading}
           autoComplete="off"
@@ -76,7 +76,7 @@ export function SingleUrlInput() {
               Analyzing...
             </span>
           ) : (
-            'Analyze Post'
+            'Analyze Page'
           )}
         </button>
       </div>
@@ -88,15 +88,15 @@ export function SingleUrlInput() {
       )}
 
       <p className="text-sm text-gray-500 mt-3">
-        Analyze a single blog post for affiliate opportunities and product ideas
+        Analyze a single page for affiliate opportunities and product ideas
       </p>
 
       <div className="mt-4 text-sm text-gray-600">
         <p className="font-medium mb-2">Example URLs:</p>
         <ul className="list-disc list-inside space-y-1 text-gray-500">
-          <li>https://yourblog.com/my-post</li>
-          <li>yourblog.com/article-title</li>
-          <li>www.yourblog.com/2025/post-name</li>
+          <li>https://yoursite.com/my-page</li>
+          <li>yoursite.com/article-title</li>
+          <li>www.yoursite.com/2025/page-name</li>
         </ul>
       </div>
     </div>

@@ -6,9 +6,9 @@ import Link from 'next/link'
 interface AnalysisJob {
   id: string
   status: 'queued' | 'processing' | 'completed' | 'failed' | 'cancelled'
-  total_posts: number
-  completed_posts: number
-  failed_posts: number
+  total_pages: number
+  completed_pages: number
+  failed_pages: number
   created_at: string
   completed_at: string | null
 }
@@ -62,7 +62,7 @@ export function AnalysisQueue() {
             <div className="flex items-center justify-between mb-2">
               <div>
                 <p className="font-medium text-gray-900">
-                  {job.total_posts} post{job.total_posts !== 1 ? 's' : ''}
+                  {job.total_pages} page{job.total_pages !== 1 ? 's' : ''}
                 </p>
                 <p className="text-sm text-gray-500">
                   Started {new Date(job.created_at).toLocaleString()}
@@ -86,17 +86,17 @@ export function AnalysisQueue() {
               <div className="mt-3">
                 <div className="flex items-center justify-between text-sm text-gray-600 mb-1">
                   <span>
-                    {job.completed_posts} of {job.total_posts} completed
+                    {job.completed_pages} of {job.total_pages} completed
                   </span>
                   <span>
-                    {Math.round((job.completed_posts / job.total_posts) * 100)}%
+                    {Math.round((job.completed_pages / job.total_pages) * 100)}%
                   </span>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-2">
                   <div
                     className="bg-primary h-2 rounded-full transition-all"
                     style={{
-                      width: `${(job.completed_posts / job.total_posts) * 100}%`,
+                      width: `${(job.completed_pages / job.total_pages) * 100}%`,
                     }}
                   />
                 </div>

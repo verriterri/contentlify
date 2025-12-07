@@ -3,15 +3,15 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
-export function BlogUrlInput() {
-  const [blogUrl, setBlogUrl] = useState('')
+export function SiteUrlInput() {
+  const [siteUrl, setSiteUrl] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
 
   const handleScan = async () => {
-    if (!blogUrl.trim()) {
-      setError('Please enter a blog URL')
+    if (!siteUrl.trim()) {
+      setError('Please enter a site URL')
       return
     }
 
@@ -19,31 +19,31 @@ export function BlogUrlInput() {
     setError(null)
 
     try {
-      const response = await fetch('/api/blog/scan', {
+      const response = await fetch('/api/site/scan', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ blogUrl: blogUrl.trim() }),
+        body: JSON.stringify({ siteUrl: siteUrl.trim() }),
       })
 
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to scan blog')
+        throw new Error(data.error || 'Failed to scan site')
       }
 
       // Redirect to scan results page
       if (data.scanId) {
         router.push(`/scan/${data.scanId}`)
-      } else if (data.posts && data.posts.length > 0) {
+      } else if (data.pages && data.pages.length > 0) {
         // If we have scan data but no scanId (database save failed), 
         // pass the data via query params as fallback
         const encodedData = encodeURIComponent(JSON.stringify({
-          blogUrl: data.blogUrl,
-          totalPosts: data.totalPosts,
-          scannedPosts: data.scannedPosts,
-          posts: data.posts,
+          siteUrl: data.siteUrl,
+          totalPages: data.totalPages,
+          scannedPages: data.scannedPages,
+          pages: data.pages,
           summary: data.summary,
           method: data.method,
           scannedAt: data.scannedAt,
@@ -54,7 +54,7 @@ export function BlogUrlInput() {
         throw new Error('Scan completed but no results returned')
       }
     } catch (err: any) {
-      setError(err.message || 'Failed to scan blog. Please try again.')
+      setError(err.message || 'Failed to scan site. Please try again.')
       setLoading(false)
     }
   }
@@ -70,10 +70,10 @@ export function BlogUrlInput() {
       <div className="flex flex-col sm:flex-row gap-3">
         <input
           type="text"
-          value={blogUrl}
-          onChange={(e) => setBlogUrl(e.target.value)}
+          value={siteUrl}
+          onChange={(e) => setSiteUrl(e.target.value)}
           onKeyPress={handleKeyPress}
-          placeholder="Enter your blog URL (e.g., yourblog.com)"
+          placeholder="Enter your site URL (e.g., yoursite.com)"
           className="flex-1 px-6 py-4 border-2 border-gray-300 rounded-lg text-lg bg-white text-gray-900 focus:outline-none focus:border-primary transition-colors"
           disabled={loading}
           autoComplete="off"
@@ -83,7 +83,7 @@ export function BlogUrlInput() {
         />
         <button
           onClick={handleScan}
-          disabled={loading || !blogUrl.trim()}
+          disabled={loading || !siteUrl.trim()}
           className="px-8 py-4 bg-primary text-white rounded-lg font-semibold text-lg hover:bg-primary-600 transition-colors shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
         >
           {loading ? (
@@ -95,7 +95,7 @@ export function BlogUrlInput() {
               Scanning...
             </span>
           ) : (
-            'Scan Blog - 1 Credit'
+            'Scan Site - 1 Credit'
           )}
         </button>
       </div>

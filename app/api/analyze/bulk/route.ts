@@ -9,8 +9,8 @@ import { chunkContent, combineAnalysisResults, sortProductIdeasBySellability } f
 
 /**
  * POST /api/analyze/bulk
- * Analyze multiple posts in bulk
- * Body: { scanId: string, postUrls: string[], preferences: Record<string, boolean> }
+ * Analyze multiple pages in bulk
+ * Body: { scanId: string, pageUrls: string[], preferences: Record<string, boolean> }
  */
 export async function POST(req: NextRequest) {
   try {
@@ -67,22 +67,22 @@ export async function POST(req: NextRequest) {
       .eq('user_id', user.id)
       .single();
 
-    const globalChargeExtra = userSettings?.preferences?.chargeExtraForLongPosts ?? false;
+    const globalChargeExtra = userSettings?.preferences?.chargeExtraForLongPages ?? false;
 
     // Parse request body
     const body = await req.json();
-    const { scanId, postUrls, preferences } = body;
+    const { scanId, pageUrls, preferences } = body;
 
-    if (!postUrls || !Array.isArray(postUrls) || postUrls.length === 0) {
+    if (!pageUrls || !Array.isArray(pageUrls) || pageUrls.length === 0) {
       return NextResponse.json(
-        { error: 'postUrls array is required' },
+        { error: 'pageUrls array is required' },
         { status: 400 }
       );
     }
 
-    if (postUrls.length > 50) {
+    if (pageUrls.length > 50) {
       return NextResponse.json(
-        { error: 'Maximum 50 posts per bulk analysis' },
+        { error: 'Maximum 50 pages per bulk analysis' },
         { status: 400 }
       );
     }
@@ -91,7 +91,7 @@ export async function POST(req: NextRequest) {
     let scanData: any = null;
     if (scanId) {
       const { data: scan } = await supabase
-        .from('blog_scans')
+        .from('site_scans')
         .select('scan_data')
         .eq('id', scanId)
         .single();
@@ -103,27 +103,27 @@ export async function POST(req: NextRequest) {
 
     // Calculate total credits needed
     let totalCreditsNeeded = 0;
-    const postMetadata: Array<{ url: string; wordCount: number }> = [];
+    const pageMetadata: Array<{ url: string; wordCount: number }> = [];
 
     // If we have scan data, use word counts from there
-    if (scanData?.posts) {
-      for (const url of postUrls) {
-        const post = scanData.posts.find((p: any) => p.url === url);
-        if (post) {
+    if (scanData?.pages) {
+      for (const url of pageUrls) {
+        const page = scanData.pages.find((p: any) => p.url === url);
+        if (page) {
           const chargeExtra = preferences?.[url] ?? globalChargeExtra;
-          const credits = calculateCreditsForAnalysis(post.wordCount, chargeExtra);
+          const credits = calculateCreditsForAnalysis(page.wordCount, chargeExtra);
           totalCreditsNeeded += credits;
-          postMetadata.push({ url, wordCount: post.wordCount });
+          pageMetadata.push({ url, wordCount: page.wordCount });
         } else {
-          // Post not in scan data, will need to scrape
-          postMetadata.push({ url, wordCount: 0 });
+          // Page not in scan data, will need to scrape
+          pageMetadata.push({ url, wordCount: 0 });
         }
       }
     } else {
-      // No scan data, estimate 1 credit per post (will be recalculated during analysis)
-      totalCreditsNeeded = postUrls.length;
-      postUrls.forEach((url) => {
-        postMetadata.push({ url, wordCount: 0 });
+      // No scan data, estimate 1 credit per page (will be recalculated during analysis)
+      totalCreditsNeeded = pageUrls.length;
+      pageUrls.forEach((url) => {
+        pageMetadata.push({ url, wordCount: 0 });
       });
     }
 
@@ -146,9 +146,9 @@ export async function POST(req: NextRequest) {
       .insert({
         user_id: user.id,
         scan_id: scanId || null,
-        total_posts: postUrls.length,
-        completed_posts: 0,
-        failed_posts: 0,
+        total_pages: pageUrls.length,
+        completed_pages: 0,
+        failed_pages: 0,
         status: 'queued',
       })
       .select('id')
@@ -162,9 +162,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Process posts in background (for now, process sequentially)
+    // Process pages in background (for now, process sequentially)
     // In production, you'd want to use a job queue like Bull or similar
-    processBulkAnalysis(job.id, user.id, postUrls, preferences || {}, globalChargeExtra, supabase).catch(
+    processBulkAnalysis(job.id, user.id, pageUrls, preferences || {}, globalChargeExtra, supabase).catch(
       (error) => {
         console.error('[Bulk Analysis] Background processing error:', error);
       }
@@ -172,7 +172,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       jobId: job.id,
-      totalPosts: postUrls.length,
+      totalPages: pageUrls.length,
       creditsRequired: totalCreditsNeeded,
       status: 'queued',
     });
@@ -194,7 +194,7 @@ export async function POST(req: NextRequest) {
 async function processBulkAnalysis(
   jobId: string,
   userId: string,
-  postUrls: string[],
+  pageUrls: string[],
   preferences: Record<string, boolean>,
   globalChargeExtra: boolean,
   supabase: any
@@ -210,8 +210,8 @@ async function processBulkAnalysis(
     let failedCount = 0;
     let totalCreditsDeducted = 0;
 
-    // Process each post sequentially
-    for (const url of postUrls) {
+    // Process each page sequentially
+    for (const url of pageUrls) {
       try {
         // Get user's current credits
         const { data: userData } = await supabase
@@ -222,15 +222,15 @@ async function processBulkAnalysis(
 
         const currentCredits = userData?.credits || 0;
 
-        // Scrape post
+        // Scrape page
         const scrapeResult = await scrapeUrl(url);
         if (scrapeResult.error) {
           failedCount++;
           await supabase
             .from('analysis_jobs')
             .update({
-              failed_posts: failedCount,
-              completed_posts: completedCount,
+              failed_pages: failedCount,
+              completed_pages: completedCount,
             })
             .eq('id', jobId);
           continue;
@@ -249,8 +249,8 @@ async function processBulkAnalysis(
           await supabase
             .from('analysis_jobs')
             .update({
-              failed_posts: failedCount,
-              completed_posts: completedCount,
+              failed_pages: failedCount,
+              completed_pages: completedCount,
             })
             .eq('id', jobId);
           continue;
@@ -369,8 +369,8 @@ async function processBulkAnalysis(
         await supabase
           .from('analysis_jobs')
           .update({
-            completed_posts: completedCount,
-            failed_posts: failedCount,
+            completed_pages: completedCount,
+            failed_pages: failedCount,
           })
           .eq('id', jobId);
       } catch (error: any) {
@@ -379,8 +379,8 @@ async function processBulkAnalysis(
         await supabase
           .from('analysis_jobs')
           .update({
-            failed_posts: failedCount,
-            completed_posts: completedCount,
+            failed_pages: failedCount,
+            completed_pages: completedCount,
           })
           .eq('id', jobId);
       }

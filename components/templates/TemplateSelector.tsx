@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ProductType } from '@/lib/ai/product-ideas-generator';
 import { getTemplatesForType, Template, TemplateInfo } from '@/lib/templates';
 
@@ -12,6 +12,15 @@ interface TemplateSelectorProps {
 
 export function TemplateSelector({ productType, selectedTemplateId, onSelect }: TemplateSelectorProps) {
   const templates = getTemplatesForType(productType);
+  
+  // Auto-select first template if none is selected
+  useEffect(() => {
+    if (!selectedTemplateId && templates.length > 0) {
+      onSelect(templates[0].id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [productType]); // Only re-run when product type changes
+  
   const selectedTemplate = selectedTemplateId 
     ? templates.find((t) => t.id === selectedTemplateId)
     : templates[0]; // Default to first template

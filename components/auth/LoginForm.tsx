@@ -20,6 +20,11 @@ export function LoginForm() {
       // First, clear any existing session to avoid conflicts
       await supabase.auth.signOut()
       
+      // Clear any tracking cookies that might interfere
+      document.cookie = 'session_started_at=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
+      document.cookie = 'last_activity=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
+      document.cookie = 'session_id=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
+      
       // Small delay to ensure signout completes
       await new Promise(resolve => setTimeout(resolve, 200))
 
@@ -35,11 +40,15 @@ export function LoginForm() {
         const { error: userError } = await supabase.auth.getUser()
         if (userError) throw userError
         
-        // Small delay to ensure cookies are set
-        await new Promise(resolve => setTimeout(resolve, 200))
+        // Wait a bit longer to ensure Supabase cookies are fully set and propagated
+        // The browser needs time to set the cookies before the redirect
+        await new Promise(resolve => setTimeout(resolve, 1000))
+        
+        // Force a refresh of the session to ensure cookies are set
+        await supabase.auth.getSession()
         
         // Use window.location for a full page reload to ensure middleware picks up cookies
-        // Clear any query params that might cause issues
+        // Redirect to dashboard without any query params
         window.location.href = '/dashboard'
       } else {
         setError('Failed to create session. Please try again.')

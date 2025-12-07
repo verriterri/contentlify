@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { generateProduct } from '@/lib/ai/product-generator';
-import { generatePDF, uploadPDFToStorage } from '@/lib/generators/pdf-generator';
-import { getTemplate, getDefaultTemplate } from '@/lib/templates';
 import { ProductIdea } from '@/lib/ai/product-ideas-generator';
 import { AffiliateOpportunity } from '@/lib/ai/affiliate-detector';
 
@@ -11,14 +9,20 @@ import { AffiliateOpportunity } from '@/lib/ai/affiliate-detector';
  * POST /api/generate-product
  * Generates an outline for a digital product from a product idea
  * 
- * Body: {
- *   productIdea: ProductIdea,
- *   analysisId: string,
- *   templateId: string,
- *   productTitle?: string,
- *   includeAffiliateLinks?: boolean,
- *   userBranding?: { name: string, colors?: { primary: string, secondary: string } }
- * }
+    const {
+      productIdea,
+      analysisId,
+      productTitle,
+      includeAffiliateLinks = true,
+      userBranding,
+    } = body;
+
+    if (!productIdea || !analysisId) {
+      return NextResponse.json(
+        { error: 'Missing required fields: productIdea, analysisId' },
+        { status: 400 }
+      );
+    }
  */
 export async function POST(req: NextRequest) {
   try {
@@ -58,27 +62,43 @@ export async function POST(req: NextRequest) {
     const {
       productIdea,
       analysisId,
-      templateId,
       productTitle,
       includeAffiliateLinks = true,
       userBranding,
     } = body;
 
-    if (!productIdea || !analysisId || !templateId) {
+    if (!productIdea || !analysisId) {
       return NextResponse.json(
-        { error: 'Missing required fields: productIdea, analysisId, templateId' },
+        { error: 'Missing required fields: productIdea, analysisId' },
         { status: 400 }
       );
     }
 
-    // Get user subscription tier
+    // Get user subscription tier and credits
     const { data: userData } = await supabase
       .from('users')
-      .select('subscription_tier, subscription_status')
+      .select('subscription_tier, subscription_status, credits')
       .eq('id', user.id)
       .single();
 
-    const subscriptionTier = (userData?.subscription_tier || 'free') as 'free' | 'starter' | 'pro' | 'agency';
+    if (!userData) {
+      return NextResponse.json(
+        { error: 'User data not found' },
+        { status: 404 }
+      );
+    }
+
+    const subscriptionTier = (userData.subscription_tier || 'free') as 'free' | 'starter' | 'pro' | 'agency';
+    const userCredits = userData.credits || 0;
+    const creditsNeeded = 1;
+
+    // Check if user has enough credits
+    if (userCredits < creditsNeeded) {
+      return NextResponse.json(
+        { error: `Insufficient credits. You need ${creditsNeeded} credit(s) to generate an outline, but you only have ${userCredits}.` },
+        { status: 402 }
+      );
+    }
 
     // Get analysis data to retrieve original content and affiliate opportunities
     const { data: analysis, error: analysisError } = await supabase
@@ -95,15 +115,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Get template
-    const template = getTemplate(productIdea.type, templateId) || getDefaultTemplate(productIdea.type);
-    if (!template) {
-      return NextResponse.json(
-        { error: 'Template not found' },
-        { status: 404 }
-      );
-    }
-
     // Prepare affiliate opportunities
     const affiliateOpportunities: AffiliateOpportunity[] = includeAffiliateLinks
       ? (analysis.affiliate_opportunities || [])
@@ -115,7 +126,6 @@ export async function POST(req: NextRequest) {
         productIdea: productIdea as ProductIdea,
         originalContent: analysis.content || '',
         affiliateOpportunities,
-        template: templateId,
       });
 
       // Override title if provided
@@ -123,25 +133,22 @@ export async function POST(req: NextRequest) {
         generatedOutline.title = productTitle;
       }
 
-      // Generate PDF for the outline
-      const pdfResult = await generatePDF({
-        content: generatedOutline,
-        template,
-        userBranding,
-        subscriptionTier,
-        userId: user.id,
-      });
+      // Deduct credits from user account
+      const newCredits = userCredits - creditsNeeded;
+      const { error: creditError } = await supabase
+        .from('users')
+        .update({ credits: newCredits })
+        .eq('id', user.id);
 
-      // Upload PDF to storage
-      const pdfFileName = `${sanitizeFileName(generatedOutline.title)}-outline.pdf`;
-      let fileUrl: string | null = null;
-
-      try {
-        fileUrl = await uploadPDFToStorage(pdfResult.buffer, pdfFileName, user.id);
-      } catch (uploadError) {
-        console.error('[Generate Outline] Failed to upload PDF:', uploadError);
-        // Continue without file URL
+      if (creditError) {
+        console.error('[Generate Outline] Error deducting credits:', creditError);
+        return NextResponse.json(
+          { error: `Failed to deduct credits: ${creditError.message}` },
+          { status: 500 }
+        );
       }
+
+      console.log(`[Generate Outline] Deducted ${creditsNeeded} credit(s) from user ${user.id}. New balance: ${newCredits}`);
 
       // Save outline to database (still using generated_products table)
       const productData = {
@@ -150,8 +157,9 @@ export async function POST(req: NextRequest) {
         product_type: productIdea.type,
         title: generatedOutline.title,
         content: JSON.stringify(generatedOutline), // Store as JSON
-        template_used: templateId,
-        file_url: fileUrl,
+        template_used: null, // Templates not used for outlines
+        file_url: null, // No PDF file URL
+        credits_used: creditsNeeded,
       };
 
       const { data: savedProduct, error: saveError } = await supabase
@@ -162,15 +170,26 @@ export async function POST(req: NextRequest) {
 
       if (saveError) {
         console.error('[Generate Outline] Error saving outline:', saveError);
-        // Return outline even if save fails
+        // If save fails, we should refund the credits
+        const { error: refundError } = await supabase
+          .from('users')
+          .update({ credits: userCredits })
+          .eq('id', user.id);
+        
+        if (refundError) {
+          console.error('[Generate Outline] Error refunding credits:', refundError);
+        }
+        
+        return NextResponse.json(
+          { error: `Failed to save outline: ${saveError.message}` },
+          { status: 500 }
+        );
       }
 
       return NextResponse.json({
         success: true,
         outline: generatedOutline,
         productId: savedProduct?.id,
-        fileUrl,
-        pdfSize: pdfResult.size,
       });
     } catch (error: any) {
       console.error('[Generate Outline] Error:', error);

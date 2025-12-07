@@ -119,13 +119,6 @@ export default function ProductDetailPage() {
     }
   };
 
-  const handleDownload = () => {
-    if (product?.file_url) {
-      window.open(product.file_url, '_blank');
-    } else {
-      alert('PDF file not available. Please regenerate the product.');
-    }
-  };
 
   const handleDelete = async () => {
     if (!confirm('Are you sure you want to delete this product? This action cannot be undone.')) {
@@ -226,12 +219,6 @@ export default function ProductDetailPage() {
           </div>
 
           <div className="flex items-center space-x-3">
-            <button
-              onClick={handleDownload}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
-            >
-              Download PDF
-            </button>
             <button
               onClick={handleDelete}
               className="px-4 py-2 text-sm font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100"

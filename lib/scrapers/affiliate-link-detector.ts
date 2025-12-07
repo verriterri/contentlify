@@ -5,44 +5,60 @@
 export function countAffiliateLinks(html: string): number {
   if (!html) return 0;
 
-  // Patterns to detect affiliate links
-  const affiliatePatterns = [
-    // Amazon
-    /amazon\.com\/[^"'\s]*[?&]tag=/gi,
-    /amzn\.to\//gi,
-    /amazon\.(com|co\.uk|de|fr|it|es|ca|com\.au)\/[^"'\s]*[?&]tag=/gi,
-    
-    // ShareASale
-    /shareasale\.com/gi,
-    
-    // CJ Affiliate (Commission Junction)
-    /anrdoezrs\.net/gi,
-    /dpbolvw\.net/gi,
-    /jdoqocy\.com/gi,
-    /kqzyfj\.com/gi,
-    /emjcd\.com/gi,
-    
-    // Rakuten
-    /qksrv\.net/gi,
-    
-    // AvantLink
-    /avantlink\.com/gi,
-    
-    // Partnerize
-    /pntrs\.com/gi,
-    
-    // Impact
-    /impact\.com/gi,
-    /impactradius\.com/gi,
-    
-    // Awin
-    /awin1\.com/gi,
-    
-    // Partner Links
-    /partnerlinks\.io/gi,
-    
-    // URL parameters that indicate affiliate links
-    /[?&](affiliate|aff_id|affid|ref|referral|partner|pid|rid|source|utm_source=affiliate)=/gi,
+  // Social sharing domains that should never be considered affiliate links
+  const SOCIAL_SHARING_DOMAINS = [
+    'facebook.com',
+    'twitter.com',
+    'x.com',
+    'linkedin.com',
+    'pinterest.com',
+    'reddit.com',
+    'tumblr.com',
+    'whatsapp.com',
+    'telegram.org',
+    'vk.com',
+    'weibo.com',
+    'line.me',
+  ];
+
+  // Known affiliate network domains
+  const AFFILIATE_NETWORK_DOMAINS = [
+    'amazon.com', 'amazon.co.uk', 'amazon.de', 'amazon.fr', 'amazon.it', 'amazon.es', 'amazon.ca', 'amazon.com.au',
+    'shareasale.com', 'shareasale.net',
+    'anrdoezrs.net', 'dpbolvw.net', 'jdoqocy.com', 'kqzyfj.com', 'emjcd.com', // CJ Affiliate
+    'qksrv.net', // Rakuten
+    'avantlink.com',
+    'pntrs.com', // Partnerize
+    'impact.com', 'impactradius.com',
+    'awin1.com', // Awin
+    'partnerlinks.io',
+  ];
+
+  // URL shorteners often used for affiliate links
+  const AFFILIATE_SHORTENERS = [
+    'amzn.to', 'amzn.com',
+    'bit.ly', 'tinyurl.com',
+    'goo.gl', 't.co',
+  ];
+
+  // High-confidence affiliate parameters (always indicate affiliate links)
+  const HIGH_CONFIDENCE_PARAMS = [
+    'tag', // Amazon Associates
+    'awc', // Amazon Associates
+    'anid', // Amazon Native Shopping Ads
+    'pid', // CJ Affiliate
+    'affiliate', 'aff_id', 'affid', 'aff',
+    'partner', 'partner_id',
+    'site_id', // Rakuten
+    'u', // ShareASale (only on ShareASale domains)
+    'mdata', // ShareASale
+  ];
+
+  // Medium-confidence parameters (only count on known affiliate domains)
+  const MEDIUM_CONFIDENCE_PARAMS = [
+    'ref', 'ref_id', 'refid', 'referral',
+    'source', 'source_id',
+    'rid',
   ];
 
   let count = 0;
@@ -55,17 +71,47 @@ export function countAffiliateLinks(html: string): number {
   while ((match = hrefPattern.exec(html)) !== null) {
     const url = match[1];
     
-    // Check if URL matches any affiliate pattern
-    for (const pattern of affiliatePatterns) {
-      if (pattern.test(url)) {
+    try {
+      const urlObj = new URL(url);
+      const hostname = urlObj.hostname.toLowerCase();
+      
+      // Skip social sharing domains
+      if (SOCIAL_SHARING_DOMAINS.some(domain => hostname.includes(domain))) {
+        continue;
+      }
+
+      // Check for known affiliate network domains
+      const isAffiliateDomain = AFFILIATE_NETWORK_DOMAINS.some(domain => hostname.includes(domain));
+      const isShortener = AFFILIATE_SHORTENERS.some(domain => hostname.includes(domain));
+
+      // Check for high-confidence parameters (always count)
+      const hasHighConfidenceParam = HIGH_CONFIDENCE_PARAMS.some(param => urlObj.searchParams.has(param));
+      
+      // Check for medium-confidence parameters (only count on affiliate domains)
+      const hasMediumConfidenceParam = MEDIUM_CONFIDENCE_PARAMS.some(param => 
+        urlObj.searchParams.has(param) && isAffiliateDomain
+      );
+
+      // Check for Amazon tag parameter (specific pattern)
+      const isAmazonWithTag = hostname.includes('amazon.') && urlObj.searchParams.has('tag');
+
+      // Check for ShareASale 'u' parameter (only on ShareASale domains)
+      const isShareASaleWithU = (hostname.includes('shareasale.com') || hostname.includes('shareasale.net')) 
+        && urlObj.searchParams.has('u');
+
+      // Count if it matches any affiliate criteria
+      if (isAffiliateDomain || isShortener || hasHighConfidenceParam || hasMediumConfidenceParam || 
+          isAmazonWithTag || isShareASaleWithU) {
         // Normalize URL to avoid counting same link multiple times
         const normalizedUrl = url.toLowerCase().split('?')[0].split('#')[0];
         if (!foundUrls.has(normalizedUrl)) {
           foundUrls.add(normalizedUrl);
           count++;
         }
-        break; // Found a match, no need to check other patterns
       }
+    } catch {
+      // Skip invalid URLs
+      continue;
     }
   }
 
@@ -78,29 +124,95 @@ export function countAffiliateLinks(html: string): number {
 export function isAffiliateLink(url: string): boolean {
   if (!url) return false;
 
-  const affiliatePatterns = [
-    /amazon\.com\/[^"'\s]*[?&]tag=/gi,
-    /amzn\.to\//gi,
-    /shareasale\.com/gi,
-    /anrdoezrs\.net/gi,
-    /dpbolvw\.net/gi,
-    /jdoqocy\.com/gi,
-    /kqzyfj\.com/gi,
-    /qksrv\.net/gi,
-    /avantlink\.com/gi,
-    /pntrs\.com/gi,
-    /impact\.com/gi,
-    /awin1\.com/gi,
-    /partnerlinks\.io/gi,
-    /[?&](affiliate|aff_id|affid|ref|referral|partner|pid|rid|source|utm_source=affiliate)=/gi,
-  ];
+  try {
+    const urlObj = new URL(url);
+    const hostname = urlObj.hostname.toLowerCase();
 
-  for (const pattern of affiliatePatterns) {
-    if (pattern.test(url)) {
-      return true;
+    // Social sharing domains that should never be considered affiliate links
+    const SOCIAL_SHARING_DOMAINS = [
+      'facebook.com',
+      'twitter.com',
+      'x.com',
+      'linkedin.com',
+      'pinterest.com',
+      'reddit.com',
+      'tumblr.com',
+      'whatsapp.com',
+      'telegram.org',
+      'vk.com',
+      'weibo.com',
+      'line.me',
+    ];
+
+    // Skip social sharing domains
+    if (SOCIAL_SHARING_DOMAINS.some(domain => hostname.includes(domain))) {
+      return false;
     }
-  }
 
-  return false;
+    // Known affiliate network domains
+    const AFFILIATE_NETWORK_DOMAINS = [
+      'amazon.com', 'amazon.co.uk', 'amazon.de', 'amazon.fr', 'amazon.it', 'amazon.es', 'amazon.ca', 'amazon.com.au',
+      'shareasale.com', 'shareasale.net',
+      'anrdoezrs.net', 'dpbolvw.net', 'jdoqocy.com', 'kqzyfj.com', 'emjcd.com', // CJ Affiliate
+      'qksrv.net', // Rakuten
+      'avantlink.com',
+      'pntrs.com', // Partnerize
+      'impact.com', 'impactradius.com',
+      'awin1.com', // Awin
+      'partnerlinks.io',
+    ];
+
+    // URL shorteners often used for affiliate links
+    const AFFILIATE_SHORTENERS = [
+      'amzn.to', 'amzn.com',
+      'bit.ly', 'tinyurl.com',
+      'goo.gl', 't.co',
+    ];
+
+    // High-confidence affiliate parameters (always indicate affiliate links)
+    const HIGH_CONFIDENCE_PARAMS = [
+      'tag', // Amazon Associates
+      'awc', // Amazon Associates
+      'anid', // Amazon Native Shopping Ads
+      'pid', // CJ Affiliate
+      'affiliate', 'aff_id', 'affid', 'aff',
+      'partner', 'partner_id',
+      'site_id', // Rakuten
+      'u', // ShareASale (only on ShareASale domains)
+      'mdata', // ShareASale
+    ];
+
+    // Medium-confidence parameters (only count on known affiliate domains)
+    const MEDIUM_CONFIDENCE_PARAMS = [
+      'ref', 'ref_id', 'refid', 'referral',
+      'source', 'source_id',
+      'rid',
+    ];
+
+    // Check for known affiliate network domains
+    const isAffiliateDomain = AFFILIATE_NETWORK_DOMAINS.some(domain => hostname.includes(domain));
+    const isShortener = AFFILIATE_SHORTENERS.some(domain => hostname.includes(domain));
+
+    // Check for high-confidence parameters (always count)
+    const hasHighConfidenceParam = HIGH_CONFIDENCE_PARAMS.some(param => urlObj.searchParams.has(param));
+    
+    // Check for medium-confidence parameters (only count on affiliate domains)
+    const hasMediumConfidenceParam = MEDIUM_CONFIDENCE_PARAMS.some(param => 
+      urlObj.searchParams.has(param) && isAffiliateDomain
+    );
+
+    // Check for Amazon tag parameter (specific pattern)
+    const isAmazonWithTag = hostname.includes('amazon.') && urlObj.searchParams.has('tag');
+
+    // Check for ShareASale 'u' parameter (only on ShareASale domains)
+    const isShareASaleWithU = (hostname.includes('shareasale.com') || hostname.includes('shareasale.net')) 
+      && urlObj.searchParams.has('u');
+
+    // Return true if it matches any affiliate criteria
+    return isAffiliateDomain || isShortener || hasHighConfidenceParam || hasMediumConfidenceParam || 
+           isAmazonWithTag || isShareASaleWithU;
+  } catch {
+    return false;
+  }
 }
 

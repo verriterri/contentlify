@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 
-interface Post {
+interface Page {
   url: string
   title: string
   wordCount: number
@@ -11,26 +11,65 @@ interface Post {
 }
 
 interface ScanResultsProps {
-  blogUrl: string
-  totalPosts: number
-  scannedPosts: number
-  posts: Post[]
+  siteUrl: string
+  totalPages: number
+  scannedPages: number
+  pages: Page[]
   summary: {
     totalWords: number
-    avgWordsPerPost: number
+    avgWordsPerPage: number
     totalAffiliateLinks: number
     underMonetizedCount: number
   }
-  onSelectPosts?: (selectedUrls: string[]) => void
+  onSelectPages?: (selectedUrls: string[]) => void
+}
+
+/**
+ * Check if a page is a legal/administrative page that shouldn't be monetized
+ */
+function isLegalOrAdminPage(page: Page): boolean {
+  const url = page.url.toLowerCase()
+  const title = page.title.toLowerCase()
+  
+  const legalPatterns = [
+    'terms',
+    'privacy',
+    'legal',
+    'disclaimer',
+    'cookie',
+    'gdpr',
+    'accessibility',
+    'sitemap',
+    'contact',
+    'about',
+    'imprint',
+    'impressum',
+    'datenschutz',
+    'agb',
+    'nutzungsbedingungen',
+  ]
+  
+  // Check URL path (all segments, not just last)
+  const urlPath = url
+  if (legalPatterns.some(pattern => urlPath.includes(`/${pattern}`) || urlPath.includes(`-${pattern}`) || urlPath.endsWith(pattern))) {
+    return true
+  }
+  
+  // Check title
+  if (legalPatterns.some(pattern => title.includes(pattern))) {
+    return true
+  }
+  
+  return false
 }
 
 export function ScanResults({
-  blogUrl,
-  totalPosts,
-  scannedPosts,
-  posts,
+  siteUrl,
+  totalPages,
+  scannedPages,
+  pages,
   summary,
-  onSelectPosts,
+  onSelectPages,
 }: ScanResultsProps) {
   const [selectedUrls, setSelectedUrls] = useState<Set<string>>(new Set())
 
@@ -42,44 +81,44 @@ export function ScanResults({
       newSelected.add(url)
     }
     setSelectedUrls(newSelected)
-    onSelectPosts?.(Array.from(newSelected))
+    onSelectPages?.(Array.from(newSelected))
   }
 
   const selectAll = () => {
-    const allUrls = new Set(posts.map((p) => p.url))
+    const allUrls = new Set(pages.map((p) => p.url))
     setSelectedUrls(allUrls)
-    onSelectPosts?.(Array.from(allUrls))
+    onSelectPages?.(Array.from(allUrls))
   }
 
   const deselectAll = () => {
     setSelectedUrls(new Set())
-    onSelectPosts?.([])
+    onSelectPages?.([])
   }
 
   const selectUnderMonetized = () => {
-    const underMonetized = posts.filter(
+    const underMonetized = pages.filter(
       (p) => p.wordCount >= 1500 && p.affiliateLinkCount <= 2
     )
     const urls = new Set(underMonetized.map((p) => p.url))
     setSelectedUrls(urls)
-    onSelectPosts?.(Array.from(urls))
+    onSelectPages?.(Array.from(urls))
   }
 
-  // Categorize posts
-  const underMonetized = posts.filter((p) => p.wordCount >= 1500 && p.affiliateLinkCount <= 2)
-  const partiallyMonetized = posts.filter((p) => p.affiliateLinkCount >= 3 && p.affiliateLinkCount <= 9)
-  const wellMonetized = posts.filter((p) => p.affiliateLinkCount >= 10)
-  const shortPosts = posts.filter((p) => p.wordCount < 800)
+  // Categorize pages
+  const underMonetized = pages.filter((p) => p.wordCount >= 1500 && p.affiliateLinkCount <= 2)
+  const partiallyMonetized = pages.filter((p) => p.affiliateLinkCount >= 3 && p.affiliateLinkCount <= 9)
+  const wellMonetized = pages.filter((p) => p.affiliateLinkCount >= 10)
+  const shortPages = pages.filter((p) => p.wordCount < 800)
 
   return (
     <div className="space-y-6">
-      {/* Blog Summary */}
+      {/* Site Summary */}
       <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-2xl font-bold text-gray-900 mb-4">{blogUrl}</h2>
+        <h2 className="text-2xl font-bold text-gray-900 mb-4">{siteUrl}</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div>
-            <p className="text-sm text-gray-600">Total Posts</p>
-            <p className="text-2xl font-bold text-gray-900">{totalPosts}</p>
+            <p className="text-sm text-gray-600">Total Pages</p>
+            <p className="text-2xl font-bold text-gray-900">{totalPages}</p>
           </div>
           <div>
             <p className="text-sm text-gray-600">Total Words</p>
@@ -87,7 +126,7 @@ export function ScanResults({
           </div>
           <div>
             <p className="text-sm text-gray-600">Avg Words</p>
-            <p className="text-2xl font-bold text-gray-900">{summary.avgWordsPerPost.toLocaleString()}</p>
+            <p className="text-2xl font-bold text-gray-900">{summary.avgWordsPerPage.toLocaleString()}</p>
           </div>
           <div>
             <p className="text-sm text-gray-600">Affiliate Links</p>
@@ -136,9 +175,9 @@ export function ScanResults({
             <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
             </svg>
-            <p className="font-semibold text-gray-900">Short Posts</p>
+            <p className="font-semibold text-gray-900">Short Pages</p>
           </div>
-          <p className="text-2xl font-bold text-gray-900">{shortPosts.length}</p>
+          <p className="text-2xl font-bold text-gray-900">{shortPages.length}</p>
           <p className="text-sm text-gray-600">&lt;800 words</p>
         </div>
       </div>
@@ -149,7 +188,7 @@ export function ScanResults({
           onClick={selectUnderMonetized}
           className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-600 transition-colors text-sm font-medium"
         >
-          Select Under-Monetized ({underMonetized.length} posts)
+          Select Under-Monetized ({underMonetized.length} pages)
         </button>
         <button
           onClick={selectAll}
@@ -165,7 +204,7 @@ export function ScanResults({
         </button>
       </div>
 
-      {/* Posts List */}
+      {/* Pages List */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -174,7 +213,7 @@ export function ScanResults({
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   <input
                     type="checkbox"
-                    checked={selectedUrls.size === posts.length && posts.length > 0}
+                    checked={selectedUrls.size === pages.length && pages.length > 0}
                     onChange={(e) => (e.target.checked ? selectAll() : deselectAll())}
                     className="rounded border-gray-300 text-primary focus:ring-primary"
                   />
@@ -194,22 +233,22 @@ export function ScanResults({
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {posts.map((post) => {
-                const isSelected = selectedUrls.has(post.url)
-                const isHighPotential = post.wordCount >= 1500 && post.affiliateLinkCount <= 2
-                const isShort = post.wordCount < 800
-                const isWellMonetized = post.affiliateLinkCount >= 10
+              {pages.map((page) => {
+                const isSelected = selectedUrls.has(page.url)
+                const isHighPotential = page.wordCount >= 1500 && page.affiliateLinkCount <= 2 && !isLegalOrAdminPage(page)
+                const isShort = page.wordCount < 800
+                const isWellMonetized = page.affiliateLinkCount >= 10
 
                 return (
                   <tr
-                    key={post.url}
+                    key={page.url}
                     className={`hover:bg-gray-50 ${isSelected ? 'bg-primary-50' : ''}`}
                   >
                     <td className="px-6 py-4 whitespace-nowrap">
                       <input
                         type="checkbox"
                         checked={isSelected}
-                        onChange={() => toggleSelection(post.url)}
+                        onChange={() => toggleSelection(page.url)}
                         className="rounded border-gray-300 text-primary focus:ring-primary"
                       />
                     </td>
@@ -221,7 +260,7 @@ export function ScanResults({
                           </svg>
                         )}
                         {isShort && (
-                          <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" title="Short post">
+                          <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" title="Short page">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                           </svg>
                         )}
@@ -231,27 +270,27 @@ export function ScanResults({
                           </svg>
                         )}
                         <div>
-                          <div className="text-sm font-medium text-gray-900 truncate max-w-xs" title={post.title}>
-                            {post.title}
+                          <div className="text-sm font-medium text-gray-900 truncate max-w-xs" title={page.title}>
+                            {page.title}
                           </div>
                           <div className="text-sm text-gray-500 truncate max-w-xs">
-                            {post.url}
+                            {page.url}
                           </div>
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {post.wordCount.toLocaleString()}
+                      {page.wordCount.toLocaleString()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center gap-2">
-                        <span className="text-sm text-gray-900">{post.affiliateLinkCount}</span>
-                        {post.affiliateLinkCount <= 2 && post.wordCount >= 1500 && (
+                        <span className="text-sm text-gray-900">{page.affiliateLinkCount}</span>
+                        {page.affiliateLinkCount <= 2 && page.wordCount >= 1500 && (
                           <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">
                             High potential
                           </span>
                         )}
-                        {post.affiliateLinkCount >= 10 && (
+                        {page.affiliateLinkCount >= 10 && (
                           <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
                             Well monetized
                           </span>
@@ -259,8 +298,8 @@ export function ScanResults({
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {post.publishedDate
-                        ? new Date(post.publishedDate).toLocaleDateString()
+                      {page.publishedDate
+                        ? new Date(page.publishedDate).toLocaleDateString()
                         : 'Unknown'}
                     </td>
                   </tr>
@@ -274,7 +313,7 @@ export function ScanResults({
       {selectedUrls.size > 0 && (
         <div className="bg-primary-50 border border-primary-200 rounded-lg p-4">
           <p className="text-sm font-medium text-gray-900">
-            {selectedUrls.size} post{selectedUrls.size !== 1 ? 's' : ''} selected
+            {selectedUrls.size} page{selectedUrls.size !== 1 ? 's' : ''} selected
           </p>
         </div>
       )}

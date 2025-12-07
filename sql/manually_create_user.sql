@@ -22,3 +22,6 @@ SET email = EXCLUDED.email,
 -- Verify the user was created
 -- SELECT * FROM public.users WHERE id = 'USER_ID_HERE'::UUID;
 
+
+
+

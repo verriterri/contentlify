@@ -2,21 +2,21 @@ import * as cheerio from 'cheerio';
 import { getUrlsFromSitemap, crawlSiteForUrls } from '@/lib/crawlers/site-crawler';
 import { countAffiliateLinks } from './affiliate-link-detector';
 
-export interface BlogPost {
+export interface SitePage {
   url: string;
   title: string | null;
   publishedDate: Date | null;
 }
 
-export interface BlogScanResult {
-  blogUrl: string;
-  totalPosts: number;
-  posts: BlogPost[];
+export interface SiteScanResult {
+  siteUrl: string;
+  totalPages: number;
+  pages: SitePage[];
   scannedAt: Date;
   method: 'sitemap' | 'rss' | 'crawl';
 }
 
-export interface PostMetadata {
+export interface PageMetadata {
   url: string;
   title: string;
   wordCount: number;
@@ -27,8 +27,8 @@ export interface PostMetadata {
 
 /**
  * Normalize a URL by removing fragments and normalizing trailing slashes
- * e.g., https://example.com/post#main-content -> https://example.com/post
- *       https://example.com/post/ -> https://example.com/post
+ * e.g., https://example.com/page#main-content -> https://example.com/page
+ *       https://example.com/page/ -> https://example.com/page
  */
 function normalizeUrl(url: string): string {
   try {
@@ -49,24 +49,24 @@ function normalizeUrl(url: string): string {
 }
 
 /**
- * Check if a URL is under the blog URL path
- * e.g., https://example.com/blog/post is under https://example.com/blog/
+ * Check if a URL is under the site URL path
+ * e.g., https://example.com/site/page is under https://example.com/site/
  * but https://example.com/other is not
  */
-function isUrlUnderBlogPath(url: string, blogUrl: string): boolean {
+function isUrlUnderSitePath(url: string, siteUrl: string): boolean {
   try {
     const urlObj = new URL(url);
-    const blogObj = new URL(blogUrl);
+    const siteObj = new URL(siteUrl);
 
     // Must be same domain and protocol
-    if (urlObj.hostname !== blogObj.hostname || urlObj.protocol !== blogObj.protocol) {
+    if (urlObj.hostname !== siteObj.hostname || urlObj.protocol !== siteObj.protocol) {
       return false;
     }
 
     // Normalize paths (remove trailing slashes for comparison)
-    let blogPath = blogObj.pathname;
-    if (blogPath.length > 1 && blogPath.endsWith('/')) {
-      blogPath = blogPath.slice(0, -1);
+    let sitePath = siteObj.pathname;
+    if (sitePath.length > 1 && sitePath.endsWith('/')) {
+      sitePath = sitePath.slice(0, -1);
     }
     
     let urlPath = urlObj.pathname;
@@ -74,26 +74,26 @@ function isUrlUnderBlogPath(url: string, blogUrl: string): boolean {
       urlPath = urlPath.slice(0, -1);
     }
 
-    // If blog path is root (/), accept all URLs from that domain
-    if (blogPath === '' || blogPath === '/') {
+    // If site path is root (/), accept all URLs from that domain
+    if (sitePath === '' || sitePath === '/') {
       return true;
     }
 
-    // URL path must start with blog path
-    return urlPath === blogPath || urlPath.startsWith(blogPath + '/');
+    // URL path must start with site path
+    return urlPath === sitePath || urlPath.startsWith(sitePath + '/');
   } catch {
     return false;
   }
 }
 
 /**
- * Scan a blog to discover all posts
+ * Scan a site to discover all pages
  * Tries sitemap first, then RSS feed, then crawls homepage
- * Only includes URLs that are under the blog URL path
+ * Only includes URLs that are under the site URL path
  */
-export async function scanBlog(blogUrl: string): Promise<BlogScanResult> {
+export async function scanSite(siteUrl: string): Promise<SiteScanResult> {
   // Normalize URL (ensure it has protocol)
-  let normalizedUrl = blogUrl.trim();
+  let normalizedUrl = siteUrl.trim();
   if (!normalizedUrl.startsWith('http://') && !normalizedUrl.startsWith('https://')) {
     normalizedUrl = `https://${normalizedUrl}`;
   }
@@ -101,10 +101,10 @@ export async function scanBlog(blogUrl: string): Promise<BlogScanResult> {
   try {
     new URL(normalizedUrl);
   } catch {
-    throw new Error('Invalid blog URL format');
+    throw new Error('Invalid site URL format');
   }
 
-  const posts: BlogPost[] = [];
+  const pages: SitePage[] = [];
   let method: 'sitemap' | 'rss' | 'crawl' = 'crawl';
 
   // Step 1: Try sitemap
@@ -114,31 +114,31 @@ export async function scanBlog(blogUrl: string): Promise<BlogScanResult> {
       method = 'sitemap';
       const seenUrls = new Set<string>();
       for (const url of sitemapUrls) {
-        // Only include URLs that are under the blog path
-        if (isUrlUnderBlogPath(url, normalizedUrl)) {
+        // Only include URLs that are under the site path
+        if (isUrlUnderSitePath(url, normalizedUrl)) {
           const normalized = normalizeUrl(url);
           // Deduplicate by normalized URL
           if (!seenUrls.has(normalized)) {
             seenUrls.add(normalized);
-            posts.push({
+            pages.push({
               url: normalized, // Store normalized URL
-              title: null, // Will be fetched in getPostMetadata
-              publishedDate: null, // Will be fetched in getPostMetadata
+              title: null, // Will be fetched in getPageMetadata
+              publishedDate: null, // Will be fetched in getPageMetadata
             });
           }
         }
       }
-      console.log(`[Blog Scanner] Found ${posts.length} posts via sitemap (filtered and deduplicated from ${sitemapUrls.length} total URLs)`);
+      console.log(`[Site Scanner] Found ${pages.length} pages via sitemap (filtered and deduplicated from ${sitemapUrls.length} total URLs)`);
       return {
-        blogUrl: normalizedUrl,
-        totalPosts: posts.length,
-        posts,
+        siteUrl: normalizedUrl,
+        totalPages: pages.length,
+        pages,
         scannedAt: new Date(),
         method: 'sitemap',
       };
     }
   } catch (error) {
-    console.log('[Blog Scanner] Sitemap not found or error:', error);
+    console.log('[Site Scanner] Sitemap not found or error:', error);
   }
 
   // Step 2: Try RSS feed
@@ -166,7 +166,7 @@ export async function scanBlog(blogUrl: string): Promise<BlogScanResult> {
           const $ = cheerio.load(xml, { xmlMode: true });
 
           // Parse RSS/Atom feed
-          const allRssPosts: BlogPost[] = [];
+          const allRssPages: SitePage[] = [];
           $('item > link, entry > link[rel="alternate"]').each((_, el) => {
             const url = $(el).text().trim() || $(el).attr('href');
             if (url) {
@@ -198,10 +198,10 @@ export async function scanBlog(blogUrl: string): Promise<BlogScanResult> {
                 }
               }
               
-              // Only include URLs that are under the blog path
-              if (isUrlUnderBlogPath(url, normalizedUrl)) {
+              // Only include URLs that are under the site path
+              if (isUrlUnderSitePath(url, normalizedUrl)) {
                 const normalized = normalizeUrl(url);
-                allRssPosts.push({
+                allRssPages.push({
                   url: normalized, // Store normalized URL
                   title,
                   publishedDate,
@@ -210,25 +210,25 @@ export async function scanBlog(blogUrl: string): Promise<BlogScanResult> {
             }
           });
 
-          if (allRssPosts.length > 0) {
+          if (allRssPages.length > 0) {
             method = 'rss';
-            // Deduplicate RSS posts by normalized URL
+            // Deduplicate RSS pages by normalized URL
             const seenUrls = new Set<string>();
-            for (const post of allRssPosts) {
-              const normalized = normalizeUrl(post.url);
+            for (const page of allRssPages) {
+              const normalized = normalizeUrl(page.url);
               if (!seenUrls.has(normalized)) {
                 seenUrls.add(normalized);
-                posts.push({
-                  ...post,
+                pages.push({
+                  ...page,
                   url: normalized,
                 });
               }
             }
-            console.log(`[Blog Scanner] Found ${posts.length} posts via RSS feed (filtered and deduplicated)`);
+            console.log(`[Site Scanner] Found ${pages.length} pages via RSS feed (filtered and deduplicated)`);
             return {
-              blogUrl: normalizedUrl,
-              totalPosts: posts.length,
-              posts,
+              siteUrl: normalizedUrl,
+              totalPages: pages.length,
+              pages,
               scannedAt: new Date(),
               method: 'rss',
             };
@@ -240,7 +240,7 @@ export async function scanBlog(blogUrl: string): Promise<BlogScanResult> {
       }
     }
   } catch (error) {
-    console.log('[Blog Scanner] RSS feed not found or error:', error);
+    console.log('[Site Scanner] RSS feed not found or error:', error);
   }
 
   // Step 3: Fallback to crawling homepage
@@ -251,12 +251,12 @@ export async function scanBlog(blogUrl: string): Promise<BlogScanResult> {
     // Deduplicate crawled URLs by normalized URL
     const seenUrls = new Set<string>();
     for (const url of crawlResult.urls) {
-      // Only include URLs that are under the blog path
-      if (isUrlUnderBlogPath(url, normalizedUrl)) {
+      // Only include URLs that are under the site path
+      if (isUrlUnderSitePath(url, normalizedUrl)) {
         const normalized = normalizeUrl(url);
         if (!seenUrls.has(normalized)) {
           seenUrls.add(normalized);
-          posts.push({
+          pages.push({
             url: normalized, // Store normalized URL
             title: null,
             publishedDate: null,
@@ -265,30 +265,30 @@ export async function scanBlog(blogUrl: string): Promise<BlogScanResult> {
       }
     }
 
-    console.log(`[Blog Scanner] Found ${posts.length} posts via crawling (filtered and deduplicated)`);
+    console.log(`[Site Scanner] Found ${pages.length} pages via crawling (filtered and deduplicated)`);
     return {
-      blogUrl: normalizedUrl,
-      totalPosts: posts.length,
-      posts,
+      siteUrl: normalizedUrl,
+      totalPages: pages.length,
+      pages,
       scannedAt: new Date(),
       method: 'crawl',
     };
   } catch (error) {
-    throw new Error(`Failed to scan blog: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    throw new Error(`Failed to scan site: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
 /**
- * Get metadata for a single post
- * Fetches the post and extracts title, word count, affiliate links, and date
+ * Get metadata for a single page
+ * Fetches the page and extracts title, word count, affiliate links, and date
  * @param getUserMetadata - If false, only fetches title and date (saves resources for free users)
  */
-export async function getPostMetadata(postUrl: string, getUserMetadata: boolean = true): Promise<PostMetadata> {
+export async function getPageMetadata(pageUrl: string, getUserMetadata: boolean = true): Promise<PageMetadata> {
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
 
-    const response = await fetch(postUrl, {
+    const response = await fetch(pageUrl, {
       signal: controller.signal,
       headers: {
         'User-Agent':
@@ -311,7 +311,7 @@ export async function getPostMetadata(postUrl: string, getUserMetadata: boolean 
       $('h1').first().text().trim() ||
       $('meta[property="og:title"]').attr('content') ||
       $('title').text().trim() ||
-      'Untitled Post';
+      'Untitled Page';
     
     // Sanitize title: remove any HTML tags that might have slipped through
     // This handles cases where HTML is encoded or cheerio's .text() doesn't fully strip it
@@ -734,9 +734,9 @@ export async function getPostMetadata(postUrl: string, getUserMetadata: boolean 
     // Debug logging
     if (process.env.NODE_ENV === 'development') {
       if (!publishedDate) {
-        console.log(`[Date Extraction] No date found for ${postUrl}`);
+        console.log(`[Date Extraction] No date found for ${pageUrl}`);
       } else {
-        console.log(`[Date Extraction] Found date for ${postUrl}: ${publishedDate.toISOString()}`);
+        console.log(`[Date Extraction] Found date for ${pageUrl}: ${publishedDate.toISOString()}`);
       }
     }
 
@@ -744,7 +744,7 @@ export async function getPostMetadata(postUrl: string, getUserMetadata: boolean 
     const contentPreview = mainContent.substring(0, 200).trim() + (mainContent.length > 200 ? '...' : '');
 
     return {
-      url: postUrl,
+      url: pageUrl,
       title,
       wordCount,
       affiliateLinkCount,
@@ -753,9 +753,9 @@ export async function getPostMetadata(postUrl: string, getUserMetadata: boolean 
     };
   } catch (error: any) {
     if (error.name === 'AbortError') {
-      throw new Error('Timeout while fetching post');
+      throw new Error('Timeout while fetching page');
     }
-    throw new Error(`Failed to fetch post metadata: ${error.message || 'Unknown error'}`);
+    throw new Error(`Failed to fetch page metadata: ${error.message || 'Unknown error'}`);
   }
 }
 

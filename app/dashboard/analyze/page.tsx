@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { isAffiliateLink, getAffiliateLinkInfo } from '@/lib/utils/affiliate-link-detector';
-import { BlogUrlInput } from '@/components/scanner/BlogUrlInput';
+import { SiteUrlInput } from '@/components/scanner/SiteUrlInput';
 import { mapToStandardCategory } from '@/lib/utils/category-mapper';
 
 interface AnalysisResult {
@@ -26,13 +26,13 @@ export default function AnalyzePage() {
   const searchParams = useSearchParams();
   const [url, setUrl] = useState('');
   const [analyzeChildren, setAnalyzeChildren] = useState(false);
-  const [forceRecrawl, setForceRecrawl] = useState(false);
   const [loading, setLoading] = useState(false);
   const [progressMessage, setProgressMessage] = useState('');
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [userTier, setUserTier] = useState<string>('free');
   const [hasAutoTriggered, setHasAutoTriggered] = useState(false);
+  const [isManualAnalyze, setIsManualAnalyze] = useState(false);
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [freeTrialUsed, setFreeTrialUsed] = useState(false);
 
@@ -131,6 +131,7 @@ export default function AnalyzePage() {
     async function autoTriggerAnalysis() {
       const analysisIdParam = searchParams?.get('analysisId');
       const urlParam = searchParams?.get('url');
+      const forceReanalyze = searchParams?.get('force') === 'true';
       
       // If analysisId is present, load that analysis
       if (analysisIdParam && !hasAutoTriggered) {
@@ -145,12 +146,82 @@ export default function AnalyzePage() {
         setHasAutoTriggered(true);
         
         if (decodedUrl.trim()) {
-          // Check if user is anonymous (check both state and auth)
-          const { data: { user } } = await supabase.auth.getUser();
-          const userIsAnonymous = !user;
-          
-          // For anonymous users: check if we have cached result in sessionStorage
-          if (userIsAnonymous) {
+        // Check if user is anonymous (check both state and auth)
+        const { data: { user } } = await supabase.auth.getUser();
+        const userIsAnonymous = !user;
+        
+        // Check if this is coming from scan results (has scanId) - if so, always create new analysis
+        const scanIdParam = searchParams?.get('scanId');
+        const isFromScan = !!scanIdParam;
+        
+        console.log('[Analyze] Auto-trigger check:', {
+          scanId: scanIdParam,
+          isFromScan,
+          forceReanalyze,
+          isManualAnalyze,
+          userIsAnonymous,
+        });
+        
+        // Check if we already have a result for this URL (prevents re-analysis on refresh)
+        if (result && result.url === decodedUrl && !forceReanalyze && !isFromScan) {
+          console.log('[Analyze] Already have result for this URL, not re-analyzing');
+          return;
+        }
+        
+        // Check sessionStorage to prevent re-triggering on refresh
+        const sessionKey = `analyzed_${decodedUrl}`;
+        const alreadyAnalyzed = sessionStorage.getItem(sessionKey);
+        if (alreadyAnalyzed && !forceReanalyze && !isFromScan) {
+          console.log('[Analyze] Already analyzed this URL in this session, checking for existing result...');
+          // Still try to load from database/cache if available, but don't trigger new analysis
+          // The existing analysis check below will handle loading the result
+        }
+        
+        // For logged-in users: Check if analysis already exists before re-analyzing
+        // Skip this check if:
+        // - ?force=true is in the URL (allows forcing re-analysis)
+        // - Coming from scan results (scanId present) - always create new when analyzing from scan
+        // - Manual analyze flag is set
+        // IMPORTANT: If coming from scan results, NEVER check for existing - always create new
+        if (!userIsAnonymous && user && !isManualAnalyze && !forceReanalyze && !isFromScan) {
+          console.log('[Analyze] Checking for existing analysis...');
+          try {
+            const { data: existingAnalysis } = await supabase
+              .from('content_analyses')
+              .select('*')
+              .eq('user_id', user.id)
+              .eq('url', decodedUrl)
+              .eq('status', 'completed')
+              .is('deleted_at', null)
+              .order('created_at', { ascending: false })
+              .limit(1)
+              .single();
+            
+            if (existingAnalysis) {
+              console.log('[Analyze] Found existing analysis on page load, loading it instead of re-analyzing');
+              setResult({
+                success: true,
+                analysisId: existingAnalysis.id,
+                url: existingAnalysis.url,
+                title: existingAnalysis.title || existingAnalysis.url,
+                wordCount: existingAnalysis.word_count || 0,
+                creditsUsed: existingAnalysis.credits_used || 0,
+                affiliateOpportunities: existingAnalysis.affiliate_opportunities || [],
+                productIdeas: existingAnalysis.product_ideas || [],
+                isAnonymous: false,
+                isFreeTrial: false,
+              });
+              setLoading(false);
+              return; // Don't trigger new analysis on page load
+            }
+          } catch (error) {
+            console.error('[Analyze] Error checking for existing analysis:', error);
+            // Continue to analyze if check fails
+          }
+        }
+        
+        // For anonymous users: check if we have cached result in sessionStorage
+        if (userIsAnonymous) {
             const cacheKey = `analysis_${decodedUrl}`;
             const cachedResult = sessionStorage.getItem(cacheKey);
             
@@ -182,30 +253,48 @@ export default function AnalyzePage() {
             }
           }
           
-          // Auto-trigger analysis after a short delay to ensure component is ready
-          setTimeout(() => {
-            console.log('[Analyze] Auto-triggering analysis for URL:', decodedUrl);
-            handleAnalyze(decodedUrl).catch((error) => {
-              console.error('[Analyze] Error in auto-triggered handleAnalyze:', error);
-              setError(error.message || 'Failed to start analysis');
-              setLoading(false);
-            });
-          }, 100);
+          // Only auto-trigger analysis if:
+          // 1. Coming from scan results (isFromScan) - always create new
+          // 2. Force reanalyze is requested
+          // 3. No existing result found and not already analyzed in this session
+          if (isFromScan || forceReanalyze || (!alreadyAnalyzed && !result)) {
+            // Auto-trigger analysis after a short delay to ensure component is ready
+            setTimeout(() => {
+              if (isFromScan) {
+                console.log('[Analyze] Coming from scan results - always creating new analysis for URL:', decodedUrl);
+              } else {
+                console.log('[Analyze] Auto-triggering analysis for URL:', decodedUrl);
+              }
+              handleAnalyze(decodedUrl).catch((error) => {
+                console.error('[Analyze] Error in auto-triggered handleAnalyze:', error);
+                setError(error.message || 'Failed to start analysis');
+                setLoading(false);
+              });
+            }, 100);
+          } else {
+            console.log('[Analyze] Skipping auto-trigger - already analyzed or result exists');
+          }
         }
       }
     }
     
     autoTriggerAnalysis();
-  }, [searchParams, hasAutoTriggered]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [searchParams, hasAutoTriggered, result]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleAnalyze = async (urlOverride?: string) => {
+  const handleAnalyze = async (urlOverride?: string, isManual: boolean = false) => {
     const urlToAnalyze = urlOverride || url;
     if (!urlToAnalyze.trim()) {
       setError('Please enter a URL');
       return;
     }
 
+    // Set flag to indicate this is a manual analyze (not auto-triggered)
+    if (isManual) {
+      setIsManualAnalyze(true);
+    }
+
     console.log('[Analyze] Starting handleAnalyze for URL:', urlToAnalyze);
+    console.log('[Analyze] Manual analyze:', isManual, '- will always create new analysis');
     console.log('[Analyze] Current result state before clearing:', result ? 'has result' : 'null');
     
     setLoading(true);
@@ -261,14 +350,14 @@ export default function AnalyzePage() {
         
         try {
           console.log('[Analyze] About to make fetch request to /api/analyze');
-          console.log('[Analyze] Request body:', { url: urlToAnalyze, forceRecrawl });
+          console.log('[Analyze] Request body:', { url: urlToAnalyze });
           
           response = await fetch('/api/analyze', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ url: urlToAnalyze, forceRecrawl }),
+            body: JSON.stringify({ url: urlToAnalyze }),
             signal: controller.signal,
           });
           
@@ -378,7 +467,7 @@ export default function AnalyzePage() {
         warnings: data.warnings || [],
         isAnonymous: data.isAnonymous ?? isAnonymous,
         isFreeTrial: data.isFreeTrial ?? false,
-        chargeExtraForLongPosts: data.chargeExtraForLongPosts,
+        chargeExtraForLongPages: data.chargeExtraForLongPages,
       };
       
       console.log('[Analyze] Calling setResult with:', {
@@ -395,12 +484,24 @@ export default function AnalyzePage() {
       // Set the result
       setResult(analysisResult);
       
+      // Stop loading and clear progress message
+      setLoading(false);
+      setProgressMessage('');
+      
       console.log('[Analyze] setResult() called. Waiting for state update...');
       
       // Force a small delay to ensure state update is processed
       await new Promise((resolve) => setTimeout(resolve, 100));
       
       console.log('[Analyze] State update should be complete. Check useEffect logs.');
+      
+      // Mark as analyzed in sessionStorage to prevent re-triggering on refresh
+      try {
+        const sessionKey = `analyzed_${urlToAnalyze}`;
+        sessionStorage.setItem(sessionKey, 'true');
+      } catch (error) {
+        console.error('Error marking URL as analyzed:', error);
+      }
       
       // For anonymous users: cache the result in sessionStorage to prevent re-analysis on reload
       if (data.isAnonymous || isAnonymous) {
@@ -482,22 +583,39 @@ export default function AnalyzePage() {
 
   const isProUser = userTier === 'pro' || userTier === 'agency';
 
+  // Get scanId from query params for back button
+  const scanId = searchParams?.get('scanId');
+
   return (
     <div>
-      <h1 className="text-3xl font-bold text-gray-900 mb-6">
-        Analyze Content
-      </h1>
+      <div className="flex items-center gap-4 mb-6">
+        {scanId && (
+          <Link
+            href={`/scan/${scanId}`}
+            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+            <span className="text-sm font-medium">Back to Scan Results</span>
+          </Link>
+        )}
+        <h1 className="text-3xl font-bold text-gray-900">
+          Analyze Content
+        </h1>
+      </div>
 
-      {/* Blog Scanner Section */}
+      {/* Site Scanner Section */}
       <div className="bg-white rounded-lg shadow p-6 mb-6">
         <h2 className="text-xl font-semibold text-gray-900 mb-4">
-          Scan Your Entire Blog (1 Credit)
+          Scan Your Entire Site (1 Credit)
         </h2>
         <p className="text-sm text-gray-600 mb-4">
-          Discover all your blog posts with titles, URLs, and dates. Purchase credits to unlock word counts, affiliate links, and opportunity scores, then choose which ones to analyze.
+          Discover all your pages with titles, URLs, and dates. Purchase credits to unlock word counts, affiliate links, and opportunity scores, then choose which ones to analyze.
         </p>
-        <BlogUrlInput />
+        <SiteUrlInput />
       </div>
+
 
       {/* Error Display */}
       {error && (
@@ -563,7 +681,7 @@ export default function AnalyzePage() {
                           <h3 className="text-xl font-bold">Save Your Results</h3>
                         </div>
                         <p className="text-primary-100 mb-4">
-                          Your analysis results are not saved. Sign up now to save this analysis permanently, access it anytime, and get 1 free credit to analyze another post!
+                          Your analysis results are not saved. Sign up now to save this analysis permanently, access it anytime, and get 1 free credit to analyze another page!
                         </p>
                         <div className="flex items-center gap-4">
                           <Link
@@ -652,9 +770,6 @@ export default function AnalyzePage() {
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                               Category
                             </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Status
-                            </th>
                           </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
@@ -677,107 +792,6 @@ export default function AnalyzePage() {
                                   </span>
                                 ) : (
                                   <span className="text-xs text-gray-400">—</span>
-                                )}
-                              </td>
-                              <td className="px-6 py-4">
-                                {opp.isAlreadyLinked ? (
-                                  <div className="space-y-2">
-                                    {opp.linkedUrl ? (
-                                      <>
-                                        {isAffiliateLink(opp.linkedUrl) ? (
-                                          <div className="flex items-center space-x-2">
-                                            <span className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded font-medium flex items-center">
-                                              <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                                              </svg>
-                                              Affiliate Link
-                                            </span>
-                                          </div>
-                                        ) : (
-                                          <div className="flex items-center space-x-2">
-                                            <span className="px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded font-medium">
-                                              Regular Link
-                                            </span>
-                                          </div>
-                                        )}
-                                        <details className="text-xs">
-                                          <summary className="cursor-pointer text-purple-600 hover:text-purple-800 font-medium">
-                                            View link details
-                                          </summary>
-                                          <div className="mt-2 p-3 bg-gray-50 rounded border border-gray-200 space-y-2">
-                                            {(() => {
-                                              const linkInfo = getAffiliateLinkInfo(opp.linkedUrl);
-                                              return (
-                                                <>
-                                                  {linkInfo.isAffiliate && (
-                                                    <div className="space-y-1">
-                                                      {linkInfo.network && (
-                                                        <div>
-                                                          <strong className="text-gray-700">Network:</strong>{' '}
-                                                          <span className="text-gray-900">{linkInfo.network}</span>
-                                                        </div>
-                                                      )}
-                                                      <div>
-                                                        <strong className="text-gray-700">Confidence:</strong>{' '}
-                                                        <span className={`text-xs ${
-                                                          linkInfo.confidence === 'high' ? 'text-green-600' :
-                                                          linkInfo.confidence === 'medium' ? 'text-yellow-600' :
-                                                          'text-gray-500'
-                                                        }`}>
-                                                          {linkInfo.confidence}
-                                                        </span>
-                                                      </div>
-                                                      {linkInfo.detectedParams && linkInfo.detectedParams.length > 0 && (
-                                                        <div>
-                                                          <strong className="text-gray-700">Detected params:</strong>{' '}
-                                                          <span className="text-gray-900 text-xs">{linkInfo.detectedParams.join(', ')}</span>
-                                                        </div>
-                                                      )}
-                                                    </div>
-                                                  )}
-                                                  {!linkInfo.isAffiliate && (
-                                                    <div className="text-gray-600 text-xs">
-                                                      No affiliate parameters detected. This appears to be a regular link.
-                                                    </div>
-                                                  )}
-                                                  {opp.linkAnchorText && (
-                                                    <div>
-                                                      <strong className="text-gray-700">Anchor text:</strong>{' '}
-                                                      <span className="text-gray-900 italic">&quot;{opp.linkAnchorText}&quot;</span>
-                                                    </div>
-                                                  )}
-                                                  <div>
-                                                    <strong className="text-gray-700">URL:</strong>{' '}
-                                                    <a
-                                                      href={opp.linkedUrl}
-                                                      target="_blank"
-                                                      rel="noopener noreferrer"
-                                                      className="text-purple-600 hover:text-purple-800 hover:underline break-all"
-                                                    >
-                                                      {opp.linkedUrl}
-                                                    </a>
-                                                  </div>
-                                                </>
-                                              );
-                                            })()}
-                                          </div>
-                                        </details>
-                                      </>
-                                    ) : (
-                                      <>
-                                        <span className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded">
-                                          Linked
-                                        </span>
-                                        <div className="text-xs text-gray-500 mt-1">
-                                          Link detected but URL not available. This may be an internal link or the link URL could not be extracted.
-                                        </div>
-                                      </>
-                                    )}
-                                  </div>
-                                ) : (
-                                  <span className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded">
-                                    Not Linked
-                                  </span>
                                 )}
                               </td>
                             </tr>

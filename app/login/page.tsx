@@ -10,9 +10,14 @@ function LoginContent() {
   const sessionExpired = searchParams?.get('sessionExpired') === 'true'
 
   useEffect(() => {
-    // Clear any stale session data when landing on login page
-    // This helps if there are expired sessions causing issues
+    // Only clear stale session data if we're here because of an actual expiration
+    // Don't clear sessions if the user is just visiting the login page normally
     const clearStaleSession = async () => {
+      // Only clear if sessionExpired is true in the URL
+      if (!sessionExpired) {
+        return
+      }
+      
       try {
         // Check if there's a session
         const { data: { session } } = await supabase.auth.getSession()
@@ -23,6 +28,11 @@ function LoginContent() {
             await supabase.auth.signOut()
           }
         }
+        
+        // Clear any stale tracking cookies
+        document.cookie = 'session_started_at=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
+        document.cookie = 'last_activity=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
+        document.cookie = 'session_id=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
       } catch (error) {
         // Silently fail - just try to clear
         console.error('Error clearing stale session:', error)
@@ -30,7 +40,7 @@ function LoginContent() {
     }
     
     clearStaleSession()
-  }, [])
+  }, [sessionExpired])
 
   return (
     <>

@@ -44,9 +44,6 @@ export function BulkAnalysisProgress({ jobId, onComplete }: BulkAnalysisProgress
   }, [jobId, onComplete])
 
   const percentage = progress.total > 0 ? Math.round((progress.completed / progress.total) * 100) : 0
-  const estimatedTimeRemaining = progress.total > 0 && progress.completed > 0
-    ? Math.round(((progress.total - progress.completed) / progress.completed) * 2) // Rough estimate: 2 seconds per post
-    : null
 
   return (
     <div className="bg-white rounded-lg shadow p-6">
@@ -65,16 +62,13 @@ export function BulkAnalysisProgress({ jobId, onComplete }: BulkAnalysisProgress
         </div>
         <div className="flex items-center justify-between mt-2 text-sm text-gray-600">
           <span>{percentage}% complete</span>
-          {estimatedTimeRemaining && (
-            <span>~{estimatedTimeRemaining} seconds remaining</span>
-          )}
         </div>
       </div>
 
       {progress.failed > 0 && (
         <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
           <p className="text-sm text-yellow-800">
-            {progress.failed} post{progress.failed !== 1 ? 's' : ''} failed to analyze
+            {progress.failed} page{progress.failed !== 1 ? 's' : ''} failed to analyze
           </p>
         </div>
       )}
@@ -85,7 +79,7 @@ export function BulkAnalysisProgress({ jobId, onComplete }: BulkAnalysisProgress
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            Analysis complete! {progress.completed} post{progress.completed !== 1 ? 's' : ''} analyzed successfully.
+            Analysis complete! {progress.completed} page{progress.completed !== 1 ? 's' : ''} analyzed successfully.
           </p>
         </div>
       )}

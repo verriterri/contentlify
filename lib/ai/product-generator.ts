@@ -33,7 +33,6 @@ interface GenerateProductParams {
   productIdea: ProductIdea;
   originalContent: string;
   affiliateOpportunities: AffiliateOpportunity[];
-  template: string;
 }
 
 /**
@@ -42,7 +41,7 @@ interface GenerateProductParams {
 export async function generateProduct(
   params: GenerateProductParams
 ): Promise<GeneratedProductContent> {
-  const { productIdea, originalContent, affiliateOpportunities, template } = params;
+  const { productIdea, originalContent, affiliateOpportunities } = params;
 
   if (!isOpenAIConfigured()) {
     throw new Error('OpenAI API key is not configured');
@@ -69,7 +68,7 @@ export async function generateProduct(
       : 'No affiliate opportunities available.';
 
   // Get product type specific prompt for outlines
-  const typeSpecificPrompt = getOutlineTypePrompt(productIdea.type, template);
+  const typeSpecificPrompt = getOutlineTypePrompt(productIdea.type);
 
   // Content limit for context (no need for as much since we're just creating an outline)
   const contentLimit = 10000;
@@ -84,8 +83,6 @@ PRODUCT DETAILS:
 - Value Proposition: ${productIdea.valueProposition}
 - Target Audience: ${productIdea.targetAudience}
 - Suggested Price: ${productIdea.suggestedPrice}
-
-TEMPLATE: ${template}
 
 ORIGINAL BLOG CONTENT (use this as source material):
 ${contentToUse}
@@ -278,7 +275,7 @@ Return only valid JSON. Each section should have a title, brief description, and
 /**
  * Get product type specific prompt instructions for outlines
  */
-function getOutlineTypePrompt(type: ProductIdea['type'], template: string): string {
+function getOutlineTypePrompt(type: ProductIdea['type']): string {
   switch (type) {
     case 'checklist':
       return `CREATE A CHECKLIST OUTLINE:
@@ -298,11 +295,6 @@ For each section, provide:
 - Section title
 - Brief description (1-2 sentences) of what this section covers
 - List of key checklist items that should be included (just the item topics, not full explanations)
-
-Template Style: ${template}
-- Minimal: Simple, clean structure
-- Detailed: Includes tips and explanations section
-- Visual: Visual elements and formatting considerations
 
 Outline Structure:
 1. Introduction section (describe what should be covered)
@@ -329,11 +321,6 @@ For each exercise section, provide:
 - Exercise title
 - Description of what the exercise should accomplish
 - Key points/components to include (instructions, questions, templates, etc.)
-
-Template Style: ${template}
-- Professional: Corporate style considerations
-- Creative: Creative elements to consider
-- Practical: Practical approach considerations
 
 Outline Structure:
 1. Introduction section (describe what should be covered)
@@ -362,11 +349,6 @@ For each chapter section, provide:
 - Description of what the chapter should accomplish
 - Key topics/points to cover in the chapter
 
-Template Style: ${template}
-- Modern: Contemporary design considerations
-- Classic: Traditional book layout considerations
-- Magazine: Editorial style considerations
-
 Outline Structure:
 1. Introduction Chapter (describe what should be covered)
 2. Chapter: [Topic] (describe content and key points)
@@ -390,11 +372,6 @@ For each section, provide:
 - Section name/type
 - Description of what should be included (1-2 sentences)
 - Key points/topics to cover
-
-Template Style: ${template}
-- Plain Text: Plain text email considerations
-- Styled: HTML/styled email considerations
-- Digest: Digest format considerations
 
 Outline Structure:
 1. Subject Line (describe what it should convey)

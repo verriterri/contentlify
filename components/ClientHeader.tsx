@@ -58,7 +58,7 @@ export function ClientHeader() {
                   href="/dashboard/analyze"
                   className="text-sm text-gray-700 hover:text-primary transition-colors font-medium"
                 >
-                  Analyze Blog
+                  Analyze Site
                 </Link>
                 <Link
                   href="/dashboard/products"

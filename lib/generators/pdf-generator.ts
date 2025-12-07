@@ -43,6 +43,13 @@ export async function generatePDF(params: GeneratePDFParams): Promise<GeneratePD
   const colors = getTemplateColors(template, userBranding);
   const typography = getTemplateTypography(template);
   const spacing = getTemplateSpacing(template);
+  
+  // Convert hex colors to RGB for jsPDF
+  const colorsRgb = {
+    primary: hexToRgb(colors.primary),
+    secondary: hexToRgb(colors.secondary),
+    accent: hexToRgb(colors.accent),
+  };
 
   let currentY = spacing.pageMargin;
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -63,13 +70,13 @@ export async function generatePDF(params: GeneratePDFParams): Promise<GeneratePD
     content.sections.some(s => s.type === 'chapter');
 
   // Add cover page / title page
-  currentY = addTitlePage(doc, content.title, colors, typography, spacing, pageWidth, pageHeight, userBranding, currentY);
+  currentY = addTitlePage(doc, content.title, colorsRgb, typography, spacing, pageWidth, pageHeight, userBranding, currentY);
   
   // Add table of contents if needed
   if (needsTOC) {
     doc.addPage();
     currentY = spacing.pageMargin;
-    currentY = addTableOfContents(doc, content.sections, colors, typography, spacing, pageWidth, currentY);
+    currentY = addTableOfContents(doc, content.sections, colorsRgb, typography, spacing, pageWidth, currentY);
   }
 
   // Track chapter numbers for proper numbering
@@ -96,12 +103,12 @@ export async function generatePDF(params: GeneratePDFParams): Promise<GeneratePD
       currentY = spacing.pageMargin;
       
       // Add header with page number
-      addPageHeader(doc, content.title, pageWidth, currentY, colors, typography, spacing);
+      addPageHeader(doc, content.title, pageWidth, currentY, colorsRgb, typography, spacing);
       currentY += 10;
     }
 
     // Add section
-    currentY = addSection(doc, section, colors, typography, spacing, pageWidth, pageHeight, currentY, contentWidth, section.type === 'chapter' ? chapterNumber : undefined);
+    currentY = addSection(doc, section, colorsRgb, typography, spacing, pageWidth, pageHeight, currentY, contentWidth, section.type === 'chapter' ? chapterNumber : undefined);
 
     // Add spacing between sections (more for chapters)
     const sectionSpacing = section.type === 'chapter' ? (spacing.sectionMargin || 10) * 1.5 : (spacing.sectionMargin || 10);
@@ -193,10 +200,22 @@ function getTemplateTypography(template: Template): any {
   }
 
   const typo = template.typography as any;
-  const fontFamily = typo.fontFamily === 'serif' ? 'times' : 'helvetica';
-  const fontSize = parseFloat(typo.bodyFontSize || typo.itemFontSize || '12') * 0.264583; // px to mm
-  const headingSize = parseFloat(typo.headingFontSize || typo.bodyFontSize || '18') * 0.264583;
-  const lineHeight = parseFloat(typo.lineHeight || '1.6');
+  // Normalize font family to valid jsPDF font names
+  // jsPDF supports: 'helvetica', 'times', 'courier'
+  const fontFamilyRaw = (typo.fontFamily || 'sans-serif').toLowerCase();
+  let fontFamily: string;
+  if (fontFamilyRaw.includes('serif') && !fontFamilyRaw.includes('sans')) {
+    fontFamily = 'times';
+  } else {
+    fontFamily = 'helvetica'; // Default to helvetica for sans-serif, system, arial, etc.
+  }
+  // Parse and validate font sizes, ensuring they're valid numbers
+  const bodyFontSize = parseFloat(typo.bodyFontSize || typo.itemFontSize || '12');
+  const headingFontSize = parseFloat(typo.headingFontSize || typo.bodyFontSize || '18');
+  // Clamp font sizes to reasonable values (1-100mm) and convert px to mm
+  const fontSize = Math.max(1, Math.min(100, (isNaN(bodyFontSize) || bodyFontSize <= 0 ? 12 : bodyFontSize) * 0.264583));
+  const headingSize = Math.max(1, Math.min(100, (isNaN(headingFontSize) || headingFontSize <= 0 ? 18 : headingFontSize) * 0.264583));
+  const lineHeight = Math.max(0.5, Math.min(3, isNaN(parseFloat(typo.lineHeight || '1.6')) ? 1.6 : parseFloat(typo.lineHeight || '1.6')));
 
   return {
     fontFamily,
@@ -231,12 +250,27 @@ function getTemplateSpacing(template: Template): any {
 }
 
 /**
+ * Convert hex color to RGB array for jsPDF
+ */
+function hexToRgb(hex: string): [number, number, number] {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  if (!result) {
+    return [31, 41, 55]; // Default dark gray
+  }
+  return [
+    parseInt(result[1], 16),
+    parseInt(result[2], 16),
+    parseInt(result[3], 16),
+  ];
+}
+
+/**
  * Add title page
  */
 function addTitlePage(
   doc: jsPDF,
   title: string,
-  colors: any,
+  colors: { primary: [number, number, number]; secondary: [number, number, number]; accent: [number, number, number] },
   typography: any,
   spacing: any,
   pageWidth: number,
@@ -244,26 +278,41 @@ function addTitlePage(
   userBranding?: UserBranding,
   startY: number = 0
 ): number {
+  // Center content vertically
   let y = startY || pageHeight / 3;
 
-  // Add user branding logo if available
-  if (userBranding?.logo) {
-    // Note: jsPDF doesn't support direct image URLs, would need to load image first
-    // For now, just add brand name
-    doc.setFontSize(14);
-    doc.setTextColor(colors.primary);
+  // Add user branding name if available
+  if (userBranding?.name) {
+    doc.setFont(typography.fontFamily, 'normal');
+    doc.setFontSize(Math.min(100, typography.fontSize * 1.2));
+    doc.setTextColor(colors.secondary[0], colors.secondary[1], colors.secondary[2]);
     doc.text(userBranding.name, pageWidth / 2, y, { align: 'center' });
+    y += 15;
+    
+    // Add decorative line under brand name
+    doc.setDrawColor(colors.secondary[0], colors.secondary[1], colors.secondary[2]);
+    doc.setLineWidth(0.3);
+    const lineWidth = 30;
+    doc.line((pageWidth - lineWidth) / 2, y, (pageWidth + lineWidth) / 2, y);
     y += 20;
   }
 
-  // Add main title
+  // Add main title with better styling
   doc.setFont(typography.fontFamily, 'bold');
-  doc.setFontSize(typography.headingSize * 1.5);
-  doc.setTextColor(colors.primary);
+  doc.setFontSize(Math.min(100, typography.headingSize * 2));
+  doc.setTextColor(colors.primary[0], colors.primary[1], colors.primary[2]);
   
   const titleLines = doc.splitTextToSize(title, pageWidth - spacing.pageMargin * 2);
-  doc.text(titleLines, pageWidth / 2, y, { align: 'center' });
-  y += titleLines.length * typography.headingSize * 1.5 * typography.lineHeight + 30;
+  const titleY = y;
+  doc.text(titleLines, pageWidth / 2, titleY, { align: 'center' });
+  y += titleLines.length * typography.headingSize * 2 * typography.lineHeight + 40;
+
+  // Add decorative element at bottom
+  doc.setDrawColor(colors.accent[0], colors.accent[1], colors.accent[2]);
+  doc.setLineWidth(1);
+  const bottomLineY = pageHeight - 40;
+  const bottomLineWidth = 50;
+  doc.line((pageWidth - bottomLineWidth) / 2, bottomLineY, (pageWidth + bottomLineWidth) / 2, bottomLineY);
 
   return y;
 }
@@ -274,7 +323,7 @@ function addTitlePage(
 function addTableOfContents(
   doc: jsPDF,
   sections: ProductSection[],
-  colors: any,
+  colors: { primary: [number, number, number]; secondary: [number, number, number]; accent: [number, number, number] },
   typography: any,
   spacing: any,
   pageWidth: number,
@@ -282,21 +331,28 @@ function addTableOfContents(
 ): number {
   let y = startY;
 
-  // TOC Title
+  // TOC Title with better styling
   doc.setFont(typography.fontFamily, 'bold');
-  doc.setFontSize(typography.headingSize);
-  doc.setTextColor(colors.primary);
+  doc.setFontSize(Math.min(100, typography.headingSize * 1.2));
+  doc.setTextColor(colors.primary[0], colors.primary[1], colors.primary[2]);
   doc.text('Table of Contents', spacing.pageMargin, y);
-  y += typography.headingSize * typography.lineHeight + 10;
+  y += typography.headingSize * 1.2 * typography.lineHeight + 15;
 
-  // TOC Entries
+  // Add line under title
+  doc.setDrawColor(colors.secondary[0], colors.secondary[1], colors.secondary[2]);
+  doc.setLineWidth(0.5);
+  doc.line(spacing.pageMargin, y - 5, pageWidth - spacing.pageMargin, y - 5);
+  y += 10;
+
+  // TOC Entries with better formatting
   doc.setFont(typography.fontFamily, 'normal');
-  doc.setFontSize(typography.fontSize);
-  doc.setTextColor(colors.secondary);
+  doc.setFontSize(Math.min(100, typography.fontSize * 1.05));
+  doc.setTextColor(colors.primary[0], colors.primary[1], colors.primary[2]);
 
   let chapterNumber = 0;
+  let sectionNumber = 0;
   sections.forEach((section, index) => {
-    if (section.type === 'chapter' || section.type === 'heading') {
+    if (section.type === 'chapter' || section.type === 'heading' || section.title) {
       if (y > 250) {
         doc.addPage();
         y = spacing.pageMargin;
@@ -308,11 +364,17 @@ function addTableOfContents(
       if (section.type === 'chapter') {
         chapterNumber++;
         sectionTitle = sectionTitle.replace(/^Chapter\s+\d+:?\s*/i, '').trim();
-        doc.text(`Chapter ${chapterNumber}: ${sectionTitle}`, spacing.pageMargin, y);
+        const tocText = `Chapter ${chapterNumber}: ${sectionTitle}`;
+        doc.setFont(typography.fontFamily, 'bold');
+        doc.setTextColor(colors.primary[0], colors.primary[1], colors.primary[2]);
+        doc.text(tocText, spacing.pageMargin + 5, y);
       } else {
-        doc.text(`${index + 1}. ${sectionTitle}`, spacing.pageMargin, y);
+        sectionNumber++;
+        doc.setFont(typography.fontFamily, 'normal');
+        doc.setTextColor(colors.secondary[0], colors.secondary[1], colors.secondary[2]);
+        doc.text(`${sectionNumber}. ${sectionTitle}`, spacing.pageMargin + 10, y);
       }
-      y += typography.fontSize * typography.lineHeight + 5;
+      y += typography.fontSize * 1.05 * typography.lineHeight + 8;
     }
   });
 
@@ -327,17 +389,17 @@ function addPageHeader(
   title: string,
   pageWidth: number,
   y: number,
-  colors: any,
+  colors: { primary: [number, number, number]; secondary: [number, number, number]; accent: [number, number, number] },
   typography: any,
   spacing: any
 ): void {
   doc.setFont(typography.fontFamily, 'normal');
   doc.setFontSize(typography.fontSize * 0.8);
-  doc.setTextColor(colors.secondary);
+  doc.setTextColor(colors.secondary[0], colors.secondary[1], colors.secondary[2]);
   doc.text(title, spacing.pageMargin, y, { maxWidth: pageWidth - spacing.pageMargin * 2 });
   
   // Add line
-  doc.setDrawColor(colors.secondary);
+  doc.setDrawColor(colors.secondary[0], colors.secondary[1], colors.secondary[2]);
   doc.setLineWidth(0.5);
   doc.line(spacing.pageMargin, y + 3, pageWidth - spacing.pageMargin, y + 3);
 }
@@ -348,7 +410,7 @@ function addPageHeader(
 function addSection(
   doc: jsPDF,
   section: ProductSection,
-  colors: any,
+  colors: { primary: [number, number, number]; secondary: [number, number, number]; accent: [number, number, number] },
   typography: any,
   spacing: any,
   pageWidth: number,
@@ -359,16 +421,16 @@ function addSection(
 ): number {
   let y = currentY;
 
-  // Section title
+  // Section title with improved hierarchy
   if (section.title) {
     // Chapters get larger, more prominent formatting
     if (section.type === 'chapter') {
-      doc.setFont(typography.fontFamily, 'bold');
-      doc.setFontSize(typography.headingSize * 1.3);
-      doc.setTextColor(colors.primary);
-      
       // Add extra spacing before chapter
-      y += 10;
+      y += 15;
+      
+      doc.setFont(typography.fontFamily, 'bold');
+      doc.setFontSize(Math.min(100, typography.headingSize * 1.5));
+      doc.setTextColor(colors.primary[0], colors.primary[1], colors.primary[2]);
       
       // Clean up title - remove any "Chapter X:" prefixes if AI added them
       let cleanTitle = section.title.replace(/^Chapter\s+\d+:?\s*/i, '').trim();
@@ -377,56 +439,100 @@ function addSection(
       const chapterTitle = chapterNumber ? `Chapter ${chapterNumber}: ${cleanTitle}` : cleanTitle;
       const titleLines = doc.splitTextToSize(chapterTitle, contentWidth);
       doc.text(titleLines, spacing.pageMargin, y);
-      y += titleLines.length * typography.headingSize * 1.3 * typography.lineHeight + 15;
+      y += titleLines.length * typography.headingSize * 1.5 * typography.lineHeight + 12;
       
-      // Add a subtle line under chapter title
-      doc.setDrawColor(colors.secondary);
-      doc.setLineWidth(0.5);
-      doc.line(spacing.pageMargin, y - 5, pageWidth - spacing.pageMargin, y - 5);
+      // Add a decorative line under chapter title
+      doc.setDrawColor(colors.accent[0], colors.accent[1], colors.accent[2]);
+      doc.setLineWidth(1);
+      doc.line(spacing.pageMargin, y - 8, pageWidth - spacing.pageMargin, y - 8);
+      y += 12;
+    } else if (section.type === 'heading' || section.type === 'exercise') {
+      // Exercise/Heading sections get medium formatting
       y += 8;
-    } else {
       doc.setFont(typography.fontFamily, 'bold');
-      doc.setFontSize(typography.headingSize);
-      doc.setTextColor(colors.primary);
+      doc.setFontSize(typography.headingSize * 0.9);
+      doc.setTextColor(colors.primary[0], colors.primary[1], colors.primary[2]);
       
       const titleLines = doc.splitTextToSize(section.title, contentWidth);
       doc.text(titleLines, spacing.pageMargin, y);
-      y += titleLines.length * typography.headingSize * typography.lineHeight + 8;
+      y += titleLines.length * typography.headingSize * 0.9 * typography.lineHeight + 10;
+      
+      // Add subtle line for exercises
+      if (section.type === 'exercise') {
+        doc.setDrawColor(colors.secondary[0], colors.secondary[1], colors.secondary[2]);
+        doc.setLineWidth(0.3);
+        doc.line(spacing.pageMargin, y - 5, spacing.pageMargin + 30, y - 5);
+        y += 5;
+      }
+    } else {
+      // Regular sections get standard heading formatting
+      y += 6;
+      doc.setFont(typography.fontFamily, 'bold');
+      doc.setFontSize(typography.headingSize * 0.85);
+      doc.setTextColor(colors.primary[0], colors.primary[1], colors.primary[2]);
+      
+      const titleLines = doc.splitTextToSize(section.title, contentWidth);
+      doc.text(titleLines, spacing.pageMargin, y);
+      y += titleLines.length * typography.headingSize * 0.85 * typography.lineHeight + 8;
     }
   }
 
   // Section content based on type
   doc.setFont(typography.fontFamily, 'normal');
   doc.setFontSize(typography.fontSize);
-  doc.setTextColor(colors.primary);
+  doc.setTextColor(colors.primary[0], colors.primary[1], colors.primary[2]);
 
   switch (section.type) {
     case 'list':
     case 'exercise':
-      // For checklists, render items
+      // For checklists and exercises, render items with better formatting
       if (section.items && section.items.length > 0) {
-        section.items.forEach((item) => {
-          if (y > pageHeight - spacing.pageMargin - 10) {
+        section.items.forEach((item, itemIndex) => {
+          if (y > pageHeight - spacing.pageMargin - 15) {
             doc.addPage();
             y = spacing.pageMargin;
-            addPageHeader(doc, section.title || '', pageWidth, y, colors, typography, spacing);
-            y += 10;
+            if (section.title) {
+              addPageHeader(doc, section.title, pageWidth, y, colors, typography, spacing);
+              y += 10;
+            }
           }
 
-          // Checkbox for checklist items
+          // Better checkbox rendering for checklist items
           if (section.type === 'list') {
-            doc.rect(spacing.pageMargin, y - 3, 4, 4);
-            doc.text(item, spacing.pageMargin + 7, y, { maxWidth: contentWidth - 7 });
+            // Draw checkbox with better styling
+            doc.setDrawColor(colors.primary[0], colors.primary[1], colors.primary[2]);
+            doc.setLineWidth(0.5);
+            const checkboxSize = 4.5;
+            const checkboxX = spacing.pageMargin;
+            const checkboxY = y - checkboxSize;
+            doc.rect(checkboxX, checkboxY, checkboxSize, checkboxSize);
+            
+            // Add item text with proper indentation
+            doc.setFont(typography.fontFamily, 'normal');
+            doc.setFontSize(typography.fontSize);
+            doc.setTextColor(colors.primary[0], colors.primary[1], colors.primary[2]);
+            const itemText = doc.splitTextToSize(item, contentWidth - checkboxSize - 5);
+            doc.text(itemText, spacing.pageMargin + checkboxSize + 5, y);
+            y += itemText.length * typography.fontSize * typography.lineHeight + spacing.itemMargin + 2;
           } else {
-            doc.text(item, spacing.pageMargin, y, { maxWidth: contentWidth });
+            // Exercise items with bullet or numbering
+            doc.setFont(typography.fontFamily, 'normal');
+            doc.setFontSize(typography.fontSize);
+            doc.setTextColor(colors.primary[0], colors.primary[1], colors.primary[2]);
+            
+            // Add bullet point or number
+            const prefix = `${itemIndex + 1}. `;
+            const itemText = doc.splitTextToSize(item, contentWidth - 8);
+            doc.text(prefix, spacing.pageMargin, y);
+            doc.text(itemText, spacing.pageMargin + 8, y, { maxWidth: contentWidth - 8 });
+            y += itemText.length * typography.fontSize * typography.lineHeight + spacing.itemMargin + 3;
           }
-          y += typography.fontSize * typography.lineHeight + spacing.itemMargin;
         });
-      } else {
-        // Regular text content
-        const contentLines = doc.splitTextToSize(section.content || '', contentWidth);
+      } else if (section.content) {
+        // Regular text content for exercises
+        const contentLines = doc.splitTextToSize(section.content, contentWidth);
         doc.text(contentLines, spacing.pageMargin, y);
-        y += contentLines.length * typography.fontSize * typography.lineHeight;
+        y += contentLines.length * typography.fontSize * typography.lineHeight + 8;
       }
       break;
 
@@ -440,7 +546,7 @@ function addSection(
         
         paragraphs.forEach((paragraph, paraIdx) => {
           // Check for page break before each paragraph
-          if (y > pageHeight - spacing.pageMargin - 20) {
+          if (y > pageHeight - spacing.pageMargin - 25) {
             doc.addPage();
             y = spacing.pageMargin;
             if (section.title) {
@@ -449,13 +555,16 @@ function addSection(
             }
           }
           
+          // Format paragraph with proper indentation for first line (optional)
           const contentLines = doc.splitTextToSize(paragraph.trim(), contentWidth);
           doc.text(contentLines, spacing.pageMargin, y);
           y += contentLines.length * typography.fontSize * typography.lineHeight;
           
-          // Add spacing between paragraphs (except last one)
+          // Add spacing between paragraphs
           if (paraIdx < paragraphs.length - 1) {
-            y += typography.fontSize * 0.5; // Small paragraph spacing
+            y += typography.fontSize * 0.8; // Better paragraph spacing
+          } else {
+            y += typography.fontSize * 0.4; // Small spacing after last paragraph
           }
         });
       }

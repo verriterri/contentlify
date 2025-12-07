@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 
-interface Post {
+interface Page {
   url: string
   title: string
   wordCount: number
@@ -10,10 +10,12 @@ interface Post {
   publishedDate: string | null
   estimatedValue?: number // Total estimated value from analysis (sum of all opportunities)
   category?: string // Primary category from analysis (mapped to standard category)
+  lastAnalyzedAt?: string | null // Timestamp of last analysis
+  analysisId?: string | null // ID of the latest analysis
 }
 
 interface PostSelectionTableProps {
-  posts: Post[]
+  posts: Page[]
   selectedUrls: Set<string>
   onSelectionChange: (urls: Set<string>) => void
   chargeExtraPreferences: Map<string, boolean>
@@ -23,6 +25,45 @@ interface PostSelectionTableProps {
 }
 
 const POSTS_PER_PAGE = 50
+
+/**
+ * Check if a page is a legal/administrative page that shouldn't be monetized
+ */
+function isLegalOrAdminPage(page: Page): boolean {
+  const url = page.url.toLowerCase()
+  const title = page.title.toLowerCase()
+  
+  const legalPatterns = [
+    'terms',
+    'privacy',
+    'legal',
+    'disclaimer',
+    'cookie',
+    'gdpr',
+    'accessibility',
+    'sitemap',
+    'contact',
+    'about',
+    'imprint',
+    'impressum',
+    'datenschutz',
+    'agb',
+    'nutzungsbedingungen',
+  ]
+  
+  // Check URL path (all segments, not just last)
+  const urlPath = url
+  if (legalPatterns.some(pattern => urlPath.includes(`/${pattern}`) || urlPath.includes(`-${pattern}`) || urlPath.endsWith(pattern))) {
+    return true
+  }
+  
+  // Check title
+  if (legalPatterns.some(pattern => title.includes(pattern))) {
+    return true
+  }
+  
+  return false
+}
 
 export function PostSelectionTable({
   posts,
@@ -77,7 +118,7 @@ export function PostSelectionTable({
   if (posts.length === 0) {
     return (
       <div className="bg-white rounded-lg shadow p-12 text-center">
-        <p className="text-gray-500">No posts match the current filters.</p>
+        <p className="text-gray-500">No pages match the current filters.</p>
       </div>
     )
   }
@@ -90,7 +131,7 @@ export function PostSelectionTable({
           <div className="text-sm text-gray-700">
             Showing <span className="font-medium">{startIndex + 1}</span> to{' '}
             <span className="font-medium">{Math.min(endIndex, posts.length)}</span> of{' '}
-            <span className="font-medium">{posts.length.toLocaleString()}</span> posts
+            <span className="font-medium">{posts.length.toLocaleString()}</span> pages
             {selectedUrls.size > 0 && (
               <span className="ml-3 text-primary font-medium">
                 ({selectedUrls.size.toLocaleString()} selected)
@@ -161,42 +202,42 @@ export function PostSelectionTable({
               )}
               {hasCredits && (
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Analyze Full Post
+                  Analyze Full Page
                 </th>
               )}
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {paginatedPosts.map((post, index) => {
-              // Calculate actual index in full posts array for shift-click selection
+            {paginatedPosts.map((page, index) => {
+              // Calculate actual index in full pages array for shift-click selection
               const actualIndex = startIndex + index
-              const isSelected = selectedUrls.has(post.url)
-              const isHighPotential = hasCredits && (post.wordCount || 0) >= 1500 && (post.affiliateLinkCount || 0) <= 2
-              const isShort = hasCredits && (post.wordCount || 0) < 800
-              const isWellMonetized = hasCredits && (post.affiliateLinkCount || 0) >= 10
-              const isLongPost = hasCredits && (post.wordCount || 0) > 5000
-              const chargeExtra = chargeExtraPreferences.has(post.url)
-                ? chargeExtraPreferences.get(post.url)!
+              const isSelected = selectedUrls.has(page.url)
+              const isHighPotential = hasCredits && (page.wordCount || 0) >= 1500 && (page.affiliateLinkCount || 0) <= 2
+              const isShort = hasCredits && (page.wordCount || 0) < 800
+              const isWellMonetized = hasCredits && (page.affiliateLinkCount || 0) >= 10
+              const isLongPage = hasCredits && (page.wordCount || 0) > 5000
+              const chargeExtra = chargeExtraPreferences.has(page.url)
+                ? chargeExtraPreferences.get(page.url)!
                 : globalChargeExtra
 
               const handleChargeExtraToggle = (e: React.ChangeEvent<HTMLInputElement>) => {
                 e.stopPropagation()
                 const newPrefs = new Map(chargeExtraPreferences)
                 if (e.target.checked) {
-                  newPrefs.set(post.url, true)
+                  newPrefs.set(page.url, true)
                 } else {
-                  newPrefs.set(post.url, false)
+                  newPrefs.set(page.url, false)
                 }
                 onChargeExtraChange(newPrefs)
               }
 
               return (
                 <tr
-                  key={post.url}
+                  key={page.url}
                   className={`hover:bg-gray-50 cursor-pointer ${isSelected ? 'bg-primary-50' : ''}`}
                   onClick={(e) => {
                     if ((e.target as HTMLElement).tagName !== 'INPUT') {
-                      handleShiftClick(post.url, actualIndex)
+                      handleShiftClick(page.url, actualIndex)
                     }
                   }}
                 >
@@ -204,7 +245,7 @@ export function PostSelectionTable({
                     <input
                       type="checkbox"
                       checked={isSelected}
-                      onChange={() => toggleSelection(post.url, actualIndex)}
+                      onChange={() => toggleSelection(page.url, actualIndex)}
                       className="rounded border-gray-300 text-primary focus:ring-primary"
                     />
                   </td>
@@ -217,7 +258,7 @@ export function PostSelectionTable({
                           </svg>
                         )}
                         {isShort && (
-                          <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" title="Short post (&lt;800 words)">
+                          <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" title="Short page (&lt;800 words)">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                           </svg>
                         )}
@@ -230,23 +271,23 @@ export function PostSelectionTable({
                       <div className="min-w-0 flex-1">
                         <div
                           className="text-sm font-medium text-gray-900 break-words pr-4"
-                          title={post.title}
+                          title={page.title}
                         >
-                          {post.title}
+                          {page.title}
                         </div>
                         <div className="flex items-center gap-2">
                           <a
-                            href={post.url.startsWith('http') ? post.url : `https://${post.url}`}
+                            href={page.url.startsWith('http') ? page.url : `https://${page.url}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-sm text-gray-500 break-all pr-4 hover:text-primary transition-colors flex-1"
-                            title={post.url}
+                            title={page.url}
                             onClick={(e) => e.stopPropagation()}
                           >
-                            {post.url}
+                            {page.url}
                           </a>
                           <a
-                            href={post.url.startsWith('http') ? post.url : `https://${post.url}`}
+                            href={page.url.startsWith('http') ? page.url : `https://${page.url}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-primary hover:text-primary-600 transition-colors flex-shrink-0"
@@ -263,19 +304,19 @@ export function PostSelectionTable({
                   </td>
                   {hasCredits && (
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {(post.wordCount || 0).toLocaleString()}
+                      {(page.wordCount || 0).toLocaleString()}
                     </td>
                   )}
                   {hasCredits && (
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center gap-2">
-                        <span className="text-sm text-gray-900">{post.affiliateLinkCount || 0}</span>
-                        {(post.affiliateLinkCount || 0) <= 2 && (post.wordCount || 0) >= 1500 && (
+                        <span className="text-sm text-gray-900">{page.affiliateLinkCount || 0}</span>
+                        {(page.affiliateLinkCount || 0) <= 2 && (page.wordCount || 0) >= 1500 && !isLegalOrAdminPage(page) && (
                           <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">
                             High potential
                           </span>
                         )}
-                        {(post.affiliateLinkCount || 0) >= 10 && (
+                        {(page.affiliateLinkCount || 0) >= 10 && (
                           <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
                             Well monetized
                           </span>
@@ -284,18 +325,28 @@ export function PostSelectionTable({
                     </td>
                   )}
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {post.publishedDate
-                      ? new Date(post.publishedDate).toLocaleDateString()
+                    {page.publishedDate
+                      ? new Date(page.publishedDate).toLocaleDateString()
                       : 'Unknown'}
                   </td>
                   {hasCredits && (
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-xs text-gray-500">Not analyzed</span>
+                    <td className="px-6 py-4 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                      {page.lastAnalyzedAt && page.analysisId ? (
+                        <a
+                          href={`/dashboard/analyze?analysisId=${page.analysisId}`}
+                          className="text-xs text-primary hover:text-primary-600 hover:underline"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {new Date(page.lastAnalyzedAt).toLocaleDateString()} {new Date(page.lastAnalyzedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </a>
+                      ) : (
+                        <span className="text-xs text-gray-500">Not analyzed</span>
+                      )}
                     </td>
                   )}
                   {hasCredits && (
                     <td className="px-6 py-4 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                      {isLongPost ? (
+                      {isLongPage ? (
                         <div className="flex items-center gap-2">
                           <input
                             type="checkbox"
@@ -305,7 +356,7 @@ export function PostSelectionTable({
                             disabled={!isSelected}
                           />
                           <span className="text-xs text-gray-600">
-                            {chargeExtra ? 'Full post' : 'First 5K words'}
+                            {chargeExtra ? 'Full page' : 'First 5K words'}
                           </span>
                         </div>
                       ) : (
@@ -326,7 +377,7 @@ export function PostSelectionTable({
           <div className="text-sm text-gray-700">
             Showing <span className="font-medium">{startIndex + 1}</span> to{' '}
             <span className="font-medium">{Math.min(endIndex, posts.length)}</span> of{' '}
-            <span className="font-medium">{posts.length.toLocaleString()}</span> posts
+            <span className="font-medium">{posts.length.toLocaleString()}</span> pages
             {selectedUrls.size > 0 && (
               <span className="ml-3 text-primary font-medium">
                 ({selectedUrls.size.toLocaleString()} selected)

@@ -16,22 +16,19 @@ interface OverviewStatsProps {
 
 export function OverviewStats({ analysis }: OverviewStatsProps) {
   const totalOpportunities = analysis.affiliateOpportunities.length
-  const unlinkedOpportunities = analysis.affiliateOpportunities.filter(
-    (opp) => !opp.isAlreadyLinked
-  ).length
   const productIdeasCount = analysis.productIdeas.length
 
   // Estimate potential revenue (rough calculation)
-  const estimatedRevenue = unlinkedOpportunities * 50 // $50 per opportunity (very rough)
+  const estimatedRevenue = totalOpportunities * 50 // $50 per opportunity (very rough)
 
   return (
     <div className="space-y-6">
-      {/* Blog Info Card */}
+      {/* Page Info Card */}
       <div className="bg-white rounded-lg shadow p-6">
         <h2 className="text-xl font-semibold text-gray-900 mb-4">Analysis Overview</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div>
-            <p className="text-sm text-gray-600">Blog Post</p>
+            <p className="text-sm text-gray-600">Page</p>
             <p className="text-lg font-semibold text-gray-900 truncate" title={analysis.title}>
               {analysis.title}
             </p>
@@ -63,7 +60,7 @@ export function OverviewStats({ analysis }: OverviewStatsProps) {
               <p className="text-sm text-gray-600 mb-1">Affiliate Opportunities</p>
               <p className="text-3xl font-bold text-gray-900">{totalOpportunities}</p>
               <p className="text-sm text-gray-500 mt-1">
-                {unlinkedOpportunities} not yet linked
+                Potential affiliate opportunities
               </p>
             </div>
             <div className="bg-primary-100 rounded-lg p-3">
@@ -139,14 +136,14 @@ export function OverviewStats({ analysis }: OverviewStatsProps) {
       <div className="bg-white rounded-lg shadow p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Next Actions</h3>
         <div className="space-y-3">
-          {unlinkedOpportunities > 0 && (
+          {totalOpportunities > 0 && (
             <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg">
               <div>
                 <p className="font-medium text-gray-900">
-                  Add {unlinkedOpportunities} affiliate link{unlinkedOpportunities !== 1 ? 's' : ''}
+                  Review {totalOpportunities} affiliate opportunit{totalOpportunities !== 1 ? 'ies' : 'y'}
                 </p>
                 <p className="text-sm text-gray-600">
-                  Review opportunities and add affiliate links to monetize your content
+                  Products and services mentioned in your content that could be monetized
                 </p>
               </div>
               <button className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-600 text-sm font-medium">

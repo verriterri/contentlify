@@ -3,14 +3,14 @@
 import Link from 'next/link'
 import { calculateCreditsForAnalysis } from '@/lib/utils/credit-calculator'
 
-interface Post {
+interface Page {
   url: string
   wordCount: number
 }
 
 interface SelectionSummaryProps {
   selectedCount: number
-  selectedPosts: Post[]
+  selectedPosts: Page[]
   chargeExtraPreferences: Map<string, boolean>
   globalChargeExtra: boolean
   userCredits: number | null
@@ -31,20 +31,20 @@ export function SelectionSummary({
     return null
   }
 
-  // Calculate credits needed using per-post preferences
-  const creditsNeeded = selectedPosts.reduce((sum, post) => {
-    const chargeExtra = chargeExtraPreferences.has(post.url)
-      ? chargeExtraPreferences.get(post.url)!
+  // Calculate credits needed using per-page preferences
+  const creditsNeeded = selectedPosts.reduce((sum, page) => {
+    const chargeExtra = chargeExtraPreferences.has(page.url)
+      ? chargeExtraPreferences.get(page.url)!
       : globalChargeExtra
-    return sum + calculateCreditsForAnalysis(post.wordCount, chargeExtra)
+    return sum + calculateCreditsForAnalysis(page.wordCount, chargeExtra)
   }, 0)
 
   const isAnonymous = userCredits === null
-  const isSinglePost = selectedCount === 1
+  const isSinglePage = selectedCount === 1
   // Free trial available for: anonymous users OR logged-in users with 0 credits, AND free trial not used yet
-  // For anonymous users: allow free trial if selecting 1 post and haven't used it yet
-  // For logged-in users with 0 credits: allow free trial if selecting 1 post and haven't used it yet
-  const canAnalyzeFree = isSinglePost && creditsNeeded === 1 && !freeTrialUsed && (isAnonymous || userCredits === 0)
+  // For anonymous users: allow free trial if selecting 1 page and haven't used it yet
+  // For logged-in users with 0 credits: allow free trial if selecting 1 page and haven't used it yet
+  const canAnalyzeFree = isSinglePage && creditsNeeded === 1 && !freeTrialUsed && (isAnonymous || userCredits === 0)
   const insufficientCredits = userCredits !== null && userCredits > 0 && userCredits < creditsNeeded
   const creditsShort = insufficientCredits ? creditsNeeded - userCredits! : 0
   
@@ -52,7 +52,7 @@ export function SelectionSummary({
   if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
     console.log('[SelectionSummary] Debug:', {
       isAnonymous,
-      isSinglePost,
+      isSinglePage,
       creditsNeeded,
       freeTrialUsed,
       userCredits,
@@ -67,7 +67,7 @@ export function SelectionSummary({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-6">
             <div>
-              <p className="text-sm text-gray-600">Posts Selected</p>
+              <p className="text-sm text-gray-600">Pages Selected</p>
               <p className="text-2xl font-bold text-gray-900">{selectedCount}</p>
             </div>
             {!canAnalyzeFree && (
@@ -79,7 +79,7 @@ export function SelectionSummary({
             {canAnalyzeFree && (
               <div>
                 <p className="text-sm text-green-600">Free Analysis</p>
-                <p className="text-2xl font-bold text-green-600">1 Post</p>
+                <p className="text-2xl font-bold text-green-600">1 Page</p>
               </div>
             )}
             {userCredits !== null && (
@@ -106,21 +106,21 @@ export function SelectionSummary({
               </button>
             ) : isAnonymous ? (
               <div className="flex flex-col items-end gap-2">
-                {freeTrialUsed && isSinglePost && (
+                {freeTrialUsed && isSinglePage && (
                   <p className="text-sm text-gray-600">
                     Free trial already used. Sign up to continue analyzing.
                   </p>
                 )}
-                {!isSinglePost && (
+                {!isSinglePage && (
                   <p className="text-sm text-gray-600">
-                    Free trial is for 1 post only. Select 1 post or sign up to analyze multiple.
+                    Free trial is for 1 page only. Select 1 page or sign up to analyze multiple.
                   </p>
                 )}
                 <Link
                   href="/login?redirect=/pricing"
                   className="px-6 py-3 bg-primary text-white rounded-lg font-semibold hover:bg-primary-600 transition-colors"
                 >
-                  Sign Up to Analyze {selectedCount > 1 ? `${selectedCount} Posts` : ''}
+                  Sign Up to Analyze {selectedCount > 1 ? `${selectedCount} Pages` : ''}
                 </Link>
               </div>
             ) : insufficientCredits ? (
@@ -135,7 +135,7 @@ export function SelectionSummary({
                 onClick={onAnalyze}
                 className="px-6 py-3 bg-primary text-white rounded-lg font-semibold hover:bg-primary-600 transition-colors"
               >
-                Analyze Selected Posts
+                Analyze Selected Pages
               </button>
             )}
           </div>
