@@ -63,7 +63,7 @@ export function Results({ analysis }: ResultsProps) {
       {activeTab === 'affiliates' && (
         <AffiliateOpportunities opportunities={analysis.affiliateOpportunities} />
       )}
-      {activeTab === 'products' && <ProductIdeas ideas={analysis.productIdeas} />}
+      {activeTab === 'products' && <ProductIdeas ideas={analysis.productIdeas} analysisId={analysis.analysisId} />}
       {activeTab === 'links' && <LinkHealth pageUrl={analysis.url} linkDetails={analysis.linkDetails} />}
     </div>
   )

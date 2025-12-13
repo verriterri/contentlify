@@ -8,3 +8,5 @@ ADD COLUMN IF NOT EXISTS seo_audit JSONB;
 -- Add a comment to document the column
 COMMENT ON COLUMN public.content_analyses.seo_audit IS 'SEO/AEO content audit results including score, critical issues, warnings, and recommendations';
 
+
+

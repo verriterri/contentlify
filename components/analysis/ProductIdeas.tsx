@@ -14,9 +14,10 @@ interface ProductIdea {
 
 interface ProductIdeasProps {
   ideas: ProductIdea[]
+  analysisId: string
 }
 
-export function ProductIdeas({ ideas }: ProductIdeasProps) {
+export function ProductIdeas({ ideas, analysisId }: ProductIdeasProps) {
   if (ideas.length === 0) {
     return (
       <div className="bg-white rounded-lg shadow p-12 text-center">
@@ -35,7 +36,7 @@ export function ProductIdeas({ ideas }: ProductIdeasProps) {
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {ideas.map((idea, index) => (
-          <ProductIdeaCard key={index} idea={idea} />
+          <ProductIdeaCard key={index} idea={idea} analysisId={analysisId} productIndex={index} />
         ))}
       </div>
     </div>
