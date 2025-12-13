@@ -171,6 +171,15 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Ensure userData exists (should never happen after all fallbacks, but TypeScript needs this)
+    if (!userData) {
+      console.error('[Checkout] userData is null after all fallback attempts')
+      return NextResponse.json(
+        { error: 'Failed to retrieve user data. Please contact support.' },
+        { status: 500 }
+      )
+    }
+
     // Check if this is the first purchase
     const isFirstPurchase = !userData.has_made_first_purchase
 

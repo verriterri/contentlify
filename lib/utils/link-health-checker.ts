@@ -34,7 +34,7 @@ export async function checkLinkHealth(
     // Try HEAD first (more efficient), fall back to GET if HEAD fails
     let response: Response;
     let controller: AbortController;
-    let timeoutId: NodeJS.Timeout;
+    let timeoutId: NodeJS.Timeout | undefined;
     
     try {
       controller = new AbortController();

@@ -1,4 +1,4 @@
--- ContentMaxer Database Schema (Credits Model)
+-- Contentlify Database Schema (Credits Model)
 -- Run this SQL in your Supabase SQL Editor
 -- 
 -- ⚠️  WARNING: This will COMPLETELY RESET your database! ⚠️

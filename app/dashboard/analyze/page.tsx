@@ -18,6 +18,7 @@ interface AnalysisResult {
   url: string;
   title: string;
   wordCount: number;
+  creditsUsed?: number;
   linkDetails?: any[];
   affiliateOpportunities: any[];
   productIdeas: any[];

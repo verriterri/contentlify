@@ -10,7 +10,7 @@ export default function SignupPage({
       <div className="max-w-md w-full space-y-8">
         <div>
           <h1 className="text-center text-4xl font-bold text-primary mb-2">
-            ContentMaxer
+            Contentlify
           </h1>
           <h2 className="text-center text-2xl font-semibold text-gray-900">
             Create your account

@@ -3,7 +3,7 @@ import './globals.css'
 import { AuthProvider } from '@/components/auth/AuthProvider'
 
 export const metadata: Metadata = {
-  title: 'ContentMaxer - Content Monetization Platform',
+  title: 'Contentlify - Content Monetization Platform',
   description: 'Find affiliate opportunities, create digital products, and promote them—all from your existing content',
 }
 

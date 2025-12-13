@@ -1,4 +1,4 @@
-# ContentMaxer
+# Contentlify
 
 Content monetization platform that helps bloggers/creators optimize revenue through affiliate links, digital products, and promotional content generation.
 
@@ -29,7 +29,7 @@ Content monetization platform that helps bloggers/creators optimize revenue thro
 1. Clone the repository:
 ```bash
 git clone <repository-url>
-cd contentmaxer
+cd contentlify
 ```
 
 2. Install dependencies:
@@ -89,7 +89,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser to see the a
 ### Project Structure
 
 ```
-contentmaxer/
+contentlify/
 ├── app/              # Next.js App Router routes
 ├── components/       # Reusable UI components
 ├── lib/              # Utilities, API clients, helpers

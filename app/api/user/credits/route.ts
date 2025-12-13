@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 
+// Mark route as dynamic since it uses cookies
+export const dynamic = 'force-dynamic';
+
 /**
  * GET /api/user/credits
  * Get current user's credit balance

@@ -652,10 +652,9 @@ export async function getPageMetadata(pageUrl: string, getUserMetadata: boolean 
     // If getUserMetadata is false, skip expensive operations (word count, affiliate links, content preview)
     if (!getUserMetadata) {
       return {
-        url: postUrl,
+        url: pageUrl,
         title,
         wordCount: 0,
-        affiliateLinkCount: 0,
         publishedDate,
         contentPreview: '',
       };

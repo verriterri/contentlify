@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { scrapeUrl } from '../../../lib/scrapers/url-scraper';
 import { detectAffiliateOpportunities } from '../../../lib/ai/affiliate-detector';
-import { generateProductIdeas } from '../../../lib/ai/product-ideas-generator';
+import { generateProductIdeas, ProductIdea } from '../../../lib/ai/product-ideas-generator';
 
 /**
  * Test endpoint for scraping and affiliate detection
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
 
     // Step 3: Generate product ideas
     console.log('Generating product ideas...');
-    let productIdeas = [];
+    let productIdeas: ProductIdea[] = [];
     
     try {
       productIdeas = await generateProductIdeas(

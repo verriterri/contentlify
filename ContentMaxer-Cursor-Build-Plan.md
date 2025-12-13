@@ -1,8 +1,8 @@
-# ContentMaxer - Complete Cursor Build Plan
+# Contentlify - Complete Cursor Build Plan
 
 ## Product Overview
 
-**ContentMaxer** helps bloggers maximize revenue by:
+**Contentlify** helps bloggers maximize revenue by:
 1. **FREE blog scan** - finds all posts (shows ONLY titles, URLs, dates)
 2. **1 FREE analysis** (no signup) - proves value on one post
 3. Detecting missed affiliate link opportunities
@@ -126,7 +126,7 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 Create a new Next.js 14 project with TypeScript, Tailwind CSS, and App Router.
 
 Setup:
-- npx create-next-app@latest contentmaxer --typescript --tailwind --app --no-src-dir
+- npx create-next-app@latest contentlify --typescript --tailwind --app --no-src-dir
 - Install dependencies:
   - npm install @supabase/supabase-js @supabase/auth-helpers-nextjs
   - npm install stripe
@@ -248,7 +248,7 @@ Implement authentication flow:
 ```
 Create landing page at /app/page.tsx
 
-Design a conversion-focused landing page for ContentMaxer:
+Design a conversion-focused landing page for Contentlify:
 
 Hero Section:
 - Headline: "Find the Money You're Leaving on the Table"
@@ -266,7 +266,7 @@ Problem Section:
 - Hard to know which posts have potential
 
 Solution Section:
-"ContentMaxer Shows You Exactly Which Posts to Optimize"
+"Contentlify Shows You Exactly Which Posts to Optimize"
 
 How It Works:
 1. Enter Blog URL → We scan your entire blog (free)
@@ -1806,7 +1806,7 @@ Steps:
    - Code blocks: Monospace, gray background
 5. Add footer with:
    - Page numbers
-   - "Created with ContentMaxer"
+   - "Created with Contentlify"
    - Date
 6. Return PDF as base64 or blob
 
@@ -2189,7 +2189,7 @@ Create /components/products/ShareModal.tsx:
 Options:
 1. Generate shareable link
    - Public view of product (read-only)
-   - Custom URL: contentmaxer.com/p/{shortId}
+   - Custom URL: contentlify.com/p/{shortId}
    - Anyone with link can view
 
 2. Download as:
@@ -2211,7 +2211,7 @@ Create /app/p/[shortId]/page.tsx:
 - Public product view
 - Minimal UI (no dashboard chrome)
 - Shows product content
-- "Get Your Own ContentMaxer Account" CTA
+- "Get Your Own Contentlify Account" CTA
 - SEO optimized (og:tags, meta description)
 
 Create /app/api/products/share/route.ts:
@@ -2317,7 +2317,7 @@ Create /app/onboarding/page.tsx:
 Multi-step wizard (3 steps):
 
 Step 1: Welcome
-- "Welcome to ContentMaxer!"
+- "Welcome to Contentlify!"
 - Explain what the product does
 - "Let's get you set up"
 - Next button
@@ -2365,7 +2365,7 @@ Create /app/help/page.tsx:
 Sections:
 
 1. Getting Started:
-   - How ContentMaxer works
+   - How Contentlify works
    - Buying credits
    - Running your first analysis
 
@@ -2692,7 +2692,7 @@ Terms of Service should cover:
    - Follow FTC guidelines for affiliate disclosure
 4. Intellectual property:
    - User owns generated content
-   - ContentMaxer owns platform
+   - Contentlify owns platform
 5. Payment terms:
    - Credits are non-refundable (or 7-day refund policy)
    - Pricing subject to change
@@ -2783,7 +2783,7 @@ Business Checklist:
 □ Stripe products created in live mode
 □ Payment flows tested with real cards
 □ Refund policy defined
-□ Support email set up (support@contentmaxer.com)
+□ Support email set up (support@contentlify.com)
 □ Feedback system in place (email or Canny)
 □ Customer support process defined
 
@@ -2876,13 +2876,13 @@ Make analytics actionable and motivating.
 **Use: After product-market fit**
 
 ```
-Create WordPress plugin for ContentMaxer.
+Create WordPress plugin for Contentlify.
 
 Plugin features:
 1. Install from WP plugin directory
-2. Connect WP site to ContentMaxer account (API key)
+2. Connect WP site to Contentlify account (API key)
 3. Scan posts directly from WP admin:
-   - Button in post editor: "Scan with ContentMaxer"
+   - Button in post editor: "Scan with Contentlify"
    - Shows opportunities in sidebar
    - One-click to add affiliate links
 4. Bulk scan all posts
@@ -2890,11 +2890,11 @@ Plugin features:
 6. Insert generated products as downloads
 
 File structure:
-/contentmaxer-wp-plugin
-  contentmaxer.php (main file)
+/contentlify-wp-plugin
+  contentlify.php (main file)
   /assets (css, js)
   /includes
-    /api (connection to ContentMaxer API)
+    /api (connection to Contentlify API)
     /admin (WP admin pages)
     /editor (Gutenberg block or classic editor button)
 
@@ -2904,7 +2904,7 @@ WordPress.org submission process:
 3. Internationalization
 4. Documentation
 
-API needed in ContentMaxer:
+API needed in Contentlify:
 - Create API key system
 - Endpoint: POST /api/v1/analyze (with API key auth)
 - Endpoint: GET /api/v1/products (list user's products)
@@ -2929,7 +2929,7 @@ Browse affiliate programs by:
 - Category (hosting, courses, tools, etc.)
 - Commission structure (%, flat fee, recurring)
 - Difficulty to join (instant, application, invitation)
-- Popularity (most used by ContentMaxer users)
+- Popularity (most used by Contentlify users)
 
 For each program:
 - Name, logo
@@ -2937,7 +2937,7 @@ For each program:
 - Commission details
 - Sign-up link (with your affiliate link - meta!)
 - Tips for getting approved
-- Average earnings (from ContentMaxer data)
+- Average earnings (from Contentlify data)
 - "I use this" button (track which programs you're in)
 
 User benefits:
@@ -2959,7 +2959,7 @@ CREATE TABLE affiliate_programs (
   commission_structure TEXT,
   category TEXT,
   difficulty TEXT,
-  user_count INTEGER, -- how many ContentMaxer users joined
+  user_count INTEGER, -- how many Contentlify users joined
   avg_commission DECIMAL,
   created_at TIMESTAMP
 );
@@ -3082,7 +3082,7 @@ Key: High margins because AI costs scale linearly but are low per unit.
    - Sponsored content on blog growth sites
 
 5. **Viral Features**:
-   - "Made with ContentMaxer" badge on public products
+   - "Made with Contentlify" badge on public products
    - Referral program (give credits for referrals)
    - Showcase gallery of best products
 

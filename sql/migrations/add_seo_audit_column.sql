@@ -10,3 +10,4 @@ COMMENT ON COLUMN public.content_analyses.seo_audit IS 'SEO/AEO content audit re
 
 
 
+

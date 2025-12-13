@@ -592,6 +592,7 @@ export async function extractStructuredContent(url: string, html: string, provid
   // Extract lists
   const lists: Array<{ type: 'ul' | 'ol'; itemCount: number }> = [];
   $('ul, ol').each((_, el) => {
+    if (el.type !== 'tag') return;
     const type = el.tagName.toLowerCase() === 'ul' ? 'ul' : 'ol';
     const itemCount = $(el).find('li').length;
     if (itemCount > 0) {
@@ -642,7 +643,7 @@ export async function extractStructuredContent(url: string, html: string, provid
   
   // Extract first sentence and first 100 words
   // First, remove unwanted elements to get clean content
-  const $clean = $.load(html);
+  const $clean = cheerio.load(html);
   $clean('nav, footer, header, aside, .sidebar, .navigation, .menu, .ad, .advertisement, .ads, script, style, iframe, noscript, .cookie-banner, .newsletter-signup').remove();
   
   const contentSelectors = [

@@ -69,7 +69,7 @@ export function PricingTable() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {Object.entries(CREDIT_PACKAGES).map(([packageKey, pkg]) => {
           const isPopular = pkg.popular
-          const isBestValue = pkg.bestValue
+          const isBestValue = (pkg as any).bestValue || false
 
           return (
             <div

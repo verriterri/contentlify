@@ -30,7 +30,7 @@ export async function getBrowserFingerprint(): Promise<string> {
     new Date().getTimezoneOffset(),
     canvas.toDataURL(),
     navigator.hardwareConcurrency || '',
-    navigator.deviceMemory || '',
+    (navigator as any).deviceMemory || '',
     navigator.platform,
   ].join('|');
 

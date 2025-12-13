@@ -154,7 +154,7 @@ export function LinkHealth({ pageUrl, linkDetails: providedLinks }: LinkHealthPr
   const filteredLinks = links.filter(link => {
     if (filterStatus === 'all') return true
     const health = getHealthStatus(link.url)
-    if (!health) return filterStatus === 'all'
+    if (!health) return false
     return health.status === filterStatus
   })
 
