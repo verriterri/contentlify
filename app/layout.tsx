@@ -5,6 +5,11 @@ import { AuthProvider } from '@/components/auth/AuthProvider'
 export const metadata: Metadata = {
   title: 'Contentlify - Content Monetization Platform',
   description: 'Find affiliate opportunities, create digital products, and promote them—all from your existing content',
+  icons: {
+    icon: '/logo.png',
+    shortcut: '/logo.png',
+    apple: '/logo.png',
+  },
 }
 
 export default function RootLayout({

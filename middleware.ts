@@ -1,11 +1,17 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-export async function middleware(request: NextRequest) {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+import { getSupabaseUrl, getSupabaseAnonKey } from '@/lib/supabase'
 
-  if (!supabaseUrl || !supabaseAnonKey) {
+export async function middleware(request: NextRequest) {
+  let supabaseUrl: string
+  let supabaseAnonKey: string
+  
+  try {
+    supabaseUrl = getSupabaseUrl()
+    supabaseAnonKey = getSupabaseAnonKey()
+  } catch {
+    // If env vars are missing, skip middleware
     return NextResponse.next()
   }
 

@@ -3,8 +3,10 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { headers } from 'next/headers'
 import Link from 'next/link'
+import Image from 'next/image'
 import { LogoutButton } from '@/components/auth/LogoutButton'
-import { CreditBalance } from '@/components/dashboard/CreditBalance'
+import { CreditBalanceUpdater } from '@/components/dashboard/CreditBalanceUpdater'
+import { getSupabaseUrl, getSupabaseAnonKey } from '@/lib/supabase'
 
 export default async function DashboardLayout({
   children,
@@ -12,8 +14,8 @@ export default async function DashboardLayout({
   children: React.ReactNode
 }) {
   const cookieStore = await cookies()
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  const supabaseUrl = getSupabaseUrl()
+  const supabaseAnonKey = getSupabaseAnonKey()
 
   const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
     cookies: {
@@ -58,12 +60,22 @@ export default async function DashboardLayout({
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
-              <Link href="/" className="text-2xl font-bold text-primary">
-                Contentlify
+              <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+                <Image
+                  src="/logo.png"
+                  alt="Contentlify"
+                  width={40}
+                  height={40}
+                  className="h-8 w-auto flex-shrink-0"
+                  priority
+                />
+                <span className="text-2xl font-bold text-primary whitespace-nowrap">
+                  Contentlify
+                </span>
               </Link>
             </div>
             <div className="flex items-center gap-4">
-              {user && <CreditBalance credits={credits} />}
+              {user && <CreditBalanceUpdater />}
               {user && (
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-gray-600">{userEmail}</span>

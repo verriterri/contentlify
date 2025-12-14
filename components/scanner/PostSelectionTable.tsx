@@ -232,11 +232,9 @@ export function PostSelectionTable({
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Title
               </th>
-              {hasCredits && (
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Word Count
-                </th>
-              )}
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Word Count
+              </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">
                 Date
               </th>
@@ -345,11 +343,9 @@ export function PostSelectionTable({
                       </div>
                     </div>
                   </td>
-                  {hasCredits && (
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {(page.wordCount || 0).toLocaleString()}
-                    </td>
-                  )}
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {(page.wordCount || 0).toLocaleString()}
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {page.publishedDate
                       ? new Date(page.publishedDate).toLocaleDateString()

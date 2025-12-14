@@ -125,7 +125,7 @@ CREATE TABLE public.generated_products (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
   analysis_id UUID REFERENCES public.content_analyses(id) ON DELETE SET NULL,
-  product_type TEXT NOT NULL CHECK (product_type IN ('checklist', 'workbook', 'ebook', 'newsletter', 'template')),
+  product_type TEXT NOT NULL CHECK (product_type IN ('checklist', 'workbook', 'ebook', 'newsletter', 'template', 'video_series')),
   title TEXT NOT NULL,
   content JSONB NOT NULL, -- stores outline structure as JSON
   template_used TEXT,
@@ -257,7 +257,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Function to automatically create user profile on signup
--- Grants 1 free credit to new users (can analyze 1 post)
+-- Grants 3 free credits to new users (can analyze 3 posts)
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -266,7 +266,7 @@ BEGIN
     NEW.id, 
     NEW.email, 
     COALESCE(NEW.email_confirmed_at IS NOT NULL, false),
-    1  -- 1 free credit for new signups to analyze 1 post
+    3  -- 3 free credits for new signups to analyze 3 posts
   )
   ON CONFLICT (id) DO UPDATE
   SET email_verified = COALESCE(NEW.email_confirmed_at IS NOT NULL, false),
@@ -313,7 +313,7 @@ BEGIN
     p_user_id,
     p_email,
     p_email_verified,
-    1  -- Grant 1 free credit as per signup policy
+    3  -- Grant 3 free credits as per signup policy
   )
   ON CONFLICT (id) DO NOTHING;
   
@@ -591,7 +591,7 @@ COMMENT ON COLUMN public.generated_products.credits_used IS 'Credits deducted fo
 -- After running this script:
 -- 1. Verify all tables, indexes, and policies are created
 -- 2. Test with a new user signup (should create user in public.users)
--- 3. Verify user gets 1 free credit on signup
+-- 3. Verify user gets 3 free credits on signup
 -- 4. Test credit purchase flow
 -- 5. Test analysis and outline generation
 -- 6. Test site scanning

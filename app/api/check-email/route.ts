@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { getSupabaseUrl, getSupabaseServiceRoleKey } from '@/lib/supabase'
 
 export async function POST(req: NextRequest) {
   try {
@@ -12,12 +13,12 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-    const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    const supabaseUrl = getSupabaseUrl()
+    const supabaseServiceRoleKey = getSupabaseServiceRoleKey()
 
     // If no service role key, skip check - signup will handle it
     if (!supabaseServiceRoleKey) {
-      console.warn('SUPABASE_SERVICE_ROLE_KEY not set, skipping email check')
+      console.warn('SUPABASE_SECRET_KEY not set, skipping email check')
       return NextResponse.json({ exists: false })
     }
 

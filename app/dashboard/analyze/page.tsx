@@ -74,7 +74,6 @@ export default function AnalyzePage() {
   const [hasAutoTriggered, setHasAutoTriggered] = useState(false);
   const [isManualAnalyze, setIsManualAnalyze] = useState(false);
   const [isAnonymous, setIsAnonymous] = useState(false);
-  const [freeTrialUsed, setFreeTrialUsed] = useState(false);
   const [isSinglePageExpanded, setIsSinglePageExpanded] = useState(false);
   const [isSiteScanExpanded, setIsSiteScanExpanded] = useState(false);
 
@@ -93,7 +92,6 @@ export default function AnalyzePage() {
   });
   const [sortBy, setSortBy] = useState<'recent' | 'oldest' | 'most-words' | 'least-words' | 'name-asc' | 'name-desc'>('recent');
   const [userCredits, setUserCredits] = useState<number | null>(null);
-  const [scanFreeTrialUsed, setScanFreeTrialUsed] = useState<boolean>(false);
   const [isUnlockExpanded, setIsUnlockExpanded] = useState<boolean>(false);
 
   // Determine if we're in scan mode
@@ -184,19 +182,15 @@ export default function AnalyzePage() {
         const data = await response.json();
         if (data.credits === null) {
           setUserCredits(null);
-          setScanFreeTrialUsed(data.freeTrialUsed || false);
         } else {
           setUserCredits(typeof data.credits === 'number' ? data.credits : 0);
-          setScanFreeTrialUsed(data.freeTrialUsed || false);
         }
       } else {
         setUserCredits(null);
-        setScanFreeTrialUsed(false);
       }
     } catch (error) {
       console.error('[Analyze] Error loading credits:', error);
       setUserCredits(null);
-      setScanFreeTrialUsed(false);
     }
   };
 
@@ -212,7 +206,6 @@ export default function AnalyzePage() {
           const creditsResponse = await fetch('/api/user/credits');
           if (creditsResponse.ok) {
             const creditsData = await creditsResponse.json();
-            setFreeTrialUsed(creditsData.freeTrialUsed || false);
           }
         } catch (error) {
           console.error('Error checking free trial status:', error);
@@ -335,9 +328,8 @@ export default function AnalyzePage() {
               const creditsResponse = await fetch('/api/user/credits');
               if (creditsResponse.ok) {
                 const creditsData = await creditsResponse.json();
-                if (creditsData.freeTrialUsed) {
-                  setFreeTrialUsed(true);
-                  setError('Free trial already used. Please sign up to continue analyzing.');
+                if (creditsData.credits === 0) {
+                  setError('Insufficient credits. Please purchase credits to continue analyzing.');
                   return;
                 }
               }
@@ -423,8 +415,8 @@ export default function AnalyzePage() {
         if (errorData.limitReached) {
           throw new Error(errorData.error);
         }
-        if (errorData.freeTrialUsed || errorData.requiresSignup) {
-          setFreeTrialUsed(true);
+        if (errorData.requiresAuth || errorData.requiresSignup) {
+          // User needs to sign up
         }
         throw new Error(errorData.error || 'Failed to analyze URL');
       }
@@ -434,6 +426,9 @@ export default function AnalyzePage() {
       if (!data || !data.success) {
         throw new Error('Invalid response from server');
       }
+      
+      // Dispatch event to update credits in header
+      window.dispatchEvent(new CustomEvent('credits-updated'))
       
       if (data.isAnonymous !== undefined) {
         setIsAnonymous(data.isAnonymous);
@@ -549,10 +544,8 @@ export default function AnalyzePage() {
       const pageUrl = Array.from(selectedUrls)[0];
       
       if (isAnonymous || userCredits === 0) {
-        if (scanFreeTrialUsed) {
-          router.push(`/login?redirect=/dashboard/analyze?scanId=${scanIdParam}`)
-          return;
-        }
+        router.push(`/login?redirect=/dashboard/analyze?scanId=${scanIdParam}`)
+        return;
       } else if (userCredits < 1) {
         router.push(`/pricing?needed=1&have=${userCredits}`)
         return;
@@ -764,7 +757,7 @@ export default function AnalyzePage() {
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
                     </svg>
-                    Get 2x credits on your first purchase!
+                    Get 20% more credits on your first purchase!
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
@@ -885,7 +878,6 @@ export default function AnalyzePage() {
             chargeExtraPreferences={chargeExtraPreferences}
             globalChargeExtra={globalChargeExtra ?? false}
             userCredits={userCredits}
-            freeTrialUsed={scanFreeTrialUsed}
             onAnalyze={handleAnalyzeSelected}
           />
         )}
@@ -1070,7 +1062,7 @@ export default function AnalyzePage() {
                     <h3 className="text-xl font-bold">Save Your Results</h3>
                   </div>
                   <p className="text-primary-100 mb-4">
-                    Your analysis results are not saved. Sign up now to save this analysis permanently, access it anytime, and get 1 free credit to analyze another page!
+                    Your analysis results are not saved. Sign up now to save this analysis permanently, access it anytime, and get 3 free credits to analyze more pages!
                   </p>
                   <div className="flex items-center gap-4">
                     <Link

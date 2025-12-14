@@ -2,9 +2,10 @@ import { CHECKLIST_TEMPLATES, ChecklistTemplate } from './checklist-templates';
 import { WORKBOOK_TEMPLATES, WorkbookTemplate } from './workbook-templates';
 import { EBOOK_TEMPLATES, EbookTemplate } from './ebook-templates';
 import { NEWSLETTER_TEMPLATES, NewsletterTemplate } from './newsletter-templates';
+import { VIDEO_SERIES_TEMPLATES, VideoSeriesTemplate } from './video-series-templates';
 import { ProductType } from '../ai/product-ideas-generator';
 
-export type Template = ChecklistTemplate | WorkbookTemplate | EbookTemplate | NewsletterTemplate;
+export type Template = ChecklistTemplate | WorkbookTemplate | EbookTemplate | NewsletterTemplate | VideoSeriesTemplate;
 
 export interface TemplateInfo {
   id: string;
@@ -30,6 +31,8 @@ export function getTemplatesForType(type: ProductType): Template[] {
       // Template products (like template packs) use workbook templates
       // since they're typically collections of reusable worksheets/templates
       return WORKBOOK_TEMPLATES as Template[];
+    case 'video_series':
+      return VIDEO_SERIES_TEMPLATES as Template[];
     default:
       return [];
   }
@@ -51,6 +54,8 @@ export function getTemplate(type: ProductType, id: string): Template | undefined
     case 'template':
       // Template products use workbook templates
       return WORKBOOK_TEMPLATES.find((t) => t.id === id);
+    case 'video_series':
+      return VIDEO_SERIES_TEMPLATES.find((t) => t.id === id);
     default:
       return undefined;
   }
@@ -72,6 +77,8 @@ export function getDefaultTemplate(type: ProductType): Template | undefined {
     case 'template':
       // Template products use workbook templates
       return WORKBOOK_TEMPLATES[0];
+    case 'video_series':
+      return VIDEO_SERIES_TEMPLATES[0];
     default:
       return undefined;
   }
@@ -97,6 +104,10 @@ export function getAllTemplateInfos(): TemplateInfo[] {
   
   NEWSLETTER_TEMPLATES.forEach((t) => {
     infos.push({ id: t.id, name: t.name, description: t.description, type: 'newsletter' });
+  });
+  
+  VIDEO_SERIES_TEMPLATES.forEach((t) => {
+    infos.push({ id: t.id, name: t.name, description: t.description, type: 'video_series' });
   });
   
   return infos;

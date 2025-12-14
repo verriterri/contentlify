@@ -3,6 +3,7 @@ import { stripe } from '@/lib/stripe'
 import { CREDIT_PACKAGES, CreditPackageKey } from '@/lib/pricing'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
+import { getSupabaseUrl, getSupabaseAnonKey } from '@/lib/supabase'
 
 /**
  * POST /api/stripe/checkout
@@ -21,8 +22,8 @@ export async function POST(req: NextRequest) {
 
     // Get authenticated user
     const cookieStore = await cookies()
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    const supabaseUrl = getSupabaseUrl()
+    const supabaseAnonKey = getSupabaseAnonKey()
 
     const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
       cookies: {
@@ -123,7 +124,7 @@ export async function POST(req: NextRequest) {
             id: user.id,
             email: user.email!,
             email_verified: emailVerified,
-            credits: 1,
+            credits: 3,
           })
           .select('email, stripe_customer_id, has_made_first_purchase')
           .single()

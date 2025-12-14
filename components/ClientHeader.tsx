@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { useAuth } from '@/components/auth/AuthProvider'
 import { CreditBalance } from '@/components/dashboard/CreditBalance'
 import { LogoutButton } from '@/components/auth/LogoutButton'
@@ -35,13 +36,48 @@ export function ClientHeader() {
     loadUserData()
   }, [user])
 
+  // Listen for credit update events
+  useEffect(() => {
+    async function handleCreditsUpdate() {
+      if (user) {
+        try {
+          const { data: userData } = await supabase
+            .from('users')
+            .select('credits, email')
+            .eq('id', user.id)
+            .single()
+
+          setCredits(userData?.credits || 0)
+          setUserEmail(userData?.email || user.email || '')
+        } catch (error) {
+          console.error('Error refreshing credits:', error)
+        }
+      }
+    }
+
+    window.addEventListener('credits-updated', handleCreditsUpdate)
+    return () => {
+      window.removeEventListener('credits-updated', handleCreditsUpdate)
+    }
+  }, [user])
+
   return (
     <div className="bg-white border-b border-gray-200 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center">
-            <Link href="/" className="text-2xl font-bold text-primary">
-              Contentlify
+            <Link href="/" className="flex items-center gap-3">
+              <Image
+                src="/logo.png"
+                alt="Contentlify"
+                width={40}
+                height={40}
+                className="h-8 w-auto"
+                priority
+              />
+              <span className="text-2xl font-bold text-primary">
+                Contentlify
+              </span>
             </Link>
           </div>
           <div className="flex items-center gap-4">

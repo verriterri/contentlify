@@ -1,13 +1,15 @@
 import Link from 'next/link'
+import Image from 'next/image'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { LogoutButton } from '@/components/auth/LogoutButton'
-import { CreditBalance } from '@/components/dashboard/CreditBalance'
+import { CreditBalanceUpdater } from '@/components/dashboard/CreditBalanceUpdater'
+import { getSupabaseUrl, getSupabaseAnonKey } from '@/lib/supabase'
 
 export async function HomeHeader() {
   const cookieStore = await cookies()
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  const supabaseUrl = getSupabaseUrl()
+  const supabaseAnonKey = getSupabaseAnonKey()
 
   const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
     cookies: {
@@ -27,17 +29,15 @@ export async function HomeHeader() {
     data: { user },
   } = await supabase.auth.getUser()
 
-  // Get user credits and email (only if user exists)
-  let credits = 0
+  // Get user email (only if user exists)
   let userEmail = ''
   if (user) {
     const { data: userData } = await supabase
       .from('users')
-      .select('credits, email')
+      .select('email')
       .eq('id', user.id)
       .single()
 
-    credits = userData?.credits || 0
     userEmail = userData?.email || user.email || ''
   }
 
@@ -46,12 +46,22 @@ export async function HomeHeader() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center">
-            <Link href="/" className="text-2xl font-bold text-primary">
-              Contentlify
+            <Link href="/" className="flex items-center gap-3">
+              <Image
+                src="/logo.png"
+                alt="Contentlify"
+                width={40}
+                height={40}
+                className="h-8 w-auto"
+                priority
+              />
+              <span className="text-2xl font-bold text-primary">
+                Contentlify
+              </span>
             </Link>
           </div>
           <div className="flex items-center gap-4">
-            {user && <CreditBalance credits={credits} />}
+            {user && <CreditBalanceUpdater />}
             {user && (
               <div className="flex items-center gap-2">
                 <Link

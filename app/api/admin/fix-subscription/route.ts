@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { stripe } from '@/lib/stripe'
+import { getSupabaseUrl, getSupabaseAnonKey } from '@/lib/supabase'
 
 /**
  * POST /api/admin/fix-subscription
@@ -11,8 +12,8 @@ import { stripe } from '@/lib/stripe'
 export async function POST(req: NextRequest) {
   try {
     const cookieStore = await cookies()
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    const supabaseUrl = getSupabaseUrl()
+    const supabaseAnonKey = getSupabaseAnonKey()
 
     const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
       cookies: {
@@ -102,9 +103,9 @@ export async function POST(req: NextRequest) {
           )
         }
 
-        // Check if this is the first purchase (first purchase bonus: 2x credits)
+        // Check if this is the first purchase (first purchase bonus: 20% more credits)
         const isFirstPurchase = !userData.has_made_first_purchase
-        const creditsToAdd = isFirstPurchase ? credits * 2 : credits
+        const creditsToAdd = isFirstPurchase ? Math.floor(credits * 1.2) : credits
         const newCredits = (userData.credits || 0) + creditsToAdd
 
         // Update user credits

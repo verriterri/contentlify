@@ -1,3 +1,5 @@
+import Image from 'next/image'
+import Link from 'next/link'
 import { SignupForm } from '@/components/auth/SignupForm'
 
 export default function SignupPage({
@@ -9,15 +11,32 @@ export default function SignupPage({
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div>
-          <h1 className="text-center text-4xl font-bold text-primary mb-2">
-            Contentlify
-          </h1>
+          <div className="flex justify-center mb-4">
+            <Link href="/" className="inline-block">
+              <Image
+                src="/logo.png"
+                alt="Contentlify"
+                width={150}
+                height={50}
+                className="h-12 w-auto"
+                priority
+              />
+            </Link>
+          </div>
           <h2 className="text-center text-2xl font-semibold text-gray-900">
             Create your account
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
             Join thousands of creators monetizing their content
           </p>
+          <div className="mt-4 text-center">
+            <Link
+              href="/"
+              className="text-sm text-primary hover:text-primary-600 font-medium"
+            >
+              ← Back to home
+            </Link>
+          </div>
         </div>
         <SignupForm redirect={searchParams?.redirect} />
       </div>

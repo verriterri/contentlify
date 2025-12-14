@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
 interface LinkHealth {
   status: 'healthy' | 'broken' | 'redirect' | 'timeout' | 'unknown'
@@ -29,10 +29,11 @@ export function LinkHealth({ pageUrl, linkDetails: providedLinks }: LinkHealthPr
   const [checkingHealth, setCheckingHealth] = useState(false)
   const [healthProgress, setHealthProgress] = useState<{ checked: number; total: number } | null>(null)
   const [filterStatus, setFilterStatus] = useState<'all' | 'healthy' | 'broken' | 'redirect' | 'timeout'>('all')
+  const hasAutoLoadedRef = useRef(false)
 
   // Update links when providedLinks prop changes or on mount
   useEffect(() => {
-    if (providedLinks && Array.isArray(providedLinks)) {
+    if (providedLinks && Array.isArray(providedLinks) && providedLinks.length > 0) {
       setLinks(providedLinks)
     }
   }, [providedLinks])
@@ -63,6 +64,20 @@ export function LinkHealth({ pageUrl, linkDetails: providedLinks }: LinkHealthPr
       setLoading(false)
     }
   }
+
+  // Automatically load links on mount if not provided
+  useEffect(() => {
+    // Only auto-load if we haven't already attempted it and links weren't provided
+    if (
+      !hasAutoLoadedRef.current &&
+      pageUrl &&
+      (!providedLinks || !Array.isArray(providedLinks) || providedLinks.length === 0)
+    ) {
+      hasAutoLoadedRef.current = true
+      loadLinks()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pageUrl, providedLinks]) // Run when pageUrl or providedLinks changes
 
   const checkLinkHealth = async () => {
     if (links.length === 0) {

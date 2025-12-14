@@ -94,9 +94,9 @@ export async function POST(req: NextRequest) {
             break
           }
 
-          // Check if this is the first purchase (first purchase bonus: 2x credits)
+          // Check if this is the first purchase (first purchase bonus: 20% more credits)
           const isFirstPurchase = !user.has_made_first_purchase
-          const creditsToAdd = isFirstPurchase ? credits * 2 : credits
+          const creditsToAdd = isFirstPurchase ? Math.floor(credits * 1.2) : credits
 
           const newCredits = (user.credits || 0) + creditsToAdd
 
@@ -113,7 +113,7 @@ export async function POST(req: NextRequest) {
             console.error('[Webhook] Error updating credits:', creditError)
           } else {
             if (isFirstPurchase) {
-              console.log(`[Webhook] First purchase bonus! Added ${creditsToAdd} credits (${credits} x 2) to user ${userId}. New balance: ${newCredits}`)
+              console.log(`[Webhook] First purchase bonus! Added ${creditsToAdd} credits (${credits} + 20%) to user ${userId}. New balance: ${newCredits}`)
             } else {
               console.log(`[Webhook] Added ${creditsToAdd} credits to user ${userId}. New balance: ${newCredits}`)
             }

@@ -4,6 +4,7 @@ import { cookies } from 'next/headers';
 import { generateProduct } from '@/lib/ai/product-generator';
 import { ProductIdea } from '@/lib/ai/product-ideas-generator';
 import { AffiliateOpportunity } from '@/lib/ai/affiliate-detector';
+import { getSupabaseUrl, getSupabaseAnonKey } from '@/lib/supabase';
 
 /**
  * POST /api/generate-product
@@ -28,8 +29,8 @@ export async function POST(req: NextRequest) {
   try {
     // Get authenticated user
     const cookieStore = await cookies();
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+    const supabaseUrl = getSupabaseUrl();
+    const supabaseAnonKey = getSupabaseAnonKey();
 
     const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
       cookies: {

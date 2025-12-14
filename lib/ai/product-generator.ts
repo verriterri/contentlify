@@ -383,6 +383,36 @@ Outline Structure:
 7. Call to Action (describe what it should be)
 8. Closing/P.S. (describe what should be included)`;
 
+    case 'video_series':
+      return `CREATE A VIDEO SERIES OUTLINE:
+
+Outline Requirements:
+- Structure as episodes/lessons (6-12 episodes organized into modules)
+- For each episode, provide:
+  * Episode title (descriptive, no "Episode X:" prefix)
+  * Brief description of what the episode should cover (1-2 sentences)
+  * Key topics/points that should be included in the episode
+  * Suggested structure (intro, main content, demonstration, practice, outro)
+  * Learning objectives for the episode
+- Logical flow and progression through episodes
+- Include introduction episode and conclusion episode
+- Organize episodes into modules/themes where appropriate
+
+For each episode section, provide:
+- Episode title (just the descriptive name)
+- Description of what the episode should accomplish
+- Key topics/points to cover in the episode
+- Learning objectives
+- Suggested structure (intro, main content, demonstration, practice, outro)
+
+Outline Structure:
+1. Introduction Episode (describe what should be covered - series overview, learning path, prerequisites)
+2. Episode: [Topic] (describe content, key points, and learning objectives)
+3. Episode: [Related Topic] (describe content, key points, and learning objectives)
+... (continue for 6-12 episodes, organized into modules if appropriate)
+N. Resource Recommendations Episode (note affiliate opportunities for tools/software)
+N+1. Conclusion Episode (describe what should be included - recap, next steps, call to action)`;
+
     default:
       return `Create an outline for a ${type} based on the blog content. The outline should show the structure, organization, and key points to cover. Include notes on where affiliate opportunities could be mentioned.`;
   }

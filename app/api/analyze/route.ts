@@ -7,8 +7,8 @@ import { detectAffiliateOpportunities } from '@/lib/ai/affiliate-detector';
 import { generateProductIdeas } from '@/lib/ai/product-ideas-generator';
 import { chunkContent, combineAnalysisResults, sortProductIdeasBySellability } from '@/lib/utils/content-chunker';
 import { calculateCreditsForAnalysis, getAnalyzedWordCount } from '@/lib/utils/credit-calculator';
-import { getClientIP, hashIPAddress, hashFingerprint, createUsageKey, hasUsedFreeTrial, recordFreeTrialUsage } from '@/lib/utils/abuse-prevention';
 import { auditContent, generateCrossInsights } from '@/lib/audit/content-auditor';
+import { getSupabaseUrl, getSupabaseAnonKey } from '@/lib/supabase';
 
 /**
  * POST /api/analyze
@@ -21,8 +21,8 @@ export async function POST(req: NextRequest) {
   try {
     // Get authenticated user
     const cookieStore = await cookies();
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+    const supabaseUrl = getSupabaseUrl();
+    const supabaseAnonKey = getSupabaseAnonKey();
 
     const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
       cookies: {
@@ -43,100 +43,49 @@ export async function POST(req: NextRequest) {
       error: authError,
     } = await supabase.auth.getUser();
 
-    const isAnonymous = authError || !user;
-    let userCredits = 0;
-    let freeTrialUsed = false;
-    let userId: string | null = null;
+    // Require authentication - no anonymous analysis
+    if (authError || !user) {
+      return NextResponse.json(
+        { 
+          error: 'Authentication required. Please sign up to analyze content.',
+          requiresAuth: true,
+        },
+        { status: 401 }
+      );
+    }
+
+    const userId = user.id;
     
-    // Store abuse tracking info for anonymous users (will be populated after body parsing)
-    let abuseTracking: {
-      usageKey: string;
-      ipHash: string;
-      fingerprintHash: string | null;
-      clientIP: string;
-    } | null = null;
+    // Get user data including credits
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('credits')
+      .eq('id', user.id)
+      .single();
 
-    if (!isAnonymous && user) {
-      userId = user.id;
-      
-      // Get user data including credits and free trial status
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('credits, free_trial_used')
-        .eq('id', user.id)
-        .single();
-
-      if (userError || !userData) {
-        console.error('[Analyze] Error fetching user data:', userError);
-        return NextResponse.json(
-          { error: 'User data not found' },
-          { status: 404 }
-        );
-      }
-
-      userCredits = userData.credits || 0;
-      freeTrialUsed = userData.free_trial_used || false;
-      
-      // If user has 0 credits, they can still use free trial (abuse prevention handled separately)
-      // This allows logged-in users to analyze 1 page for free even without credits
+    if (userError || !userData) {
+      console.error('[Analyze] Error fetching user data:', userError);
+      return NextResponse.json(
+        { error: 'User data not found' },
+        { status: 404 }
+      );
     }
 
-    // Get user's global preference for charging extra for long pages (only for logged-in users)
+    const userCredits = userData.credits || 0;
+
+    // Get user's global preference for charging extra for long pages
     let globalChargeExtra = false;
-    if (!isAnonymous && user) {
-      const { data: userSettings } = await supabase
-        .from('user_settings')
-        .select('preferences')
-        .eq('user_id', user.id)
-        .single();
+    const { data: userSettings } = await supabase
+      .from('user_settings')
+      .select('preferences')
+      .eq('user_id', user.id)
+      .single();
 
-      globalChargeExtra = userSettings?.preferences?.chargeExtraForLongPages ?? false;
-    }
+    globalChargeExtra = userSettings?.preferences?.chargeExtraForLongPages ?? false;
 
     // Parse request body
     const body = await req.json();
-    const { url, chargeExtraForLongPages, fingerprint, primaryKeyword } = body;
-    
-    // For anonymous users, set up abuse tracking after we have the fingerprint
-    if (isAnonymous) {
-      const clientIP = getClientIP(req);
-      const ipHash = hashIPAddress(clientIP);
-      const fingerprintHash = fingerprint ? hashFingerprint(fingerprint) : null;
-      
-      // Create combined usage key (IP + fingerprint)
-      // Fingerprint is more persistent than IP (survives VPN changes)
-      const usageKey = createUsageKey(clientIP, fingerprint || null);
-      
-      // Check database for free trial usage (checks combined key, fingerprint, and IP)
-      freeTrialUsed = await hasUsedFreeTrial(
-        supabase,
-        usageKey,
-        ipHash,
-        fingerprintHash || undefined
-      );
-      
-      // Store tracking info for later use when recording
-      abuseTracking = {
-        usageKey,
-        ipHash,
-        fingerprintHash,
-        clientIP,
-      };
-      
-      // Also check cookie for UX (but database tracking is the source of truth)
-      const freeTrialCookie = cookieStore.get('free_trial_used');
-      const cookieBasedFreeTrialUsed = freeTrialCookie?.value === 'true';
-      
-      // Log for debugging
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[Analyze] Anonymous user free trial check:', {
-          clientIP: clientIP.substring(0, 10) + '...',
-          hasFingerprint: !!fingerprint,
-          ipBasedFreeTrialUsed: freeTrialUsed,
-          cookieBasedFreeTrialUsed,
-        });
-      }
-    }
+    const { url, chargeExtraForLongPages, primaryKeyword } = body;
 
     // Use per-page preference if provided, otherwise use global preference
     const chargeExtra = chargeExtraForLongPages !== undefined 
@@ -161,7 +110,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Step 1: Scrape the URL (always create a new analysis - no caching)
-    console.log(`[Analyze] ${isAnonymous ? 'Anonymous user' : `User ${userId}`} analyzing URL: ${url} (creating new analysis entry)`);
+    console.log(`[Analyze] User ${userId} analyzing URL: ${url} (creating new analysis entry)`);
     const scrapeResult = await scrapeUrl(url);
 
     if (scrapeResult.error) {
@@ -181,16 +130,7 @@ export async function POST(req: NextRequest) {
     
     try {
       // Check user preference for audit (default: enabled)
-      let auditEnabled = true;
-      if (!isAnonymous && user) {
-        const { data: userSettings } = await supabase
-          .from('user_settings')
-          .select('preferences')
-          .eq('user_id', user.id)
-          .single();
-        
-        auditEnabled = userSettings?.preferences?.seoAuditEnabled !== false; // Default to true
-      }
+      const auditEnabled = userSettings?.preferences?.seoAuditEnabled !== false; // Default to true
       
       if (auditEnabled) {
         console.log('[Analyze] Running SEO/AEO content audit...');
@@ -430,14 +370,14 @@ export async function POST(req: NextRequest) {
     let creditsDeducted = false;
     
     try {
-      if (!isAnonymous && userId) {
-        const analysisData = {
-          user_id: userId,
-          url: scrapeResult.url,
-          title: scrapeResult.title,
-          content: contentToAnalyze.substring(0, 50000), // Limit content size
-          word_count: analyzedWordCount, // Save the actual word count analyzed
-          credits_used: isFreeTrial ? 0 : creditsNeeded, // Free trial uses 0 credits
+      // Save analysis (authentication required)
+      const analysisData = {
+        user_id: userId,
+        url: scrapeResult.url,
+        title: scrapeResult.title,
+        content: contentToAnalyze.substring(0, 50000), // Limit content size
+        word_count: analyzedWordCount, // Save the actual word count analyzed
+        credits_used: creditsNeeded,
           affiliate_opportunities: affiliateOpportunities.map((opp) => ({
             product: opp.product,
             category: opp.category,
@@ -518,24 +458,9 @@ export async function POST(req: NextRequest) {
           console.log(`[Analyze] Deducted ${creditsNeeded} credits from user ${userId}. New balance: ${newCredits}`);
           userCredits = newCredits; // Update for response
           creditsDeducted = true;
-        }
-      } else if (isAnonymous && isFreeTrial) {
-        // For anonymous users, record free trial usage in database (IP + fingerprint tracking)
-        if (abuseTracking) {
-          await recordFreeTrialUsage(
-            supabase,
-            abuseTracking.usageKey,
-            abuseTracking.ipHash,
-            abuseTracking.fingerprintHash
-          );
-          console.log(`[Analyze] Recorded free trial usage for anonymous user (IP: ${abuseTracking.clientIP.substring(0, 10)}..., has fingerprint: ${!!abuseTracking.fingerprintHash})`);
-        } else {
-          console.error('[Analyze] Warning: Anonymous user used free trial but abuseTracking is null');
-        }
-      }
     } catch (saveOrCreditError: any) {
       // If we deducted credits but then failed to save, refund the credits
-      if (creditsDeducted && !isAnonymous && userId) {
+      if (creditsDeducted && userId) {
         console.error('[Analyze] Error after credit deduction, refunding credits...');
         const { error: refundError } = await supabase
           .from('users')
@@ -561,10 +486,8 @@ export async function POST(req: NextRequest) {
       title: scrapeResult.title,
       wordCount: analyzedWordCount,
       totalWordCount: scrapeResult.wordCount, // Original word count
-      creditsUsed: isFreeTrial ? 0 : creditsNeeded,
-      remainingCredits: isAnonymous ? 0 : userCredits,
-      isFreeTrial,
-      isAnonymous,
+      creditsUsed: creditsNeeded,
+      remainingCredits: userCredits,
       chargeExtraForLongPages: chargeExtra,
       linkDetails: scrapeResult.linkDetails || [],
       seoAudit: auditResult ? {
@@ -605,21 +528,8 @@ export async function POST(req: NextRequest) {
       warnings: [
         ...(affiliateError ? [`Affiliate detection: ${affiliateError}`] : []),
         ...(productIdeasError ? [`Product ideas: ${productIdeasError}`] : []),
-        ...(isAnonymous ? ['This is a free trial analysis. Sign up to save your results and analyze more pages.'] : []),
-        ...(isFreeTrial && !isAnonymous ? ['You used your free trial! Purchase credits to analyze more pages.'] : []),
       ].filter(Boolean),
     });
-
-    // Set cookie for anonymous users who used free trial (for UX, but IP tracking is source of truth)
-    if (isAnonymous && isFreeTrial) {
-      response.cookies.set('free_trial_used', 'true', {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 60 * 60 * 24 * 365, // 1 year
-        path: '/',
-      });
-    }
 
     return response;
   } catch (error: any) {

@@ -32,6 +32,10 @@ export function BulkAnalysisProgress({ jobId, onComplete }: BulkAnalysisProgress
 
           if (data.status === 'completed' || data.status === 'failed') {
             clearInterval(pollInterval)
+            // Dispatch event to update credits in header when bulk analysis completes
+            if (data.status === 'completed') {
+              window.dispatchEvent(new CustomEvent('credits-updated'))
+            }
             onComplete?.()
           }
         }

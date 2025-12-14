@@ -88,8 +88,9 @@ function isUrlUnderSitePath(url: string, siteUrl: string): boolean {
  * Scan a site to discover all pages
  * Tries sitemap first, then RSS feed, then crawls homepage
  * Only includes URLs that are under the site URL path
+ * @param maxPages - Optional limit on the number of pages to return
  */
-export async function scanSite(siteUrl: string): Promise<SiteScanResult> {
+export async function scanSite(siteUrl: string, maxPages?: number): Promise<SiteScanResult> {
   // Normalize URL (ensure it has protocol)
   let normalizedUrl = siteUrl.trim();
   if (!normalizedUrl.startsWith('http://') && !normalizedUrl.startsWith('https://')) {
@@ -126,11 +127,13 @@ export async function scanSite(siteUrl: string): Promise<SiteScanResult> {
           }
         }
       }
-      console.log(`[Site Scanner] Found ${pages.length} pages via sitemap (filtered and deduplicated from ${sitemapUrls.length} total URLs)`);
+      // Apply maxPages limit if specified
+      const limitedPages = maxPages ? pages.slice(0, maxPages) : pages;
+      console.log(`[Site Scanner] Found ${limitedPages.length} pages via sitemap (filtered and deduplicated from ${sitemapUrls.length} total URLs${maxPages ? `, limited to ${maxPages}` : ''})`);
       return {
         siteUrl: normalizedUrl,
-        totalPages: pages.length,
-        pages,
+        totalPages: limitedPages.length,
+        pages: limitedPages,
         scannedAt: new Date(),
         method: 'sitemap',
       };
@@ -222,11 +225,13 @@ export async function scanSite(siteUrl: string): Promise<SiteScanResult> {
                 });
               }
             }
-            console.log(`[Site Scanner] Found ${pages.length} pages via RSS feed (filtered and deduplicated)`);
+            // Apply maxPages limit if specified
+            const limitedPages = maxPages ? pages.slice(0, maxPages) : pages;
+            console.log(`[Site Scanner] Found ${limitedPages.length} pages via RSS feed (filtered and deduplicated${maxPages ? `, limited to ${maxPages}` : ''})`);
             return {
               siteUrl: normalizedUrl,
-              totalPages: pages.length,
-              pages,
+              totalPages: limitedPages.length,
+              pages: limitedPages,
               scannedAt: new Date(),
               method: 'rss',
             };
@@ -263,11 +268,13 @@ export async function scanSite(siteUrl: string): Promise<SiteScanResult> {
       }
     }
 
-    console.log(`[Site Scanner] Found ${pages.length} pages via crawling (filtered and deduplicated)`);
+    // Apply maxPages limit if specified
+    const limitedPages = maxPages ? pages.slice(0, maxPages) : pages;
+    console.log(`[Site Scanner] Found ${limitedPages.length} pages via crawling (filtered and deduplicated${maxPages ? `, limited to ${maxPages}` : ''})`);
     return {
       siteUrl: normalizedUrl,
-      totalPages: pages.length,
-      pages,
+      totalPages: limitedPages.length,
+      pages: limitedPages,
       scannedAt: new Date(),
       method: 'crawl',
     };

@@ -1,6 +1,6 @@
 import { openai, isOpenAIConfigured } from '../openai';
 
-export type ProductType = 'checklist' | 'workbook' | 'ebook' | 'newsletter' | 'template';
+export type ProductType = 'checklist' | 'workbook' | 'ebook' | 'newsletter' | 'template' | 'video_series';
 
 export interface ProductIdea {
   name: string;
@@ -47,7 +47,7 @@ The product should provide something the blog post doesn't:
 
 For each product idea, provide:
 1. name: Creative, compelling product name (e.g., "Pottery Wheel Mastery Checklist", "Complete Web Design Starter Kit")
-2. type: One of: checklist, workbook, ebook, template, newsletter
+2. type: One of: checklist, workbook, ebook, template, newsletter, video_series
 3. description: 2-3 sentence description of what the product contains
 4. valueProposition: Clear explanation of why someone would buy this (what problem it solves, what it helps them achieve)
 5. suggestedPrice: Realistic price range (e.g., "$9-$19", "$29-$49", "$99+")
@@ -60,6 +60,7 @@ Product Types:
 - ebook: Comprehensive guide or resource (longer format)
 - template: Reusable templates, frameworks, or done-for-you resources
 - newsletter: Email newsletter series or subscription content
+- video_series: Video course or series with multiple episodes/lessons
 
 CRITERIA for TOP 5 selection (MUST rank ideas by this order):
 1. HIGHEST potential to actually sell (solve a real pain point) - MOST IMPORTANT
@@ -81,7 +82,7 @@ Return as JSON:
   "products": [
     {
       "name": "Product Name",
-      "type": "checklist|workbook|ebook|template|newsletter",
+      "type": "checklist|workbook|ebook|template|newsletter|video_series",
       "description": "What the product contains",
       "valueProposition": "Why people would buy it",
       "suggestedPrice": "$X-$Y",
@@ -174,7 +175,7 @@ ${content.substring(0, 10000)}`;
         }
 
         // Validate product type
-        const validTypes: ProductType[] = ['checklist', 'workbook', 'ebook', 'template', 'newsletter'];
+        const validTypes: ProductType[] = ['checklist', 'workbook', 'ebook', 'template', 'newsletter', 'video_series'];
         if (!validTypes.includes(p.type)) {
           console.warn(`[Product Ideas] Invalid product type "${p.type}", defaulting to template`);
           p.type = 'template';

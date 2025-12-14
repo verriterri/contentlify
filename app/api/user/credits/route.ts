@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import { getSupabaseUrl, getSupabaseAnonKey } from '@/lib/supabase';
 
 // Mark route as dynamic since it uses cookies
 export const dynamic = 'force-dynamic';
@@ -12,8 +13,8 @@ export const dynamic = 'force-dynamic';
 export async function GET(req: NextRequest) {
   try {
     const cookieStore = await cookies();
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+    const supabaseUrl = getSupabaseUrl();
+    const supabaseAnonKey = getSupabaseAnonKey();
 
     const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
       cookies: {
@@ -91,17 +92,17 @@ export async function GET(req: NextRequest) {
 
     if (userError || !userData) {
       // User exists in auth but not in public.users table
-      // This can happen if the trigger didn't run - create the user record with 1 free credit
-      console.warn(`[Get Credits] User ${user.id} not found in users table, creating record with 1 free credit`);
+      // This can happen if the trigger didn't run - create the user record with 3 free credits
+      console.warn(`[Get Credits] User ${user.id} not found in users table, creating record with 3 free credits`);
       
-      // Try to create the user record with 1 free credit
+      // Try to create the user record with 3 free credits
       const { error: insertError } = await supabase
         .from('users')
         .insert({
           id: user.id,
           email: user.email || '',
           email_verified: user.email_confirmed_at !== null,
-          credits: 1, // Grant 1 free credit
+          credits: 3, // Grant 3 free credits
         })
         .select()
         .single();
@@ -121,9 +122,9 @@ export async function GET(req: NextRequest) {
           });
         }
       } else {
-        // Successfully created user record with 1 free credit
+        // Successfully created user record with 3 free credits
         return NextResponse.json({
-          credits: 1,
+          credits: 3,
           freeTrialUsed: false,
         });
       }

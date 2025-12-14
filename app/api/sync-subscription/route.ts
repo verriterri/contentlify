@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
+import { getSupabaseUrl, getSupabaseAnonKey } from '@/lib/supabase'
 
 /**
  * POST /api/sync-subscription
@@ -12,8 +13,8 @@ export async function POST(req: NextRequest) {
   try {
     // Get authenticated user
     const cookieStore = await cookies()
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    const supabaseUrl = getSupabaseUrl()
+    const supabaseAnonKey = getSupabaseAnonKey()
 
     const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
       cookies: {

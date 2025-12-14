@@ -148,6 +148,7 @@ function getTemplatePreviewColor(template: Template, colorType: 'primary' | 'sec
     if (colorType === 'secondary') return colors.secondary || '#A78BFA';
     if (colorType === 'accent') return colors.accent || colors.primary || '#7C3AED';
   }
+  // Video series templates don't have colors, use default purple gradient
   return '#7C3AED';
 }
 
@@ -162,10 +163,20 @@ function getTemplatePreviewPattern(template: Template): string {
     if (layout.structure?.includes('compact')) return 'Compact';
   }
   
+  // Video series templates
+  if ('structure' in template) {
+    const structure = template.structure as any;
+    if (structure.episodeFormat) return 'Video Series';
+    if (structure.lessonStructure) return 'Course';
+  }
+  
   // Default based on name
   if (template.name.toLowerCase().includes('minimal')) return 'Minimal';
   if (template.name.toLowerCase().includes('creative')) return 'Creative';
   if (template.name.toLowerCase().includes('professional')) return 'Professional';
+  if (template.name.toLowerCase().includes('course')) return 'Course';
+  if (template.name.toLowerCase().includes('tutorial')) return 'Tutorial';
+  if (template.name.toLowerCase().includes('masterclass')) return 'Masterclass';
   
   return 'Preview';
 }
@@ -179,6 +190,12 @@ function getTemplateLayoutInfo(template: Template): string {
     if (layout.structure) return String(layout.structure).replace(/-/g, ' ');
     if (layout.contentFormat) return String(layout.contentFormat);
   }
+  // Video series templates
+  if ('structure' in template) {
+    const structure = template.structure as any;
+    if (structure.episodeFormat) return structure.episodeFormat;
+    if (structure.lessonStructure) return structure.lessonStructure;
+  }
   return 'Standard';
 }
 
@@ -191,6 +208,12 @@ function getTemplateTypographyInfo(template: Template): string {
     const fontFamily = typography.fontFamily || 'sans-serif';
     const fontSize = typography.bodyFontSize || typography.itemFontSize || '14px';
     return `${fontFamily} (${fontSize})`;
+  }
+  // Video series templates - show organization info instead
+  if ('organization' in template) {
+    const org = template.organization as any;
+    if (org.seriesLength) return org.seriesLength;
+    if (org.episodeLength) return org.episodeLength;
   }
   return 'Standard';
 }

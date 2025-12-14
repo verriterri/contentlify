@@ -3,7 +3,7 @@
 import type { AuditResult } from '@/lib/audit/types'
 
 export type AnalysisStatus = 'processing' | 'completed' | 'failed'
-export type ProductType = 'checklist' | 'workbook' | 'ebook' | 'newsletter'
+export type ProductType = 'checklist' | 'workbook' | 'ebook' | 'newsletter' | 'template' | 'video_series'
 export type SocialPlatform = 'facebook' | 'twitter' | 'instagram' | 'pinterest'
 
 export interface User {

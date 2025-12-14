@@ -6,11 +6,12 @@ import { Suspense } from 'react'
 import { CreditBalance } from '@/components/dashboard/CreditBalance'
 import { PurchaseSuccessHandler } from '@/components/dashboard/PurchaseSuccessHandler'
 import { RecentActivity } from '@/components/dashboard/RecentActivity'
+import { getSupabaseUrl, getSupabaseAnonKey } from '@/lib/supabase'
 
 export default async function DashboardPage() {
   const cookieStore = await cookies()
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  const supabaseUrl = getSupabaseUrl()
+  const supabaseAnonKey = getSupabaseAnonKey()
 
   const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
     cookies: {

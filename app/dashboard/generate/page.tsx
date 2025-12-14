@@ -36,6 +36,7 @@ export default function GeneratePage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadingAnalyses, setLoadingAnalyses] = useState(true);
+  const [userCredits, setUserCredits] = useState<number | null>(null);
 
   // Load analyses with product ideas
   useEffect(() => {
@@ -84,7 +85,7 @@ export default function GeneratePage() {
     loadAnalyses();
   }, [analysisIdParam, productIdParam, router]);
 
-  // Load user branding
+  // Load user branding and credits
   useEffect(() => {
     async function loadBranding() {
       const { data: { user } } = await supabase.auth.getUser();
@@ -95,14 +96,80 @@ export default function GeneratePage() {
           const name = authUser.email.split('@')[0];
           setBrandName(name.charAt(0).toUpperCase() + name.slice(1));
         }
+
+        // Load user credits
+        const { data: userData } = await supabase
+          .from('users')
+          .select('credits')
+          .eq('id', user.id)
+          .single();
+
+        if (userData) {
+          setUserCredits(userData.credits || 0);
+        }
       }
     }
     loadBranding();
   }, []);
 
+  // Listen for credit update events
+  useEffect(() => {
+    const handleCreditsUpdate = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: userData } = await supabase
+          .from('users')
+          .select('credits')
+          .eq('id', user.id)
+          .single();
+
+        if (userData) {
+          setUserCredits(userData.credits || 0);
+        }
+      }
+    };
+
+    window.addEventListener('credits-updated', handleCreditsUpdate);
+    return () => {
+      window.removeEventListener('credits-updated', handleCreditsUpdate);
+    };
+  }, []);
+
   const handleGenerate = async () => {
     if (!selectedAnalysis || !selectedProductIdea) {
       setError('Please select an analysis and product idea');
+      return;
+    }
+
+    // Check credits BEFORE doing anything else
+    const creditsNeeded = 1;
+    if (userCredits === null) {
+      // Credits not loaded yet, fetch them now
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: userData } = await supabase
+          .from('users')
+          .select('credits')
+          .eq('id', user.id)
+          .single();
+
+        if (userData) {
+          const currentCredits = userData.credits || 0;
+          setUserCredits(currentCredits);
+          if (currentCredits < creditsNeeded) {
+            setError(`Insufficient credits. You need ${creditsNeeded} credit(s) to generate an outline, but you only have ${currentCredits}. Please purchase more credits to continue.`);
+            return;
+          }
+        } else {
+          setError('Unable to verify your credit balance. Please try again.');
+          return;
+        }
+      } else {
+        setError('Please log in to generate an outline.');
+        return;
+      }
+    } else if (userCredits < creditsNeeded) {
+      setError(`Insufficient credits. You need ${creditsNeeded} credit(s) to generate an outline, but you only have ${userCredits}. Please purchase more credits to continue.`);
       return;
     }
 
@@ -152,6 +219,9 @@ export default function GeneratePage() {
       if (!response.ok) {
         throw new Error(data.error || 'Failed to generate outline');
       }
+
+      // Dispatch event to update credits in header
+      window.dispatchEvent(new CustomEvent('credits-updated'))
 
       setGeneratedContent(data.outline || data.product); // Support both for compatibility
       setGeneratedProductId(data.productId);
@@ -341,6 +411,32 @@ export default function GeneratePage() {
                 </p>
               </div>
 
+              {/* Credit Info */}
+              {userCredits !== null && (
+                <div className="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-600">Cost:</span>
+                    <span className="font-medium text-gray-900">1 credit</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm mt-1">
+                    <span className="text-gray-600">Your balance:</span>
+                    <span className={`font-medium ${userCredits < 1 ? 'text-red-600' : 'text-gray-900'}`}>
+                      {userCredits} credit{userCredits !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                  {userCredits < 1 && (
+                    <div className="mt-2 pt-2 border-t border-gray-200">
+                      <a
+                        href="/pricing"
+                        className="text-sm text-purple-600 hover:text-purple-700 font-medium"
+                      >
+                        Purchase credits to continue →
+                      </a>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Actions */}
               <div className="flex items-center justify-between pt-4 border-t border-gray-200">
                 <button
@@ -351,7 +447,8 @@ export default function GeneratePage() {
                 </button>
                 <button
                   onClick={handleGenerate}
-                  className="px-6 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 flex items-center space-x-2"
+                  disabled={userCredits !== null && userCredits < 1}
+                  className="px-6 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <svg
                     className="w-5 h-5"

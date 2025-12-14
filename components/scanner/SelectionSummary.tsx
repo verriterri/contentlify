@@ -14,7 +14,6 @@ interface SelectionSummaryProps {
   chargeExtraPreferences: Map<string, boolean>
   globalChargeExtra: boolean
   userCredits: number | null
-  freeTrialUsed: boolean
   onAnalyze: () => void
 }
 
@@ -24,7 +23,6 @@ export function SelectionSummary({
   chargeExtraPreferences,
   globalChargeExtra,
   userCredits,
-  freeTrialUsed,
   onAnalyze,
 }: SelectionSummaryProps) {
   if (selectedCount === 0) {
@@ -40,26 +38,8 @@ export function SelectionSummary({
   }, 0)
 
   const isAnonymous = userCredits === null
-  const isSinglePage = selectedCount === 1
-  // Free trial available for: anonymous users OR logged-in users with 0 credits, AND free trial not used yet
-  // For anonymous users: allow free trial if selecting 1 page and haven't used it yet
-  // For logged-in users with 0 credits: allow free trial if selecting 1 page and haven't used it yet
-  const canAnalyzeFree = isSinglePage && creditsNeeded === 1 && !freeTrialUsed && (isAnonymous || userCredits === 0)
-  const insufficientCredits = userCredits !== null && userCredits > 0 && userCredits < creditsNeeded
+  const insufficientCredits = userCredits !== null && userCredits < creditsNeeded
   const creditsShort = insufficientCredits ? creditsNeeded - userCredits! : 0
-  
-  // Debug logging (remove in production)
-  if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
-    console.log('[SelectionSummary] Debug:', {
-      isAnonymous,
-      isSinglePage,
-      creditsNeeded,
-      freeTrialUsed,
-      userCredits,
-      canAnalyzeFree,
-      insufficientCredits,
-    })
-  }
 
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-50">
@@ -70,18 +50,10 @@ export function SelectionSummary({
               <p className="text-sm text-gray-600">Pages Selected</p>
               <p className="text-2xl font-bold text-gray-900">{selectedCount}</p>
             </div>
-            {!canAnalyzeFree && (
-              <div>
-                <p className="text-sm text-gray-600">Credits Needed</p>
-                <p className="text-2xl font-bold text-gray-900">{creditsNeeded}</p>
-              </div>
-            )}
-            {canAnalyzeFree && (
-              <div>
-                <p className="text-sm text-green-600">Free Analysis</p>
-                <p className="text-2xl font-bold text-green-600">1 Page</p>
-              </div>
-            )}
+            <div>
+              <p className="text-sm text-gray-600">Credits Needed</p>
+              <p className="text-2xl font-bold text-gray-900">{creditsNeeded}</p>
+            </div>
             {userCredits !== null && (
               <div>
                 <p className="text-sm text-gray-600">Your Credits</p>
@@ -97,32 +69,13 @@ export function SelectionSummary({
           </div>
 
           <div className="flex items-center gap-4">
-            {canAnalyzeFree ? (
-              <button
-                onClick={onAnalyze}
-                className="px-6 py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-colors"
+            {isAnonymous ? (
+              <Link
+                href="/login?redirect=/pricing"
+                className="px-6 py-3 bg-primary text-white rounded-lg font-semibold hover:bg-primary-600 transition-colors"
               >
-                Analyze Free (No Signup)
-              </button>
-            ) : isAnonymous ? (
-              <div className="flex flex-col items-end gap-2">
-                {freeTrialUsed && isSinglePage && (
-                  <p className="text-sm text-gray-600">
-                    Free trial already used. Sign up to continue analyzing.
-                  </p>
-                )}
-                {!isSinglePage && (
-                  <p className="text-sm text-gray-600">
-                    Free trial is for 1 page only. Select 1 page or sign up to analyze multiple.
-                  </p>
-                )}
-                <Link
-                  href="/login?redirect=/pricing"
-                  className="px-6 py-3 bg-primary text-white rounded-lg font-semibold hover:bg-primary-600 transition-colors"
-                >
-                  Sign Up to Analyze {selectedCount > 1 ? `${selectedCount} Pages` : ''}
-                </Link>
-              </div>
+                Sign Up to Analyze {selectedCount > 1 ? `${selectedCount} Pages` : ''}
+              </Link>
             ) : insufficientCredits ? (
               <Link
                 href={`/pricing?needed=${creditsNeeded}&have=${userCredits}`}

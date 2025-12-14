@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
+import { getSupabaseUrl, getSupabaseAnonKey } from '@/lib/supabase'
 
 /**
  * GET /api/settings/preferences
@@ -9,8 +10,8 @@ import { cookies } from 'next/headers'
 export async function GET(req: NextRequest) {
   try {
     const cookieStore = await cookies()
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    const supabaseUrl = getSupabaseUrl()
+    const supabaseAnonKey = getSupabaseAnonKey()
 
     const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
       cookies: {
@@ -102,8 +103,8 @@ export async function GET(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   try {
     const cookieStore = await cookies()
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    const supabaseUrl = getSupabaseUrl()
+    const supabaseAnonKey = getSupabaseAnonKey()
 
     const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
       cookies: {

@@ -15,10 +15,10 @@ export default function Home() {
               Find the Money You're Leaving on the Table
             </h1>
             <p className="text-2xl text-gray-400 mb-12 max-w-2xl mx-auto leading-relaxed">
-              Scan your entire site for missed affiliate opportunities and digital product ideas in one click
+              Scan your site for SEO and AEO improvements, broken links, missed affiliate opportunities, and digital product ideas in one click
             </p>
             <div className="max-w-2xl mx-auto">
-              <SiteUrlInput />
+              <SiteUrlInput maxPages={50} showLimitNote={true} />
             </div>
           </div>
         </div>
@@ -28,7 +28,7 @@ export default function Home() {
       <section className="py-20 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {/* Blog Scanner Card */}
+            {/* Site Scanner Card */}
             <div className="bg-white rounded-2xl p-8 shadow-sm hover:shadow-lg transition-all border border-gray-100">
               <div className="mb-6">
                 <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
@@ -38,7 +38,79 @@ export default function Home() {
                 </div>
                 <h3 className="text-2xl font-bold text-gray-900 mb-2">Site Scanner</h3>
                 <p className="text-gray-600 leading-relaxed">
-                  Scan your entire site for free. See all pages with titles, URLs, and dates. Purchase credits to unlock word counts, affiliate links, and opportunity scores.
+                  Scan your entire site. See all pages with titles, URLs, word counts, and dates.
+                </p>
+              </div>
+              <Link
+                href="/dashboard/analyze"
+                className="inline-flex items-center text-primary font-semibold hover:text-primary-600 transition-colors"
+              >
+                Try Now
+                <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </Link>
+            </div>
+
+            {/* Page Selection Card */}
+            <div className="bg-white rounded-2xl p-8 shadow-sm hover:shadow-lg transition-all border border-gray-100">
+              <div className="mb-6">
+                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
+                  <svg className="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                  </svg>
+                </div>
+                <h3 className="text-2xl font-bold text-gray-900 mb-2">Page Selection</h3>
+                <p className="text-gray-600 leading-relaxed">
+                  Select specific pages to analyze further for SEO and AEO optimization, broken links, affiliate opportunities, and digital product ideas.
+                </p>
+              </div>
+              <Link
+                href="/dashboard/analyze"
+                className="inline-flex items-center text-primary font-semibold hover:text-primary-600 transition-colors"
+              >
+                Try Now
+                <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </Link>
+            </div>
+
+            {/* SEO/AEO Optimization Card */}
+            <div className="bg-white rounded-2xl p-8 shadow-sm hover:shadow-lg transition-all border border-gray-100">
+              <div className="mb-6">
+                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
+                  <svg className="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                </div>
+                <h3 className="text-2xl font-bold text-gray-900 mb-2">SEO & AEO Optimization</h3>
+                <p className="text-gray-600 leading-relaxed">
+                  Get comprehensive SEO and AEO audits with actionable recommendations to improve your content's search visibility and AI answer engine optimization.
+                </p>
+              </div>
+              <Link
+                href="/dashboard/analyze"
+                className="inline-flex items-center text-primary font-semibold hover:text-primary-600 transition-colors"
+              >
+                Try Now
+                <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </Link>
+            </div>
+
+            {/* Link Health Card */}
+            <div className="bg-white rounded-2xl p-8 shadow-sm hover:shadow-lg transition-all border border-gray-100">
+              <div className="mb-6">
+                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
+                  <svg className="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <h3 className="text-2xl font-bold text-gray-900 mb-2">Link Health</h3>
+                <p className="text-gray-600 leading-relaxed">
+                  Check the health of all links on your pages. Identify broken links, redirects, and timeouts to maintain a healthy site structure.
                 </p>
               </div>
               <Link
@@ -111,52 +183,59 @@ export default function Home() {
             <p className="text-xl text-gray-600">Get started in minutes</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            <div className="text-center">
+            <div className="text-center flex flex-col items-center">
               <div className="inline-flex items-center justify-center w-12 h-12 bg-primary text-white rounded-full text-xl font-bold mb-4">
                 1
               </div>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">Enter Site URL</h3>
               <p className="text-gray-600 text-sm">
-                We scan your entire site (free)
+                We scan your entire site
               </p>
             </div>
-            <div className="text-center">
+            <div className="text-center flex flex-col items-center">
               <div className="inline-flex items-center justify-center w-12 h-12 bg-primary text-white rounded-full text-xl font-bold mb-4">
                 2
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">See All Posts</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">See All Pages</h3>
               <p className="text-gray-600 text-sm">
-                Word count, existing affiliate links, published date
+                Word count and published date for each page
               </p>
             </div>
-            <div className="text-center">
+            <div className="text-center flex flex-col items-center">
               <div className="inline-flex items-center justify-center w-12 h-12 bg-primary text-white rounded-full text-xl font-bold mb-4">
                 3
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Select Posts</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Select Pages</h3>
               <p className="text-gray-600 text-sm">
-                Choose which ones to analyze (smart filters included)
+                Choose which ones to analyze further
               </p>
             </div>
-            <div className="lg:col-span-3 flex flex-col md:flex-row justify-center items-center gap-8 lg:gap-16">
-              <div className="text-center">
-                <div className="inline-flex items-center justify-center w-12 h-12 bg-primary text-white rounded-full text-xl font-bold mb-4">
-                  4
-                </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Get Opportunities</h3>
-                <p className="text-gray-600 text-sm">
-                  AI finds missed affiliate links and product ideas
-                </p>
+            <div className="text-center flex flex-col items-center">
+              <div className="inline-flex items-center justify-center w-12 h-12 bg-primary text-white rounded-full text-xl font-bold mb-4">
+                4
               </div>
-              <div className="text-center">
-                <div className="inline-flex items-center justify-center w-12 h-12 bg-primary text-white rounded-full text-xl font-bold mb-4">
-                  5
-                </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Generate Outlines</h3>
-                <p className="text-gray-600 text-sm">
-                  Create digital product outlines to guide development
-                </p>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Audit Page Content</h3>
+              <p className="text-gray-600 text-sm">
+                Find opportunities to improve SEO and AEO (AI Answer Engine Optimization) and find broken links.
+              </p>
+            </div>
+            <div className="text-center flex flex-col items-center">
+              <div className="inline-flex items-center justify-center w-12 h-12 bg-primary text-white rounded-full text-xl font-bold mb-4">
+                5
               </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Suggest Affiliate Links & Product Ideas</h3>
+              <p className="text-gray-600 text-sm">
+                Show products you mentioned in your content that you may not have monetized and suggest digital product ideas.
+              </p>
+            </div>
+            <div className="text-center flex flex-col items-center">
+              <div className="inline-flex items-center justify-center w-12 h-12 bg-primary text-white rounded-full text-xl font-bold mb-4">
+                6
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Generate & Export Product Outlines</h3>
+              <p className="text-gray-600 text-sm">
+              Create and export digital product outlines to .md or .docx to guide development
+              </p>
             </div>
           </div>
         </div>
@@ -167,7 +246,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-4">Simple pricing</h2>
-            <p className="text-xl text-gray-600">Pay per analysis. Credits never expire.</p>
+            <p className="text-xl text-gray-600">Ditch the monthly subscriptions. Pay per analysis. Credits never expire.</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
             <div className="bg-white rounded-2xl border-2 border-gray-200 p-8 text-center hover:border-primary transition-colors">
@@ -248,7 +327,23 @@ export default function Home() {
                 How does it work?
               </h3>
               <p className="text-gray-600 leading-relaxed">
-                Enter any page URL and our AI analyzes it for affiliate opportunities and digital product ideas. You can also scan your entire site from the dashboard to see all pages at once.
+                Enter any page URL and our AI analyzes it for SEO and AEO improvements, broken links, missed affiliate opportunities, and digital product ideas in one click. You can also scan your entire site from the dashboard to see all pages at once.
+              </p>
+            </div>
+            <div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                What is the pricing model?
+              </h3>
+              <p className="text-gray-600 leading-relaxed">
+                Hate recurring subscriptions? We do too. Pay as you go per analysis. Use them across multiple blogs, websites, or content, whenever you want.
+              </p>
+            </div>
+            <div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                Do you offer a free trial?
+              </h3>
+              <p className="text-gray-600 leading-relaxed">
+                Yes! New users get 3 free credits to try analysis.
               </p>
             </div>
             <div>
@@ -272,7 +367,7 @@ export default function Home() {
                 Can I scan my entire site?
               </h3>
               <p className="text-gray-600 leading-relaxed">
-                Yes! You can scan your entire site for free (no signup required). See all your pages with titles, URLs, and dates. Purchase credits to unlock word counts, affiliate links, and opportunity scores, then choose which ones to analyze.
+                Yes! You can scan your entire site. See all your pages with titles, URLs, word counts, and dates. If needed, purchase credits to analyze more pages and sites.
               </p>
             </div>
           </div>
@@ -295,7 +390,7 @@ export default function Home() {
             Get Started - Free
           </Link>
           <p className="text-sm text-gray-500 mt-4">
-            New users get 1 free credit to try analysis
+            New users get 3 free credits to try analysis
           </p>
         </div>
       </section>

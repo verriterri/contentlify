@@ -7,6 +7,7 @@ import { generateProductIdeas } from '@/lib/ai/product-ideas-generator';
 import { calculateCreditsForAnalysis, getAnalyzedWordCount } from '@/lib/utils/credit-calculator';
 import { chunkContent, combineAnalysisResults, sortProductIdeasBySellability } from '@/lib/utils/content-chunker';
 import { auditContent } from '@/lib/audit/content-auditor';
+import { getSupabaseUrl, getSupabaseAnonKey } from '@/lib/supabase';
 
 /**
  * POST /api/analyze/bulk
@@ -16,8 +17,8 @@ import { auditContent } from '@/lib/audit/content-auditor';
 export async function POST(req: NextRequest) {
   try {
     const cookieStore = await cookies();
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+    const supabaseUrl = getSupabaseUrl();
+    const supabaseAnonKey = getSupabaseAnonKey();
 
     const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
       cookies: {

@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clear Supabase Session</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-top: 0;
+        }
+        button {
+            background: #0070f3;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background: #0051cc;
+        }
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 6px;
+            display: none;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        ul {
+            line-height: 1.8;
+        }
+        code {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Clear Supabase Session & Cookies</h1>
+        <p>Use this tool to clear all Supabase-related cookies and session data from your browser. This is useful when switching to a new database.</p>
+        
+        <button onclick="clearAllCookies()">Clear All Supabase Cookies</button>
+        <button onclick="showCookies()">Show Current Cookies</button>
+        
+        <div id="status" class="status"></div>
+        
+        <div style="margin-top: 30px;">
+            <h2>Steps to Switch to New Database:</h2>
+            <ol>
+                <li><strong>Update your <code>.env.local</code> file</strong> with new database credentials:
+                    <ul>
+                        <li><code>NEXT_PUBLIC_SUPABASE_URL</code> - Your new project URL</li>
+                        <li><code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code> - Your new anon key</li>
+                        <li><code>SUPABASE_SERVICE_ROLE_KEY</code> - Your new service role key</li>
+                    </ul>
+                </li>
+                <li><strong>Click the button above</strong> to clear old cookies</li>
+                <li><strong>Restart your Next.js development server</strong> (stop with Ctrl+C, then run <code>npm run dev</code> again)</li>
+                <li><strong>Clear browser cache</strong> (optional but recommended: Cmd+Shift+R on Mac, Ctrl+Shift+R on Windows)</li>
+                <li><strong>Try logging in again</strong> with your new database credentials</li>
+            </ol>
+        </div>
+    </div>
+
+    <script>
+        function clearAllCookies() {
+            const cookiesToClear = [
+                'sb-access-token',
+                'sb-refresh-token',
+                'sb-provider-token',
+                'session_started_at',
+                'last_activity',
+                'session_id',
+                // Supabase SSR cookies
+                'sb-auth-token',
+                'sb-refresh-token',
+            ];
+            
+            let cleared = 0;
+            const domain = window.location.hostname;
+            const domains = [domain, '.' + domain, window.location.hostname.split('.').slice(-2).join('.')];
+            
+            // Clear cookies for current domain and parent domains
+            cookiesToClear.forEach(cookieName => {
+                domains.forEach(d => {
+                    // Clear with various path options
+                    ['/', '/dashboard', '/login'].forEach(path => {
+                        document.cookie = `${cookieName}=; path=${path}; expires=Thu, 01 Jan 1970 00:00:00 GMT; domain=${d}`;
+                        document.cookie = `${cookieName}=; path=${path}; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+                    });
+                });
+                cleared++;
+            });
+            
+            // Also clear localStorage and sessionStorage
+            try {
+                Object.keys(localStorage).forEach(key => {
+                    if (key.includes('supabase') || key.includes('sb-')) {
+                        localStorage.removeItem(key);
+                        cleared++;
+                    }
+                });
+                Object.keys(sessionStorage).forEach(key => {
+                    if (key.includes('supabase') || key.includes('sb-')) {
+                        sessionStorage.removeItem(key);
+                        cleared++;
+                    }
+                });
+            } catch (e) {
+                console.log('Error clearing storage:', e);
+            }
+            
+            showStatus(`Cleared ${cleared} cookies and storage items. Please restart your dev server and try logging in again.`, 'success');
+        }
+        
+        function showCookies() {
+            const allCookies = document.cookie.split(';').map(c => c.trim()).filter(c => c);
+            const supabaseCookies = allCookies.filter(c => 
+                c.includes('sb-') || 
+                c.includes('session') || 
+                c.includes('supabase')
+            );
+            
+            if (supabaseCookies.length === 0) {
+                showStatus('No Supabase-related cookies found.', 'info');
+            } else {
+                showStatus(`Found ${supabaseCookies.length} Supabase-related cookies:\n${supabaseCookies.join('\n')}`, 'info');
+            }
+        }
+        
+        function showStatus(message, type) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = message;
+            statusDiv.className = `status ${type}`;
+            statusDiv.style.display = 'block';
+            statusDiv.style.whiteSpace = 'pre-line';
+        }
+    </script>
+</body>
+</html>

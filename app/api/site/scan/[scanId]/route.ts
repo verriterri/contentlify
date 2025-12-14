@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import { getSupabaseUrl, getSupabaseAnonKey } from '@/lib/supabase';
+import { getPageMetadata } from '@/lib/scrapers/site-scanner';
 
 /**
  * GET /api/site/scan/[scanId]
@@ -22,8 +24,8 @@ export async function GET(
     }
 
     const cookieStore = await cookies();
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+    const supabaseUrl = getSupabaseUrl();
+    const supabaseAnonKey = getSupabaseAnonKey();
 
     const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
       cookies: {
@@ -61,7 +63,7 @@ export async function GET(
       );
     }
 
-    // Get authenticated user to fetch analysis data
+    // Get authenticated user to fetch analysis data and check credits
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -99,6 +101,38 @@ export async function GET(
       }
     }
 
+    // Always fetch word counts if they're missing (undefined/null)
+    // Word counts should always be available regardless of credits
+    const pagesNeedingWordCount = pages.filter((p: any) => p.wordCount === undefined || p.wordCount === null);
+    
+    if (pagesNeedingWordCount.length > 0 && pagesNeedingWordCount.length <= 100) {
+      // Fetch word counts for up to 100 pages to avoid performance issues
+      // Process in small batches to avoid overwhelming the server
+      const batchSize = 10;
+      for (let i = 0; i < Math.min(pagesNeedingWordCount.length, 100); i += batchSize) {
+        const batch = pagesNeedingWordCount.slice(i, i + batchSize);
+        await Promise.allSettled(
+          batch.map(async (page: any) => {
+            try {
+              const metadata = await getPageMetadata(page.url, true);
+              // Update the page in the pages array
+              const pageIndex = pages.findIndex((p: any) => p.url === page.url);
+              if (pageIndex !== -1) {
+                pages[pageIndex].wordCount = metadata.wordCount;
+              }
+            } catch (error) {
+              console.error(`[Get Scan] Error fetching word count for ${page.url}:`, error);
+              // Set to 0 if fetch fails
+              const pageIndex = pages.findIndex((p: any) => p.url === page.url);
+              if (pageIndex !== -1) {
+                pages[pageIndex].wordCount = 0;
+              }
+            }
+          })
+        );
+      }
+    }
+
     // Add analysis info to each page
     const pagesWithAnalysis = pages.map((page: any) => {
       const analysis = analysisMap.get(page.url);
@@ -106,6 +140,8 @@ export async function GET(
         ...page,
         lastAnalyzedAt: analysis?.created_at || null,
         analysisId: analysis?.id || null,
+        // Ensure wordCount is always a number (default to 0 if missing)
+        wordCount: page.wordCount ?? 0,
       };
     });
 

@@ -9,7 +9,7 @@
   - `analysis_jobs`
   - Updated `users` table with `credits` column
 - [ ] Verify RLS policies are in place
-- [ ] Test that new user signup grants 1 free credit
+- [ ] Test that new user signup grants 3 free credits
 
 ### 2. Environment Variables
 - [ ] Verify `NEXT_PUBLIC_SUPABASE_URL` is set

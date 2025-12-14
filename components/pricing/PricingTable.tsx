@@ -60,7 +60,7 @@ export function PricingTable() {
             <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
           </svg>
           <span className="text-green-800 font-medium">
-            First Purchase Bonus: Get 2x credits on your first buy!
+            First Purchase Bonus: Get 20% more credits on your first buy!
           </span>
         </div>
       </div>
@@ -111,7 +111,7 @@ export function PricingTable() {
                 </p>
                 <div className="mt-3 p-2 bg-green-50 rounded-lg">
                   <p className="text-xs text-green-800 font-medium">
-                    First purchase: Get {pkg.credits * 2} analyses!
+                    First purchase: Get {Math.floor(pkg.credits * 1.2)} analyses!
                   </p>
                 </div>
               </div>

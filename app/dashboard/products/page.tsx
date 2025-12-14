@@ -8,7 +8,7 @@ import { GeneratedProductContent } from '@/lib/ai/product-generator';
 
 type ViewMode = 'grid' | 'list';
 type SortOption = 'date_desc' | 'date_asc' | 'name_asc' | 'name_desc';
-type ProductTypeFilter = 'all' | 'checklist' | 'workbook' | 'ebook' | 'newsletter' | 'template';
+type ProductTypeFilter = 'all' | 'checklist' | 'workbook' | 'ebook' | 'newsletter' | 'template' | 'video_series';
 
 export default function ProductsPage() {
   const router = useRouter();
