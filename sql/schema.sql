@@ -732,41 +732,63 @@ CREATE POLICY "Users can delete own GSC analysis results"
 -- STEP 8: COMMENTS (Documentation)
 -- ============================================================================
 
-COMMENT ON TABLE public.users IS 'User profiles with credit balance';
-COMMENT ON TABLE public.credit_purchases IS 'Credit purchase transactions';
-COMMENT ON TABLE public.content_analyses IS 'Page analyses with affiliate opportunities and product ideas';
-COMMENT ON TABLE public.generated_products IS 'Generated product outlines (not full content)';
-COMMENT ON TABLE public.social_posts IS 'Generated social media posts for products';
-COMMENT ON TABLE public.user_settings IS 'User preferences and affiliate IDs';
+-- Active GSC Product Tables
+COMMENT ON TABLE public.gsc_payments IS 'GSC diagnostic report payments ($4.99 one-time, one report per payment)';
+COMMENT ON TABLE public.gsc_connections IS 'Google Search Console OAuth connections and tokens';
+COMMENT ON TABLE public.gsc_analysis_results IS 'Cached GSC analysis data linked to payments';
 
-COMMENT ON COLUMN public.users.credits IS 'Current credit balance (never expires)';
-COMMENT ON COLUMN public.content_analyses.page_count IS 'Calculated as ceil(word_count / 500) - for reference only';
-COMMENT ON COLUMN public.content_analyses.credits_used IS 'Credits deducted for this analysis (1 credit for up to 5,000 words, +1 credit per additional 5,000 words)';
-COMMENT ON COLUMN public.generated_products.content IS 'Stores outline structure as JSON, not full product content';
-COMMENT ON COLUMN public.generated_products.credits_used IS 'Credits deducted for outline generation (1 credit per outline)';
+-- Legacy Tables (HIDDEN IN UI - Backend preserved for potential future use)
+COMMENT ON TABLE public.users IS 'User profiles with credit balance (LEGACY: credits hidden in GSC-only product)';
+COMMENT ON TABLE public.credit_purchases IS 'Credit purchase transactions (LEGACY - Hidden in UI)';
+COMMENT ON TABLE public.content_analyses IS 'Page analyses with affiliate opportunities and product ideas (LEGACY - Hidden in UI)';
+COMMENT ON TABLE public.generated_products IS 'Generated product outlines (LEGACY - Hidden in UI)';
+COMMENT ON TABLE public.social_posts IS 'Generated social media posts for products (LEGACY - Hidden in UI)';
+COMMENT ON TABLE public.user_settings IS 'User preferences and affiliate IDs (LEGACY - Hidden in UI)';
+
+-- Legacy Column Comments
+COMMENT ON COLUMN public.users.credits IS 'Current credit balance (LEGACY - Hidden in GSC-only product, backend preserved)';
+COMMENT ON COLUMN public.content_analyses.page_count IS 'Calculated as ceil(word_count / 500) (LEGACY - Hidden in UI)';
+COMMENT ON COLUMN public.content_analyses.credits_used IS 'Credits deducted for this analysis (LEGACY - Hidden in UI)';
+COMMENT ON COLUMN public.generated_products.content IS 'Stores outline structure as JSON (LEGACY - Hidden in UI)';
+COMMENT ON COLUMN public.generated_products.credits_used IS 'Credits deducted for outline generation (LEGACY - Hidden in UI)';
+
+-- GSC Column Comments
+COMMENT ON COLUMN public.gsc_payments.email IS 'Email for anonymous purchases (before user account exists)';
+COMMENT ON COLUMN public.gsc_payments.report_generated IS 'One-time access flag - true after report is generated';
+COMMENT ON COLUMN public.gsc_payments.report_generated_at IS 'Timestamp when report was generated';
+COMMENT ON COLUMN public.gsc_analysis_results.payment_id IS 'Links each report to the payment that enabled it';
 
 -- ============================================================================
 -- DONE! Schema is ready.
 -- ============================================================================
 
 -- ============================================================================
--- POST-SETUP: CLEANUP STORAGE BUCKETS
+-- POST-SETUP: CLEANUP STORAGE BUCKETS (LEGACY)
 -- ============================================================================
--- After running this script, you should also clean up storage buckets:
+-- NOTE: Storage buckets were used for the old product generation feature
+-- These are no longer used in the GSC-only product but preserved for potential future use
 --
+-- If needed, clean up storage buckets:
 -- 1. Go to Supabase Dashboard > Storage
 -- 2. Delete all files in the 'products' bucket (if it exists)
--- 3. Or run this in SQL Editor to delete all files:
---    DELETE FROM storage.objects WHERE bucket_id = 'products';
+-- 3. Or run this in SQL Editor: DELETE FROM storage.objects WHERE bucket_id = 'products';
 --
 -- ============================================================================
--- VERIFICATION & TESTING
+-- VERIFICATION & TESTING (GSC-ONLY PRODUCT)
 -- ============================================================================
--- After running this script:
+-- After running this script, test the GSC product flow:
 -- 1. Verify all tables, indexes, and policies are created
--- 2. Test with a new user signup (should create user in public.users)
--- 3. Verify user gets 3 free credits on signup
--- 4. Test credit purchase flow
--- 5. Test analysis and outline generation
--- 6. Test site scanning
--- 7. Verify anonymous usage tracking works
+-- 2. Test anonymous purchase flow:
+--    - Buy $4.99 report without signup
+--    - Verify gsc_payments record created with email
+--    - Verify user account auto-created via webhook
+--    - Check magic link email sent
+-- 3. Test GSC connection:
+--    - OAuth flow to Google
+--    - Token storage and refresh
+-- 4. Test one-time report generation:
+--    - Generate report (should mark payment as used)
+--    - Verify cannot generate again with same payment
+--    - Purchase another report to generate again
+-- 5. Verify legacy features are hidden in UI but backend works
+-- 6. Test purchase history in settings page
