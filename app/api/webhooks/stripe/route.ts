@@ -48,6 +48,44 @@ export async function POST(req: NextRequest) {
           metadata: session.metadata,
         })
         
+        // Handle GSC analysis payment (one-time $9.99)
+        if (session.mode === 'payment' && session.metadata?.payment_type === 'gsc_analysis') {
+          const paymentId = session.metadata.payment_id
+          const userId = session.metadata.supabase_user_id
+
+          console.log('[Webhook] Processing GSC analysis payment:', {
+            paymentId,
+            userId,
+          })
+
+          if (!userId || !paymentId) {
+            console.error('[Webhook] Missing user ID or payment ID in metadata', {
+              userId,
+              paymentId,
+              metadata: session.metadata,
+            })
+            break
+          }
+
+          // Update payment status
+          const { error: paymentError } = await supabase
+            .from('gsc_payments')
+            .update({
+              status: 'completed',
+              stripe_payment_intent_id: session.payment_intent as string,
+              completed_at: new Date().toISOString(),
+            })
+            .eq('id', paymentId)
+
+          if (paymentError) {
+            console.error('[Webhook] Error updating GSC payment:', paymentError)
+          } else {
+            console.log(`[Webhook] GSC analysis payment completed for user ${userId}`)
+          }
+
+          break
+        }
+
         // Handle credit purchases (one-time payments)
         if (session.mode === 'payment' && session.metadata?.purchase_id) {
           const purchaseId = session.metadata.purchase_id
@@ -103,9 +141,9 @@ export async function POST(req: NextRequest) {
           // Update user credits and mark first purchase as completed
           const { error: creditError } = await supabase
             .from('users')
-            .update({ 
+            .update({
               credits: newCredits,
-              has_made_first_purchase: true 
+              has_made_first_purchase: true
             })
             .eq('id', userId)
 

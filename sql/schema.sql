@@ -60,7 +60,11 @@ DROP TABLE IF EXISTS public.analysis_jobs CASCADE;
 DROP TABLE IF EXISTS public.site_scans CASCADE;
 DROP TABLE IF EXISTS public.credit_purchases CASCADE;
 DROP TABLE IF EXISTS public.user_settings CASCADE;
+DROP TABLE IF EXISTS public.signup_attempts CASCADE;
 DROP TABLE IF EXISTS public.anonymous_usage CASCADE;
+DROP TABLE IF EXISTS public.gsc_analysis_results CASCADE;
+DROP TABLE IF EXISTS public.gsc_connections CASCADE;
+DROP TABLE IF EXISTS public.gsc_payments CASCADE;
 DROP TABLE IF EXISTS public.users CASCADE;
 
 -- ============================================================================
@@ -194,6 +198,60 @@ CREATE TABLE public.anonymous_usage (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
 
+-- 10. Signup attempts tracking table (for abuse prevention)
+CREATE TABLE public.signup_attempts (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  email TEXT NOT NULL,
+  usage_key TEXT NOT NULL, -- SHA256 hash of (IP + fingerprint) - primary tracking
+  ip_hash TEXT NOT NULL, -- SHA256 hash of IP address - secondary check
+  fingerprint_hash TEXT, -- SHA256 hash of browser fingerprint - secondary check
+  email_verified BOOLEAN NOT NULL DEFAULT FALSE,
+  credits_granted BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
+);
+
+-- 11. GSC Payments table (one-time payment to unlock GSC analysis)
+CREATE TABLE public.gsc_payments (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  stripe_session_id TEXT UNIQUE,
+  stripe_payment_intent_id TEXT,
+  amount DECIMAL(10,2) NOT NULL DEFAULT 9.99,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'completed', 'failed', 'refunded')),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
+  completed_at TIMESTAMP WITH TIME ZONE
+);
+
+-- 12. GSC Connections table (store OAuth tokens for Google Search Console)
+CREATE TABLE public.gsc_connections (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  google_account_email TEXT NOT NULL,
+  access_token TEXT NOT NULL,
+  refresh_token TEXT NOT NULL,
+  token_expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+  scopes TEXT[] NOT NULL, -- array of granted OAuth scopes
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
+  UNIQUE(user_id) -- one connection per user for MVP
+);
+
+-- 13. GSC Analysis Results table (cached GSC data)
+CREATE TABLE public.gsc_analysis_results (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  connection_id UUID NOT NULL REFERENCES public.gsc_connections(id) ON DELETE CASCADE,
+  site_url TEXT NOT NULL, -- GSC property URL
+  data_period_start DATE NOT NULL,
+  data_period_end DATE NOT NULL,
+  queries_data JSONB NOT NULL, -- top 100 queries with clicks, impressions, CTR, position
+  pages_data JSONB NOT NULL, -- top pages by clicks
+  summary_stats JSONB NOT NULL, -- total clicks, impressions, avg CTR, avg position
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
+);
+
 -- ============================================================================
 -- STEP 4: CREATE INDEXES
 -- ============================================================================
@@ -243,6 +301,30 @@ CREATE INDEX IF NOT EXISTS idx_anonymous_usage_fingerprint_hash ON public.anonym
 CREATE INDEX IF NOT EXISTS idx_anonymous_usage_scan_count ON public.anonymous_usage(scan_count);
 CREATE INDEX IF NOT EXISTS idx_anonymous_usage_last_analysis ON public.anonymous_usage(last_analysis_at);
 
+-- Signup attempts indexes
+CREATE INDEX IF NOT EXISTS idx_signup_attempts_usage_key ON public.signup_attempts(usage_key);
+CREATE INDEX IF NOT EXISTS idx_signup_attempts_ip_hash ON public.signup_attempts(ip_hash);
+CREATE INDEX IF NOT EXISTS idx_signup_attempts_fingerprint_hash ON public.signup_attempts(fingerprint_hash);
+CREATE INDEX IF NOT EXISTS idx_signup_attempts_email ON public.signup_attempts(email);
+CREATE INDEX IF NOT EXISTS idx_signup_attempts_user_id ON public.signup_attempts(user_id);
+CREATE INDEX IF NOT EXISTS idx_signup_attempts_created_at ON public.signup_attempts(created_at DESC);
+
+-- GSC Payments indexes
+CREATE INDEX IF NOT EXISTS idx_gsc_payments_user_id ON public.gsc_payments(user_id);
+CREATE INDEX IF NOT EXISTS idx_gsc_payments_stripe_session_id ON public.gsc_payments(stripe_session_id);
+CREATE INDEX IF NOT EXISTS idx_gsc_payments_status ON public.gsc_payments(status);
+CREATE INDEX IF NOT EXISTS idx_gsc_payments_created_at ON public.gsc_payments(created_at DESC);
+
+-- GSC Connections indexes
+CREATE INDEX IF NOT EXISTS idx_gsc_connections_user_id ON public.gsc_connections(user_id);
+CREATE INDEX IF NOT EXISTS idx_gsc_connections_token_expires_at ON public.gsc_connections(token_expires_at);
+
+-- GSC Analysis Results indexes
+CREATE INDEX IF NOT EXISTS idx_gsc_analysis_results_user_id ON public.gsc_analysis_results(user_id);
+CREATE INDEX IF NOT EXISTS idx_gsc_analysis_results_connection_id ON public.gsc_analysis_results(connection_id);
+CREATE INDEX IF NOT EXISTS idx_gsc_analysis_results_site_url ON public.gsc_analysis_results(site_url);
+CREATE INDEX IF NOT EXISTS idx_gsc_analysis_results_created_at ON public.gsc_analysis_results(created_at DESC);
+
 -- ============================================================================
 -- STEP 5: CREATE FUNCTIONS
 -- ============================================================================
@@ -257,7 +339,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Function to automatically create user profile on signup
--- Grants 3 free credits to new users (can analyze 3 posts)
+-- Creates user record with 0 credits initially (credits granted after email verification)
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -266,24 +348,44 @@ BEGIN
     NEW.id, 
     NEW.email, 
     COALESCE(NEW.email_confirmed_at IS NOT NULL, false),
-    3  -- 3 free credits for new signups to analyze 3 posts
+    0  -- No credits until email is verified
   )
   ON CONFLICT (id) DO UPDATE
   SET email_verified = COALESCE(NEW.email_confirmed_at IS NOT NULL, false),
       email = NEW.email;
+  
+  -- If email is already confirmed, grant credits immediately
+  IF NEW.email_confirmed_at IS NOT NULL THEN
+    UPDATE public.users
+    SET credits = 3
+    WHERE id = NEW.id AND credits = 0;
+  END IF;
+  
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Function to update verification status when email is confirmed
+-- Function to update verification status and grant credits when email is confirmed
 CREATE OR REPLACE FUNCTION public.handle_email_confirmed()
 RETURNS TRIGGER AS $$
 BEGIN
   -- Only update if email_confirmed_at changed from NULL to NOT NULL
   IF OLD.email_confirmed_at IS NULL AND NEW.email_confirmed_at IS NOT NULL THEN
     UPDATE public.users
-    SET email_verified = true
+    SET 
+      email_verified = true,
+      credits = CASE 
+        WHEN credits = 0 THEN 3  -- Grant 3 free credits if user has 0 credits (new signup)
+        ELSE credits  -- Don't change credits if user already has some
+      END
     WHERE id = NEW.id;
+    
+    -- Update signup_attempts to mark email as verified and credits as granted
+    UPDATE public.signup_attempts
+    SET 
+      email_verified = true,
+      credits_granted = true
+    WHERE user_id = NEW.id AND email_verified = false;
   END IF;
   RETURN NEW;
 END;
@@ -313,7 +415,10 @@ BEGIN
     p_user_id,
     p_email,
     p_email_verified,
-    3  -- Grant 3 free credits as per signup policy
+    CASE 
+      WHEN p_email_verified THEN 3  -- Grant 3 free credits if email is already verified
+      ELSE 0  -- No credits until email is verified
+    END
   )
   ON CONFLICT (id) DO NOTHING;
   
@@ -372,6 +477,18 @@ CREATE TRIGGER update_anonymous_usage_updated_at
   FOR EACH ROW
   EXECUTE FUNCTION public.update_updated_at_column();
 
+-- Trigger to auto-update updated_at on signup_attempts table
+CREATE TRIGGER update_signup_attempts_updated_at
+  BEFORE UPDATE ON public.signup_attempts
+  FOR EACH ROW
+  EXECUTE FUNCTION public.update_updated_at_column();
+
+-- Trigger to auto-update updated_at on gsc_connections table
+CREATE TRIGGER update_gsc_connections_updated_at
+  BEFORE UPDATE ON public.gsc_connections
+  FOR EACH ROW
+  EXECUTE FUNCTION public.update_updated_at_column();
+
 -- Trigger to create user profile when auth user is created
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
@@ -398,6 +515,10 @@ ALTER TABLE public.site_scans ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.analysis_jobs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.anonymous_usage ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.signup_attempts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.gsc_payments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.gsc_connections ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.gsc_analysis_results ENABLE ROW LEVEL SECURITY;
 
 -- Users table policies
 CREATE POLICY "Users can view own profile"
@@ -552,7 +673,53 @@ CREATE POLICY "Users can update own settings"
 CREATE POLICY "Server-side API access" ON public.anonymous_usage
   FOR ALL
   USING (true); -- Allow all operations via server-side API routes
+
+-- Signup attempts policies
+-- Policy: Allow server-side API access (anon key used in API routes)
+-- This prevents direct client access while allowing server-side operations
+CREATE POLICY "Server-side API access" ON public.signup_attempts
+  FOR ALL
+  USING (true); -- Allow all operations via server-side API routes
   -- Note: This table should only be accessed via server-side API routes, not directly from client
+
+-- GSC Payments policies
+CREATE POLICY "Users can view own GSC payments"
+  ON public.gsc_payments FOR SELECT
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert own GSC payments"
+  ON public.gsc_payments FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+-- GSC Connections policies
+CREATE POLICY "Users can view own GSC connections"
+  ON public.gsc_connections FOR SELECT
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert own GSC connections"
+  ON public.gsc_connections FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own GSC connections"
+  ON public.gsc_connections FOR UPDATE
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete own GSC connections"
+  ON public.gsc_connections FOR DELETE
+  USING (auth.uid() = user_id);
+
+-- GSC Analysis Results policies
+CREATE POLICY "Users can view own GSC analysis results"
+  ON public.gsc_analysis_results FOR SELECT
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert own GSC analysis results"
+  ON public.gsc_analysis_results FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete own GSC analysis results"
+  ON public.gsc_analysis_results FOR DELETE
+  USING (auth.uid() = user_id);
 
 -- ============================================================================
 -- STEP 8: COMMENTS (Documentation)

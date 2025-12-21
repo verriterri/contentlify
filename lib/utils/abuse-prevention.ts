@@ -221,3 +221,147 @@ export async function incrementBlockedAttempts(
   }
 }
 
+/**
+ * Check if signup is allowed based on device/IP rate limits
+ * Uses same multi-layer approach as hasUsedFreeTrial
+ * Limits:
+ * - Max 1 account per device (fingerprint) per 24 hours
+ * - Max 3 accounts per IP address per 24 hours
+ * - Max 5 accounts per IP address per 7 days
+ */
+export async function checkSignupAllowed(
+  supabase: any,
+  usageKey: string,
+  ipHash: string,
+  fingerprintHash?: string
+): Promise<{ allowed: boolean; reason?: string }> {
+  try {
+    const now = new Date();
+    const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+    // Primary check: combined usage key (IP + fingerprint) - 1 per 24h
+    const { data: primaryCheck } = await supabase
+      .from('signup_attempts')
+      .select('created_at')
+      .eq('usage_key', usageKey)
+      .gte('created_at', oneDayAgo.toISOString())
+      .limit(1);
+    
+    if (primaryCheck && primaryCheck.length > 0) {
+      return {
+        allowed: false,
+        reason: 'You have already created an account from this device in the last 24 hours. Please wait before creating another account.'
+      };
+    }
+
+    // Secondary check: fingerprint-only - 1 per 24h (catches device changes with same fingerprint)
+    if (fingerprintHash) {
+      const { data: fingerprintCheck } = await supabase
+        .from('signup_attempts')
+        .select('created_at')
+        .eq('fingerprint_hash', fingerprintHash)
+        .gte('created_at', oneDayAgo.toISOString())
+        .limit(1);
+      
+      if (fingerprintCheck && fingerprintCheck.length > 0) {
+        return {
+          allowed: false,
+          reason: 'You have already created an account from this device in the last 24 hours. Please wait before creating another account.'
+        };
+      }
+    }
+
+    // Tertiary check: IP-only - 3 per 24h, 5 per 7 days
+    const { data: ipCheck24h } = await supabase
+      .from('signup_attempts')
+      .select('id')
+      .eq('ip_hash', ipHash)
+      .gte('created_at', oneDayAgo.toISOString());
+    
+    if (ipCheck24h && ipCheck24h.length >= 3) {
+      return {
+        allowed: false,
+        reason: 'Too many accounts have been created from this IP address in the last 24 hours. Please try again later.'
+      };
+    }
+
+    const { data: ipCheck7d } = await supabase
+      .from('signup_attempts')
+      .select('id')
+      .eq('ip_hash', ipHash)
+      .gte('created_at', sevenDaysAgo.toISOString());
+    
+    if (ipCheck7d && ipCheck7d.length >= 5) {
+      return {
+        allowed: false,
+        reason: 'Too many accounts have been created from this IP address in the last 7 days. Please try again later.'
+      };
+    }
+
+    return { allowed: true };
+  } catch (error) {
+    console.error('[Abuse Prevention] Exception checking signup allowed:', error);
+    // On exception, be conservative - allow signup but log the error
+    return { allowed: true };
+  }
+}
+
+/**
+ * Record a signup attempt with device/IP tracking
+ * Uses same pattern as recordFreeTrialUsage
+ */
+export async function recordSignupAttempt(
+  supabase: any,
+  userId: string,
+  email: string,
+  usageKey: string,
+  ipHash: string,
+  fingerprintHash?: string | null
+): Promise<void> {
+  try {
+    const { error: insertError } = await supabase
+      .from('signup_attempts')
+      .insert({
+        user_id: userId,
+        email: email,
+        usage_key: usageKey,
+        ip_hash: ipHash,
+        fingerprint_hash: fingerprintHash || null,
+        email_verified: false,
+        credits_granted: false,
+      });
+    
+    if (insertError) {
+      console.error('[Abuse Prevention] Error recording signup attempt:', insertError);
+    }
+  } catch (error) {
+    console.error('[Abuse Prevention] Exception recording signup attempt:', error);
+  }
+}
+
+/**
+ * Update signup attempt when email is verified and credits are granted
+ */
+export async function updateSignupAttemptOnVerification(
+  supabase: any,
+  userId: string
+): Promise<void> {
+  try {
+    const { error: updateError } = await supabase
+      .from('signup_attempts')
+      .update({
+        email_verified: true,
+        credits_granted: true,
+      })
+      .eq('user_id', userId)
+      .eq('email_verified', false);
+    
+    if (updateError) {
+      console.error('[Abuse Prevention] Error updating signup attempt on verification:', updateError);
+    }
+  } catch (error) {
+    console.error('[Abuse Prevention] Exception updating signup attempt on verification:', error);
+  }
+}
+

@@ -92,17 +92,19 @@ export async function GET(req: NextRequest) {
 
     if (userError || !userData) {
       // User exists in auth but not in public.users table
-      // This can happen if the trigger didn't run - create the user record with 3 free credits
-      console.warn(`[Get Credits] User ${user.id} not found in users table, creating record with 3 free credits`);
+      // This can happen if the trigger didn't run - create the user record
+      const emailVerified = user.email_confirmed_at !== null;
+      const initialCredits = emailVerified ? 3 : 0; // Only grant credits if email is verified
+      console.warn(`[Get Credits] User ${user.id} not found in users table, creating record with ${initialCredits} credits`);
       
-      // Try to create the user record with 3 free credits
+      // Try to create the user record
       const { error: insertError } = await supabase
         .from('users')
         .insert({
           id: user.id,
           email: user.email || '',
-          email_verified: user.email_confirmed_at !== null,
-          credits: 3, // Grant 3 free credits
+          email_verified: emailVerified,
+          credits: initialCredits,
         })
         .select()
         .single();
@@ -122,9 +124,9 @@ export async function GET(req: NextRequest) {
           });
         }
       } else {
-        // Successfully created user record with 3 free credits
+        // Successfully created user record
         return NextResponse.json({
-          credits: 3,
+          credits: initialCredits,
           freeTrialUsed: false,
         });
       }

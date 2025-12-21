@@ -168,38 +168,18 @@ export async function POST(req: NextRequest) {
     // Determine how many words will actually be analyzed
     const analyzedWordCount = getAnalyzedWordCount(scrapeResult.wordCount, chargeExtra);
     
-    // Check free trial eligibility
-    // Free trial available if: not used yet, analyzing 1 page, and (anonymous OR logged-in with 0 credits)
-    const canUseFreeTrial = !freeTrialUsed && creditsNeeded === 1 && (isAnonymous || userCredits === 0);
-    const isFreeTrial = canUseFreeTrial;
-    
-    // Check if user has enough credits (or is using free trial)
-    if (!isFreeTrial && userCredits < creditsNeeded) {
-      if (isAnonymous) {
-        return NextResponse.json(
-          {
-            error: `Free trial already used. Please sign up to purchase credits and continue analyzing.`,
-            creditsNeeded,
-            userCredits: 0,
-            wordCount: scrapeResult.wordCount,
-            freeTrialUsed: true,
-            requiresSignup: true,
-            insufficientCredits: true,
-          },
-          { status: 403 }
-        );
-      } else {
-        return NextResponse.json(
-          {
-            error: `Insufficient credits. This analysis requires ${creditsNeeded} credit${creditsNeeded > 1 ? 's' : ''}, but you only have ${userCredits} credit${userCredits !== 1 ? 's' : ''}.`,
-            creditsNeeded,
-            userCredits,
-            wordCount: scrapeResult.wordCount,
-            insufficientCredits: true,
-          },
-          { status: 403 }
-        );
-      }
+    // Check if user has enough credits (authentication required - no free trials)
+    if (userCredits < creditsNeeded) {
+      return NextResponse.json(
+        {
+          error: `Insufficient credits. This analysis requires ${creditsNeeded} credit${creditsNeeded > 1 ? 's' : ''}, but you only have ${userCredits} credit${userCredits !== 1 ? 's' : ''}. Please sign up to get 3 free credits or purchase more credits.`,
+          creditsNeeded,
+          userCredits,
+          wordCount: scrapeResult.wordCount,
+          insufficientCredits: true,
+        },
+        { status: 403 }
+      );
     }
 
     // Always analyze full content (simplified pricing: 1 credit per page)
@@ -428,36 +408,22 @@ export async function POST(req: NextRequest) {
         
         savedAnalysis = saved;
 
-        // Mark free trial as used if this was a free trial (for logged-in users only)
-        if (isFreeTrial) {
-          // Logged-in user: update users table
-          const { error: trialError } = await supabase
-            .from('users')
-            .update({ free_trial_used: true })
-            .eq('id', userId);
-          
-          if (trialError) {
-            console.error('[Analyze] Error marking free trial as used:', trialError);
-            throw new Error(`Failed to mark free trial as used: ${trialError.message}`);
-          }
-          console.log(`[Analyze] Marked free trial as used for user ${userId}`);
-        } else {
-          // Deduct credits from user account (only if not free trial)
-          // Only deduct if we successfully saved the analysis
-          const newCredits = userCredits - creditsNeeded;
-          const { error: creditError } = await supabase
-            .from('users')
-            .update({ credits: newCredits })
-            .eq('id', userId);
+        // Deduct credits from user account
+        // Only deduct if we successfully saved the analysis
+        const newCredits = userCredits - creditsNeeded;
+        const { error: creditError } = await supabase
+          .from('users')
+          .update({ credits: newCredits })
+          .eq('id', userId);
 
-          if (creditError) {
-            console.error('[Analyze] Error deducting credits:', creditError);
-            throw new Error(`Failed to deduct credits: ${creditError.message}`);
-          }
-          
-          console.log(`[Analyze] Deducted ${creditsNeeded} credits from user ${userId}. New balance: ${newCredits}`);
-          userCredits = newCredits; // Update for response
-          creditsDeducted = true;
+        if (creditError) {
+          console.error('[Analyze] Error deducting credits:', creditError);
+          throw new Error(`Failed to deduct credits: ${creditError.message}`);
+        }
+        
+        console.log(`[Analyze] Deducted ${creditsNeeded} credits from user ${userId}. New balance: ${newCredits}`);
+        userCredits = newCredits; // Update for response
+        creditsDeducted = true;
     } catch (saveOrCreditError: any) {
       // If we deducted credits but then failed to save, refund the credits
       if (creditsDeducted && userId) {

@@ -124,7 +124,7 @@ export async function POST(req: NextRequest) {
             id: user.id,
             email: user.email!,
             email_verified: emailVerified,
-            credits: 3,
+            credits: emailVerified ? 3 : 0, // Only grant credits if email is verified
           })
           .select('email, stripe_customer_id, has_made_first_purchase')
           .single()

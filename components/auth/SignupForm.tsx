@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
+import { getBrowserFingerprint } from '@/lib/utils/fingerprint'
 
 interface SignupFormProps {
   redirect?: string
@@ -15,7 +16,16 @@ export function SignupForm({ redirect }: SignupFormProps = {}) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
+  const [fingerprint, setFingerprint] = useState<string | null>(null)
   const router = useRouter()
+
+  // Collect browser fingerprint on component mount
+  useEffect(() => {
+    getBrowserFingerprint().then(setFingerprint).catch((err) => {
+      console.warn('Failed to get browser fingerprint:', err)
+      // Continue without fingerprint - rate limiting will use IP only
+    })
+  }, [])
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -36,6 +46,29 @@ export function SignupForm({ redirect }: SignupFormProps = {}) {
     }
 
     try {
+      // Check rate limits before allowing signup
+      try {
+        const rateLimitResponse = await fetch('/api/signup/check-rate-limit', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ fingerprint: fingerprint || null }),
+        })
+
+        if (rateLimitResponse.ok) {
+          const rateLimitData = await rateLimitResponse.json()
+          if (!rateLimitData.allowed) {
+            setError(rateLimitData.reason || 'Signup rate limit exceeded. Please try again later.')
+            setLoading(false)
+            return
+          }
+        }
+      } catch (rateLimitError) {
+        // If rate limit check fails, log but continue with signup (fail open)
+        console.warn('Rate limit check failed, proceeding with signup:', rateLimitError)
+      }
+
       // Check if email already exists via server-side API
       try {
         const checkResponse = await fetch('/api/check-email', {
@@ -98,6 +131,24 @@ export function SignupForm({ redirect }: SignupFormProps = {}) {
         setError('Failed to create account. Please try again.')
         setLoading(false)
         return
+      }
+
+      // Track signup attempt with device/IP (non-blocking)
+      try {
+        await fetch('/api/signup/track', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            userId: data.user.id,
+            email: email,
+            fingerprint: fingerprint || null,
+          }),
+        })
+      } catch (trackError) {
+        // Don't fail signup if tracking fails
+        console.warn('Failed to track signup attempt:', trackError)
       }
 
       // Check if this is an existing user by checking email_confirmed_at
