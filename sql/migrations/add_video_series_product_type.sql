@@ -10,3 +10,4 @@ DROP CONSTRAINT IF EXISTS generated_products_product_type_check;
 ALTER TABLE public.generated_products
 ADD CONSTRAINT generated_products_product_type_check 
 CHECK (product_type IN ('checklist', 'workbook', 'ebook', 'newsletter', 'template', 'video_series'));
+

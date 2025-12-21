@@ -115,3 +115,4 @@ export function getVideoSeriesTemplate(id: string): VideoSeriesTemplate | undefi
 export function getDefaultVideoSeriesTemplate(): VideoSeriesTemplate {
   return VIDEO_SERIES_TEMPLATES[0];
 }
+
