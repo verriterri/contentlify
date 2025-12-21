@@ -79,13 +79,8 @@ export async function middleware(request: NextRequest) {
   const inactivityTimeout = 60 * 60 // 1 hour in seconds
   const maxSessionAge = 7 * 24 * 60 * 60 // 7 days in seconds
 
-  // Protect dashboard routes (except /dashboard/analyze which allows anonymous free trial)
+  // Protect dashboard routes
   if (pathname.startsWith('/dashboard')) {
-    // Allow anonymous access to /dashboard/analyze for free trial
-    if (pathname === '/dashboard/analyze' || pathname.startsWith('/dashboard/analyze/')) {
-      return response
-    }
-    
     // FIRST: Check if we have a session - if yes, allow access immediately
     // This ensures new logins work without any blocking
     if (session) {
@@ -214,7 +209,7 @@ export async function middleware(request: NextRequest) {
 
   // Redirect authenticated users away from auth pages
   if ((pathname === '/login' || pathname === '/signup') && user && session) {
-    return NextResponse.redirect(new URL('/dashboard', request.url))
+    return NextResponse.redirect(new URL('/dashboard/gsc', request.url))
   }
 
   return response

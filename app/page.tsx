@@ -1,175 +1,90 @@
-import Link from 'next/link'
-import { PricingTable } from '@/components/pricing/PricingTable'
-import { SiteUrlInput } from '@/components/scanner/SiteUrlInput'
+import { DirectCheckoutButton } from '@/components/checkout/DirectCheckoutButton'
 import { HomeHeader } from '@/components/HomeHeader'
 
 export default function Home() {
   return (
     <div className="min-h-screen bg-white">
       <HomeHeader />
+
       {/* Hero Section */}
-      <section className="relative py-24 lg:py-32 bg-gray-900">
+      <section className="relative py-24 lg:py-32 bg-gradient-to-br from-blue-600 to-blue-800">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h1 className="text-6xl lg:text-7xl font-bold text-white mb-6 leading-tight tracking-tight">
-              Find the Money You're Leaving on the Table
+          <div className="text-center mb-12">
+            <h1 className="text-5xl lg:text-6xl font-bold text-white mb-6 leading-tight">
+              Unlock Your Search Performance Insights
             </h1>
-            <p className="text-2xl text-gray-400 mb-12 max-w-2xl mx-auto leading-relaxed">
-              Scan your site for SEO and AEO improvements, broken links, missed affiliate opportunities, and digital product ideas in one click
+            <p className="text-2xl text-blue-100 mb-8 max-w-2xl mx-auto">
+              Get a comprehensive diagnostic report of your Google Search Console data for just $9.99
             </p>
-            <div className="max-w-2xl mx-auto">
-              <SiteUrlInput maxPages={50} showLimitNote={true} />
+            <div className="flex justify-center">
+              <DirectCheckoutButton />
             </div>
+            <p className="text-blue-100 mt-4 text-sm">
+              No subscription. One-time payment. Instant access.
+            </p>
           </div>
         </div>
       </section>
 
-      {/* Feature Cards Section - Framer Style */}
+      {/* What You Get Section */}
       <section className="py-20 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {/* Site Scanner Card */}
-            <div className="bg-white rounded-2xl p-8 shadow-sm hover:shadow-lg transition-all border border-gray-100">
-              <div className="mb-6">
-                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
-                  <svg className="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
-                </div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-2">Site Scanner</h3>
-                <p className="text-gray-600 leading-relaxed">
-                  Scan your entire site. See all pages with titles, URLs, word counts, and dates.
-                </p>
-              </div>
-              <Link
-                href="/dashboard/analyze"
-                className="inline-flex items-center text-primary font-semibold hover:text-primary-600 transition-colors"
-              >
-                Try Now
-                <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-bold text-gray-900 mb-4">What's Included in Your Report</h2>
+            <p className="text-xl text-gray-600">Comprehensive insights from your Google Search Console data</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {/* Top Queries */}
+            <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-200">
+              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
+                <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
-              </Link>
+              </div>
+              <h3 className="text-2xl font-bold text-gray-900 mb-3">Top 100 Queries</h3>
+              <p className="text-gray-600 leading-relaxed">
+                See your top-performing search queries with detailed metrics: clicks, impressions, CTR, and average position. Identify what's working and where to focus your SEO efforts.
+              </p>
             </div>
 
-            {/* Page Selection Card */}
-            <div className="bg-white rounded-2xl p-8 shadow-sm hover:shadow-lg transition-all border border-gray-100">
-              <div className="mb-6">
-                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
-                  <svg className="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-                  </svg>
-                </div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-2">Page Selection</h3>
-                <p className="text-gray-600 leading-relaxed">
-                  Select specific pages to analyze further for SEO and AEO optimization, broken links, affiliate opportunities, and digital product ideas.
-                </p>
-              </div>
-              <Link
-                href="/dashboard/analyze"
-                className="inline-flex items-center text-primary font-semibold hover:text-primary-600 transition-colors"
-              >
-                Try Now
-                <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            {/* Top Pages */}
+            <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-200">
+              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mb-4">
+                <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
-              </Link>
+              </div>
+              <h3 className="text-2xl font-bold text-gray-900 mb-3">Top 100 Pages by Clicks</h3>
+              <p className="text-gray-600 leading-relaxed">
+                Discover which pages are driving the most traffic from Google. Understand your content's performance and identify opportunities for optimization.
+              </p>
             </div>
 
-            {/* SEO/AEO Optimization Card */}
-            <div className="bg-white rounded-2xl p-8 shadow-sm hover:shadow-lg transition-all border border-gray-100">
-              <div className="mb-6">
-                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
-                  <svg className="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                  </svg>
-                </div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-2">SEO & AEO Optimization</h3>
-                <p className="text-gray-600 leading-relaxed">
-                  Get comprehensive SEO and AEO audits with actionable recommendations to improve your content's search visibility and AI answer engine optimization.
-                </p>
-              </div>
-              <Link
-                href="/dashboard/analyze"
-                className="inline-flex items-center text-primary font-semibold hover:text-primary-600 transition-colors"
-              >
-                Try Now
-                <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            {/* CTR Analysis */}
+            <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-200">
+              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mb-4">
+                <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                 </svg>
-              </Link>
+              </div>
+              <h3 className="text-2xl font-bold text-gray-900 mb-3">Click-Through Rate Insights</h3>
+              <p className="text-gray-600 leading-relaxed">
+                Analyze your CTR performance across queries and pages. Find low-hanging fruit to improve your titles and meta descriptions.
+              </p>
             </div>
 
-            {/* Link Health Card */}
-            <div className="bg-white rounded-2xl p-8 shadow-sm hover:shadow-lg transition-all border border-gray-100">
-              <div className="mb-6">
-                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
-                  <svg className="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-2">Link Health</h3>
-                <p className="text-gray-600 leading-relaxed">
-                  Check the health of all links on your pages. Identify broken links, redirects, and timeouts to maintain a healthy site structure.
-                </p>
-              </div>
-              <Link
-                href="/dashboard/analyze"
-                className="inline-flex items-center text-primary font-semibold hover:text-primary-600 transition-colors"
-              >
-                Try Now
-                <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            {/* Position Tracking */}
+            <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-200">
+              <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center mb-4">
+                <svg className="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                 </svg>
-              </Link>
-            </div>
-
-            {/* Affiliate Detector Card */}
-            <div className="bg-white rounded-2xl p-8 shadow-sm hover:shadow-lg transition-all border border-gray-100">
-              <div className="mb-6">
-                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
-                  <svg className="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-5.657-5.657l1.102-1.101m0 0L11 16l-1.102-1.101m5.657-5.657L19 8l-1.102-1.101m-5.657 5.657L11 16m0 0l-1.102 1.101" />
-                  </svg>
-                </div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-2">Affiliate Detector</h3>
-                <p className="text-gray-600 leading-relaxed">
-                  AI finds potential affiliate opportunities that you may have missed in your content.
-                </p>
               </div>
-              <Link
-                href="/dashboard/analyze"
-                className="inline-flex items-center text-primary font-semibold hover:text-primary-600 transition-colors"
-              >
-                Try Now
-                <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </Link>
-            </div>
-
-            {/* Product Ideas Card */}
-            <div className="bg-white rounded-2xl p-8 shadow-sm hover:shadow-lg transition-all border border-gray-100">
-              <div className="mb-6">
-                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
-                  <svg className="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                  </svg>
-                </div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-2">Product Ideas</h3>
-                <p className="text-gray-600 leading-relaxed">
-                  Generate digital product ideas based on your content and get structured outlines for each idea. Checklists, workbooks, ebooks, and more.
-                </p>
-              </div>
-              <Link
-                href="/dashboard/generate"
-                className="inline-flex items-center text-primary font-semibold hover:text-primary-600 transition-colors"
-              >
-                Try Now
-                <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </Link>
+              <h3 className="text-2xl font-bold text-gray-900 mb-3">Position & Performance Summary</h3>
+              <p className="text-gray-600 leading-relaxed">
+                Get a complete overview of your search performance over the last 28 days, including total clicks, impressions, average CTR, and average position.
+              </p>
             </div>
           </div>
         </div>
@@ -179,62 +94,48 @@ export default function Home() {
       <section className="py-20 bg-white">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-4">How it works</h2>
-            <p className="text-xl text-gray-600">Get started in minutes</p>
+            <h2 className="text-4xl font-bold text-gray-900 mb-4">How It Works</h2>
+            <p className="text-xl text-gray-600">Get your report in 4 simple steps</p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            <div className="text-center flex flex-col items-center">
-              <div className="inline-flex items-center justify-center w-12 h-12 bg-primary text-white rounded-full text-xl font-bold mb-4">
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            <div className="text-center">
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 text-white rounded-full text-2xl font-bold mb-4">
                 1
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Enter Site URL</h3>
-              <p className="text-gray-600 text-sm">
-                We scan your entire site
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Purchase Report</h3>
+              <p className="text-gray-600">
+                Enter your email and pay $9.99. No signup required.
               </p>
             </div>
-            <div className="text-center flex flex-col items-center">
-              <div className="inline-flex items-center justify-center w-12 h-12 bg-primary text-white rounded-full text-xl font-bold mb-4">
+
+            <div className="text-center">
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 text-white rounded-full text-2xl font-bold mb-4">
                 2
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">See All Pages</h3>
-              <p className="text-gray-600 text-sm">
-                Word count and published date for each page
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Check Your Email</h3>
+              <p className="text-gray-600">
+                We'll create your account and send a magic login link.
               </p>
             </div>
-            <div className="text-center flex flex-col items-center">
-              <div className="inline-flex items-center justify-center w-12 h-12 bg-primary text-white rounded-full text-xl font-bold mb-4">
+
+            <div className="text-center">
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 text-white rounded-full text-2xl font-bold mb-4">
                 3
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Select Pages</h3>
-              <p className="text-gray-600 text-sm">
-                Choose which ones to analyze further
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Connect Google</h3>
+              <p className="text-gray-600">
+                Authorize access to your Search Console data.
               </p>
             </div>
-            <div className="text-center flex flex-col items-center">
-              <div className="inline-flex items-center justify-center w-12 h-12 bg-primary text-white rounded-full text-xl font-bold mb-4">
+
+            <div className="text-center">
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 text-white rounded-full text-2xl font-bold mb-4">
                 4
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Audit Page Content</h3>
-              <p className="text-gray-600 text-sm">
-                Find opportunities to improve SEO and AEO (AI Answer Engine Optimization) and find broken links.
-              </p>
-            </div>
-            <div className="text-center flex flex-col items-center">
-              <div className="inline-flex items-center justify-center w-12 h-12 bg-primary text-white rounded-full text-xl font-bold mb-4">
-                5
-              </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Suggest Affiliate Links & Product Ideas</h3>
-              <p className="text-gray-600 text-sm">
-                Show products you mentioned in your content that you may not have monetized and suggest digital product ideas.
-              </p>
-            </div>
-            <div className="text-center flex flex-col items-center">
-              <div className="inline-flex items-center justify-center w-12 h-12 bg-primary text-white rounded-full text-xl font-bold mb-4">
-                6
-              </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Generate & Export Product Outlines</h3>
-              <p className="text-gray-600 text-sm">
-              Create and export digital product outlines to .md or .docx to guide development
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">View Your Report</h3>
+              <p className="text-gray-600">
+                Select your property and generate your diagnostic report.
               </p>
             </div>
           </div>
@@ -243,73 +144,54 @@ export default function Home() {
 
       {/* Pricing Section */}
       <section className="py-20 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-4">Simple pricing</h2>
-            <p className="text-xl text-gray-600">Ditch the monthly subscriptions. Pay per analysis. Credits never expire.</p>
+            <h2 className="text-4xl font-bold text-gray-900 mb-4">Simple, Transparent Pricing</h2>
+            <p className="text-xl text-gray-600">One-time payment. No subscription. No hidden fees.</p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
-            <div className="bg-white rounded-2xl border-2 border-gray-200 p-8 text-center hover:border-primary transition-colors">
-              <h3 className="text-xl font-bold text-gray-900 mb-2">5 Analyses</h3>
+
+          <div className="max-w-md mx-auto">
+            <div className="bg-white rounded-2xl border-2 border-blue-600 shadow-xl p-10 text-center">
+              <h3 className="text-2xl font-bold text-gray-900 mb-4">GSC Diagnostic Report</h3>
               <div className="mb-6">
-                <span className="text-5xl font-bold text-gray-900">$9.99</span>
-                <p className="text-gray-600 mt-2">$2.00 per analysis</p>
+                <span className="text-6xl font-bold text-gray-900">$9.99</span>
+                <p className="text-gray-600 mt-2">One-time payment</p>
               </div>
-              <Link
-                href="/pricing"
-                className="block w-full py-3 px-4 bg-gray-100 text-gray-900 rounded-lg font-semibold hover:bg-gray-200 transition-colors"
-              >
-                Buy Now
-              </Link>
-            </div>
-            <div className="bg-white rounded-2xl border-2 border-gray-200 p-8 text-center hover:border-primary transition-colors">
-              <h3 className="text-xl font-bold text-gray-900 mb-2">20 Analyses</h3>
-              <div className="mb-6">
-                <span className="text-5xl font-bold text-gray-900">$29.99</span>
-                <p className="text-gray-600 mt-2">$1.50 per analysis</p>
-              </div>
-              <Link
-                href="/pricing"
-                className="block w-full py-3 px-4 bg-gray-100 text-gray-900 rounded-lg font-semibold hover:bg-gray-200 transition-colors"
-              >
-                Buy Now
-              </Link>
-            </div>
-            <div className="bg-white rounded-2xl border-2 border-primary shadow-lg p-8 text-center relative hover:shadow-xl transition-shadow">
-              <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                <span className="bg-primary text-white px-4 py-1 rounded-full text-sm font-semibold">
-                  Most Popular
-                </span>
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">50 Analyses</h3>
-              <div className="mb-6">
-                <span className="text-5xl font-bold text-gray-900">$49.99</span>
-                <p className="text-gray-600 mt-2">$1.00 per analysis</p>
-              </div>
-              <Link
-                href="/pricing"
-                className="block w-full py-3 px-4 bg-primary text-white rounded-lg font-semibold hover:bg-primary-600 transition-colors"
-              >
-                Buy Now
-              </Link>
-            </div>
-            <div className="bg-white rounded-2xl border-2 border-green-500 p-8 text-center relative hover:shadow-lg transition-shadow">
-              <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                <span className="bg-green-500 text-white px-4 py-1 rounded-full text-sm font-semibold">
-                  Best Value
-                </span>
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">100 Analyses</h3>
-              <div className="mb-6">
-                <span className="text-5xl font-bold text-gray-900">$79.99</span>
-                <p className="text-gray-600 mt-2">$0.80 per analysis</p>
-              </div>
-              <Link
-                href="/pricing"
-                className="block w-full py-3 px-4 bg-green-500 text-white rounded-lg font-semibold hover:bg-green-600 transition-colors"
-              >
-                Buy Now
-              </Link>
+
+              <ul className="text-left space-y-3 mb-8">
+                <li className="flex items-start">
+                  <svg className="w-5 h-5 text-green-500 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span className="text-gray-700">Top 100 queries with full metrics</span>
+                </li>
+                <li className="flex items-start">
+                  <svg className="w-5 h-5 text-green-500 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span className="text-gray-700">Top 100 pages by clicks</span>
+                </li>
+                <li className="flex items-start">
+                  <svg className="w-5 h-5 text-green-500 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span className="text-gray-700">Performance summary (28 days)</span>
+                </li>
+                <li className="flex items-start">
+                  <svg className="w-5 h-5 text-green-500 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span className="text-gray-700">CTR and position analysis</span>
+                </li>
+                <li className="flex items-start">
+                  <svg className="w-5 h-5 text-green-500 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span className="text-gray-700">Instant access after purchase</span>
+                </li>
+              </ul>
+
+              <DirectCheckoutButton />
             </div>
           </div>
         </div>
@@ -319,55 +201,70 @@ export default function Home() {
       <section className="py-20 bg-white">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">Frequently asked questions</h2>
+            <h2 className="text-4xl font-bold text-gray-900 mb-4">Frequently Asked Questions</h2>
           </div>
+
           <div className="space-y-8">
             <div>
               <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                How does it work?
+                Do I need to sign up before purchasing?
               </h3>
               <p className="text-gray-600 leading-relaxed">
-                Enter any page URL and our AI analyzes it for SEO and AEO improvements, broken links, missed affiliate opportunities, and digital product ideas in one click. You can also scan your entire site from the dashboard to see all pages at once.
+                No! Just enter your email and complete the payment. We'll automatically create your account and send you a magic login link after purchase.
               </p>
             </div>
+
             <div>
               <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                What is the pricing model?
+                What do I get for $9.99?
               </h3>
               <p className="text-gray-600 leading-relaxed">
-                Hate recurring subscriptions? We do too. Pay as you go per analysis. Use them across multiple blogs, websites, or content, whenever you want.
+                You get one GSC diagnostic report for one property. The report includes your top 100 queries, top 100 pages, and a complete performance summary for the last 28 days.
               </p>
             </div>
+
             <div>
               <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                Do you offer a free trial?
+                Can I generate multiple reports?
               </h3>
               <p className="text-gray-600 leading-relaxed">
-                Yes! New users get 3 free credits to try analysis.
+                Each $9.99 payment allows you to generate one report. If you want to analyze another property or get updated data, you can purchase another report for $9.99.
               </p>
             </div>
+
             <div>
               <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                What counts as one analysis?
+                What do I need to use this service?
               </h3>
               <p className="text-gray-600 leading-relaxed">
-                One analysis = one page. Pages up to 5,000 words cost 1 credit. For longer pages, we charge 1 additional credit for each additional 5,000 words (or portion). You can also choose to only analyze the first 5,000 words of the page.
+                You need a Google account with access to Google Search Console and at least one verified property. If you don't have Search Console set up yet, you can create a free account at search.google.com/search-console.
               </p>
             </div>
+
             <div>
               <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                Do credits expire?
+                How long does it take to get my report?
               </h3>
               <p className="text-gray-600 leading-relaxed">
-                No! Credits never expire. Use them across multiple blogs, whenever you want.
+                The report is generated instantly once you connect your Google Search Console account and select a property. The entire process from purchase to viewing your report takes just a few minutes.
               </p>
             </div>
+
             <div>
               <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                Can I scan my entire site?
+                Is this a subscription?
               </h3>
               <p className="text-gray-600 leading-relaxed">
-                Yes! You can scan your entire site. See all your pages with titles, URLs, word counts, and dates. If needed, purchase credits to analyze more pages and sites.
+                No. This is a one-time payment for one diagnostic report. There are no recurring charges, no hidden fees, and no subscription commitments.
+              </p>
+            </div>
+
+            <div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                What data time period does the report cover?
+              </h3>
+              <p className="text-gray-600 leading-relaxed">
+                Each report covers the most recent 28 days of data available in your Google Search Console account.
               </p>
             </div>
           </div>
@@ -375,23 +272,15 @@ export default function Home() {
       </section>
 
       {/* Final CTA */}
-      <section className="py-20 bg-gray-900">
+      <section className="py-20 bg-gradient-to-br from-blue-600 to-blue-800">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-4xl lg:text-5xl font-bold text-white mb-6">
-            Start monetizing your content today
+            Ready to unlock your search insights?
           </h2>
-          <p className="text-xl text-gray-400 mb-8">
-            Get instant insights on monetization opportunities. No credit card required.
+          <p className="text-xl text-blue-100 mb-8">
+            Get your comprehensive GSC diagnostic report in minutes for just $9.99
           </p>
-          <Link
-            href="/dashboard/analyze"
-            className="inline-flex items-center justify-center px-8 py-4 bg-white text-gray-900 rounded-lg font-semibold text-lg hover:bg-gray-100 transition-colors shadow-lg"
-          >
-            Get Started - Free
-          </Link>
-          <p className="text-sm text-gray-500 mt-4">
-            New users get 3 free credits to try analysis
-          </p>
+          <DirectCheckoutButton />
         </div>
       </section>
     </div>

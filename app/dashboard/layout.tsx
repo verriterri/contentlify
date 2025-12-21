@@ -5,7 +5,6 @@ import { headers } from 'next/headers'
 import Link from 'next/link'
 import Image from 'next/image'
 import { LogoutButton } from '@/components/auth/LogoutButton'
-import { CreditBalanceUpdater } from '@/components/dashboard/CreditBalanceUpdater'
 import { getSupabaseUrl, getSupabaseAnonKey } from '@/lib/supabase'
 
 export default async function DashboardLayout({
@@ -39,17 +38,15 @@ export default async function DashboardLayout({
   // The middleware already allows /dashboard/analyze for anonymous users
   // We'll just render the layout differently for anonymous vs logged-in users
 
-  // Get user credits and email (only if user exists)
-  let credits = 0
+  // Get user email (only if user exists)
   let userEmail = ''
   if (user) {
     const { data: userData } = await supabase
       .from('users')
-      .select('credits, email')
+      .select('email')
       .eq('id', user.id)
       .single()
 
-    credits = userData?.credits || 0
     userEmail = userData?.email || user.email || ''
   }
 
@@ -75,7 +72,6 @@ export default async function DashboardLayout({
               </Link>
             </div>
             <div className="flex items-center gap-4">
-              {user && <CreditBalanceUpdater />}
               {user && (
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-gray-600">{userEmail}</span>
@@ -101,41 +97,15 @@ export default async function DashboardLayout({
           <aside className="w-64 bg-white border-r border-gray-200 min-h-[calc(100vh-4rem)]">
             <nav className="p-4 space-y-2">
               <Link
-                href="/dashboard"
+                href="/dashboard/gsc"
                 className="flex items-center gap-3 px-4 py-3 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
-                <span>Overview</span>
+                <span>GSC Analysis</span>
               </Link>
-              <Link
-                href="/dashboard/analyze"
-                className="flex items-center gap-3 px-4 py-3 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                </svg>
-                <span>Analyze Site</span>
-              </Link>
-              <Link
-                href="/dashboard/history"
-                className="flex items-center gap-3 px-4 py-3 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span>History</span>
-              </Link>
-              <Link
-                href="/dashboard/products"
-                className="flex items-center gap-3 px-4 py-3 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                </svg>
-                <span>My Products</span>
-              </Link>
+
               <Link
                 href="/dashboard/settings"
                 className="flex items-center gap-3 px-4 py-3 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors"
@@ -149,25 +119,15 @@ export default async function DashboardLayout({
 
               <div className="pt-2 mt-2 border-t border-gray-200">
                 <Link
-                  href="/dashboard/gsc"
-                  className="flex items-center gap-3 px-4 py-3 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors"
+                  href="/pricing"
+                  className="flex items-center gap-3 px-4 py-3 text-primary font-medium rounded-lg hover:bg-primary-50 transition-colors"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                  <span>GSC Analysis</span>
+                  <span>Buy Another Report</span>
                 </Link>
               </div>
-
-              <Link
-                href="/pricing"
-                className="flex items-center gap-3 px-4 py-3 text-primary font-medium rounded-lg hover:bg-primary-50 transition-colors"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span>Buy Credits</span>
-              </Link>
             </nav>
           </aside>
 
