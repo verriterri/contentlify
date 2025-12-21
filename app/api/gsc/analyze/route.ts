@@ -63,7 +63,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json(
         {
           error: 'No available reports',
-          message: 'Purchase a new report to continue. Each $9.99 payment allows one report generation.',
+          message: 'Purchase a new report to continue. Each $4.99 payment allows one report generation.',
           requiresPayment: true,
         },
         { status: 402 }

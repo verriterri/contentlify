@@ -21,7 +21,7 @@ export default function PricingPage() {
             <div className="bg-white rounded-2xl border-2 border-blue-600 shadow-xl p-10 text-center">
               <h2 className="text-2xl font-bold text-gray-900 mb-4">GSC Diagnostic Report</h2>
               <div className="mb-6">
-                <span className="text-6xl font-bold text-gray-900">$9.99</span>
+                <span className="text-6xl font-bold text-gray-900">$4.99</span>
                 <p className="text-gray-600 mt-2">One-time payment</p>
               </div>
 

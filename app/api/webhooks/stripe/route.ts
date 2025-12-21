@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
           metadata: session.metadata,
         })
         
-        // Handle GSC analysis payment (one-time $9.99)
+        // Handle GSC analysis payment (one-time $4.99)
         if (session.mode === 'payment' && session.metadata?.payment_type === 'gsc_analysis') {
           const paymentId = session.metadata.payment_id
           const isAnonymousPurchase = session.metadata.is_anonymous_purchase === 'true'

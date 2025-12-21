@@ -175,7 +175,7 @@ export function GSCDashboard({ hasUnusedReport, isConnected, googleEmail, report
             </div>
           ) : (
             <p className="text-gray-600 mb-6">
-              Get a one-time diagnostic report of your Google Search Console data for $9.99
+              Get a one-time diagnostic report of your Google Search Console data for $4.99
             </p>
           )}
 
@@ -205,7 +205,7 @@ export function GSCDashboard({ hasUnusedReport, isConnected, googleEmail, report
             href="/pricing"
             className="inline-block bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
           >
-            Buy Report for $9.99
+            Buy Report for $4.99
           </a>
 
           {error && (

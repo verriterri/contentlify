@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 
 /**
  * POST /api/gsc/checkout
- * Creates a Stripe checkout session for GSC analysis ($9.99 one-time)
+ * Creates a Stripe checkout session for GSC analysis ($4.99 one-time)
  * NOW SUPPORTS ANONYMOUS PURCHASES - no authentication required
  */
 export async function POST(req: NextRequest) {
@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
       .from('gsc_payments')
       .insert({
         email: email.toLowerCase().trim(),
-        amount: 9.99,
+        amount: 4.99,
         status: 'pending',
         report_generated: false,
       })
@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
               name: 'GSC Diagnostic Report',
               description: 'One-time Google Search Console analysis report',
             },
-            unit_amount: 999, // $9.99 in cents
+            unit_amount: 499, // $4.99 in cents
           },
           quantity: 1,
         },

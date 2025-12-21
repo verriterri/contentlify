@@ -105,7 +105,7 @@ export function getReportGeneratedEmail(email: string, reportUrl: string) {
           <div style="background-color: #f9fafb; border-radius: 8px; padding: 30px; margin: 30px 0;">
             <h3 style="color: #1f2937; font-size: 18px; margin: 0 0 15px 0;">Want to analyze another site?</h3>
             <p style="margin: 0 0 20px 0; color: #4b5563;">
-              Purchase another report for just $9.99 to analyze a different property or get updated data.
+              Purchase another report for just $4.99 to analyze a different property or get updated data.
             </p>
             <div style="text-align: center;">
               <a href="${appUrl}/pricing"

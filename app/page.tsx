@@ -14,7 +14,7 @@ export default function Home() {
               Unlock Your Search Performance Insights
             </h1>
             <p className="text-2xl text-blue-100 mb-8 max-w-2xl mx-auto">
-              Get a comprehensive diagnostic report of your Google Search Console data for just $9.99
+              Get a comprehensive diagnostic report of your Google Search Console data for just $4.99
             </p>
             <div className="flex justify-center">
               <DirectCheckoutButton />
@@ -105,7 +105,7 @@ export default function Home() {
               </div>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">Purchase Report</h3>
               <p className="text-gray-600">
-                Enter your email and pay $9.99. No signup required.
+                Enter your email and pay $4.99. No signup required.
               </p>
             </div>
 
@@ -154,7 +154,7 @@ export default function Home() {
             <div className="bg-white rounded-2xl border-2 border-blue-600 shadow-xl p-10 text-center">
               <h3 className="text-2xl font-bold text-gray-900 mb-4">GSC Diagnostic Report</h3>
               <div className="mb-6">
-                <span className="text-6xl font-bold text-gray-900">$9.99</span>
+                <span className="text-6xl font-bold text-gray-900">$4.99</span>
                 <p className="text-gray-600 mt-2">One-time payment</p>
               </div>
 
@@ -216,7 +216,7 @@ export default function Home() {
 
             <div>
               <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                What do I get for $9.99?
+                What do I get for $4.99?
               </h3>
               <p className="text-gray-600 leading-relaxed">
                 You get one GSC diagnostic report for one property. The report includes your top 100 queries, top 100 pages, and a complete performance summary for the last 28 days.
@@ -228,7 +228,7 @@ export default function Home() {
                 Can I generate multiple reports?
               </h3>
               <p className="text-gray-600 leading-relaxed">
-                Each $9.99 payment allows you to generate one report. If you want to analyze another property or get updated data, you can purchase another report for $9.99.
+                Each $4.99 payment allows you to generate one report. If you want to analyze another property or get updated data, you can purchase another report for $4.99.
               </p>
             </div>
 
@@ -278,7 +278,7 @@ export default function Home() {
             Ready to unlock your search insights?
           </h2>
           <p className="text-xl text-blue-100 mb-8">
-            Get your comprehensive GSC diagnostic report in minutes for just $9.99
+            Get your comprehensive GSC diagnostic report in minutes for just $4.99
           </p>
           <DirectCheckoutButton />
         </div>

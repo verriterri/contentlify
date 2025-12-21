@@ -218,7 +218,7 @@ CREATE TABLE public.gsc_payments (
   user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
   stripe_session_id TEXT UNIQUE,
   stripe_payment_intent_id TEXT,
-  amount DECIMAL(10,2) NOT NULL DEFAULT 9.99,
+  amount DECIMAL(10,2) NOT NULL DEFAULT 4.99,
   status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'completed', 'failed', 'refunded')),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
   completed_at TIMESTAMP WITH TIME ZONE

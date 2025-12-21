@@ -69,7 +69,7 @@ export function DirectCheckoutButton() {
           disabled={loading || !email}
           className="w-full bg-blue-600 text-white px-8 py-4 rounded-lg font-semibold text-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
-          {loading ? 'Processing...' : 'Buy Report for $9.99'}
+          {loading ? 'Processing...' : 'Buy Report for $4.99'}
         </button>
 
         {error && (
