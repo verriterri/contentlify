@@ -114,7 +114,7 @@ export async function GET(req: NextRequest) {
     // Store tokens in database using service role (bypass RLS)
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
+      process.env.SUPABASE_SECRET_KEY!
     );
 
     // Upsert GSC connection (replace if exists for this user)

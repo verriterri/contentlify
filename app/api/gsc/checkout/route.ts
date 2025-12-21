@@ -22,10 +22,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Use service role to create payment record (bypasses RLS)
+    // Use secret key to create payment record (bypasses RLS)
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
+      process.env.SUPABASE_SECRET_KEY!
     );
 
     // Create pending payment record with email (no user_id yet)

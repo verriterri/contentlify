@@ -120,10 +120,10 @@ export async function GET(req: NextRequest) {
       formatDate(endDate)
     );
 
-    // Store analysis results in database using service role
+    // Store analysis results in database using secret key
     const supabaseAdmin = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
+      process.env.SUPABASE_SECRET_KEY!
     );
 
     // Insert analysis results linked to payment

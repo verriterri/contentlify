@@ -301,7 +301,7 @@ export async function POST(req: NextRequest) {
           } else {
             console.error('[Site Scan] Error saving scan:', saveError);
             if (!serviceRoleKey) {
-              console.warn('[Site Scan] Consider setting SUPABASE_SERVICE_ROLE_KEY for reliable server-side inserts');
+              console.warn('[Site Scan] Consider setting SUPABASE_SECRET_KEY for reliable server-side inserts');
             }
           }
         } catch (error) {
