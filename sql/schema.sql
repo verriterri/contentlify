@@ -215,11 +215,14 @@ CREATE TABLE public.signup_attempts (
 -- 11. GSC Payments table (one-time payment to unlock GSC analysis)
 CREATE TABLE public.gsc_payments (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES public.users(id) ON DELETE CASCADE,
+  email TEXT,
   stripe_session_id TEXT UNIQUE,
   stripe_payment_intent_id TEXT,
   amount DECIMAL(10,2) NOT NULL DEFAULT 4.99,
   status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'completed', 'failed', 'refunded')),
+  report_generated BOOLEAN NOT NULL DEFAULT FALSE,
+  report_generated_at TIMESTAMP WITH TIME ZONE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
   completed_at TIMESTAMP WITH TIME ZONE
 );
@@ -243,6 +246,7 @@ CREATE TABLE public.gsc_analysis_results (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
   connection_id UUID NOT NULL REFERENCES public.gsc_connections(id) ON DELETE CASCADE,
+  payment_id UUID REFERENCES public.gsc_payments(id) ON DELETE SET NULL,
   site_url TEXT NOT NULL, -- GSC property URL
   data_period_start DATE NOT NULL,
   data_period_end DATE NOT NULL,
@@ -314,6 +318,8 @@ CREATE INDEX IF NOT EXISTS idx_gsc_payments_user_id ON public.gsc_payments(user_
 CREATE INDEX IF NOT EXISTS idx_gsc_payments_stripe_session_id ON public.gsc_payments(stripe_session_id);
 CREATE INDEX IF NOT EXISTS idx_gsc_payments_status ON public.gsc_payments(status);
 CREATE INDEX IF NOT EXISTS idx_gsc_payments_created_at ON public.gsc_payments(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_gsc_payments_user_unused ON public.gsc_payments(user_id, report_generated) WHERE report_generated = FALSE AND status = 'completed';
+CREATE INDEX IF NOT EXISTS idx_gsc_payments_email ON public.gsc_payments(email) WHERE email IS NOT NULL;
 
 -- GSC Connections indexes
 CREATE INDEX IF NOT EXISTS idx_gsc_connections_user_id ON public.gsc_connections(user_id);
@@ -322,6 +328,7 @@ CREATE INDEX IF NOT EXISTS idx_gsc_connections_token_expires_at ON public.gsc_co
 -- GSC Analysis Results indexes
 CREATE INDEX IF NOT EXISTS idx_gsc_analysis_results_user_id ON public.gsc_analysis_results(user_id);
 CREATE INDEX IF NOT EXISTS idx_gsc_analysis_results_connection_id ON public.gsc_analysis_results(connection_id);
+CREATE INDEX IF NOT EXISTS idx_gsc_analysis_results_payment_id ON public.gsc_analysis_results(payment_id);
 CREATE INDEX IF NOT EXISTS idx_gsc_analysis_results_site_url ON public.gsc_analysis_results(site_url);
 CREATE INDEX IF NOT EXISTS idx_gsc_analysis_results_created_at ON public.gsc_analysis_results(created_at DESC);
 
