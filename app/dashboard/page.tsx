@@ -87,17 +87,52 @@ export default async function DashboardPage() {
 
   const creditsUsedThisMonth = thisMonthAnalyses?.reduce((sum, a) => sum + (a.credits_used || 0), 0) || 0
 
+  // Check if user has paid for GSC analysis
+  const { data: gscPayment } = await supabase
+    .from('gsc_payments')
+    .select('*')
+    .eq('user_id', user.id)
+    .eq('status', 'completed')
+    .single()
+
+  const hasGSCAccess = !!gscPayment
+
   return (
     <div>
       {/* Handle purchase success - refresh credits after webhook processes */}
       <Suspense fallback={null}>
         <PurchaseSuccessHandler initialCredits={credits} />
       </Suspense>
-      
+
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Dashboard Overview</h1>
         <p className="text-gray-600">Welcome back! Here's your content monetization summary.</p>
       </div>
+
+      {/* GSC Analysis Promo (if not purchased) */}
+      {!hasGSCAccess && (
+        <div className="mb-8 bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg shadow-lg p-6 text-white">
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              <div className="flex items-center gap-3 mb-2">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <h3 className="text-xl font-bold">New: Google Search Console Analysis</h3>
+              </div>
+              <p className="text-blue-100 mb-4">
+                Unlock insights from your search performance. Get top queries, pages, clicks, impressions, and CTR data for just $9.99 (one-time payment).
+              </p>
+              <Link
+                href="/dashboard/gsc"
+                className="inline-block bg-white text-blue-600 px-6 py-2 rounded-lg font-semibold hover:bg-blue-50 transition-colors"
+              >
+                Learn More & Unlock →
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Quick Actions */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">

@@ -146,6 +146,19 @@ export default async function DashboardLayout({
                 </svg>
                 <span>Settings</span>
               </Link>
+
+              <div className="pt-2 mt-2 border-t border-gray-200">
+                <Link
+                  href="/dashboard/gsc"
+                  className="flex items-center gap-3 px-4 py-3 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                  <span>GSC Analysis</span>
+                </Link>
+              </div>
+
               <Link
                 href="/pricing"
                 className="flex items-center gap-3 px-4 py-3 text-primary font-medium rounded-lg hover:bg-primary-50 transition-colors"
