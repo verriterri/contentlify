@@ -12,15 +12,18 @@ export default function SignupPage({
       <div className="max-w-md w-full space-y-8">
         <div>
           <div className="flex justify-center mb-4">
-            <Link href="/" className="inline-block">
+            <Link href="/" className="flex items-center gap-3">
               <Image
                 src="/logo.png"
                 alt="Contentlify"
-                width={150}
-                height={50}
-                className="h-12 w-auto"
+                width={40}
+                height={40}
+                className="h-8 w-auto"
                 priority
               />
+              <span className="text-2xl font-bold text-primary">
+                Contentlify
+              </span>
             </Link>
           </div>
           <h2 className="text-center text-2xl font-semibold text-gray-900">
