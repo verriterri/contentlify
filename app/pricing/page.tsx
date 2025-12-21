@@ -18,7 +18,7 @@ export default function PricingPage() {
           </div>
 
           <div className="max-w-md mx-auto">
-            <div className="bg-white rounded-2xl border-2 border-blue-600 shadow-xl p-10 text-center">
+            <div className="bg-white rounded-2xl border-2 border-primary shadow-xl p-10 text-center">
               <h2 className="text-2xl font-bold text-gray-900 mb-4">GSC Diagnostic Report</h2>
               <div className="mb-6">
                 <span className="text-6xl font-bold text-gray-900">$4.99</span>
@@ -71,25 +71,25 @@ export default function PricingPage() {
             <h3 className="text-lg font-semibold text-gray-900 mb-4">How It Works</h3>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6 max-w-3xl mx-auto">
               <div>
-                <div className="inline-flex items-center justify-center w-10 h-10 bg-blue-600 text-white rounded-full text-lg font-bold mb-2">
+                <div className="inline-flex items-center justify-center w-10 h-10 bg-primary text-white rounded-full text-lg font-bold mb-2">
                   1
                 </div>
                 <p className="text-sm text-gray-600">Purchase Report</p>
               </div>
               <div>
-                <div className="inline-flex items-center justify-center w-10 h-10 bg-blue-600 text-white rounded-full text-lg font-bold mb-2">
+                <div className="inline-flex items-center justify-center w-10 h-10 bg-primary text-white rounded-full text-lg font-bold mb-2">
                   2
                 </div>
                 <p className="text-sm text-gray-600">Check Your Email</p>
               </div>
               <div>
-                <div className="inline-flex items-center justify-center w-10 h-10 bg-blue-600 text-white rounded-full text-lg font-bold mb-2">
+                <div className="inline-flex items-center justify-center w-10 h-10 bg-primary text-white rounded-full text-lg font-bold mb-2">
                   3
                 </div>
                 <p className="text-sm text-gray-600">Connect Google</p>
               </div>
               <div>
-                <div className="inline-flex items-center justify-center w-10 h-10 bg-blue-600 text-white rounded-full text-lg font-bold mb-2">
+                <div className="inline-flex items-center justify-center w-10 h-10 bg-primary text-white rounded-full text-lg font-bold mb-2">
                   4
                 </div>
                 <p className="text-sm text-gray-600">View Report</p>

@@ -21,7 +21,7 @@ export default function WelcomePage() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
           <p className="mt-4 text-gray-600">Loading...</p>
         </div>
       </div>
@@ -55,7 +55,7 @@ export default function WelcomePage() {
 
             <div className="space-y-6">
               <div className="flex items-start gap-4">
-                <div className="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold">
+                <div className="flex-shrink-0 w-8 h-8 bg-primary text-white rounded-full flex items-center justify-center font-bold">
                   1
                 </div>
                 <div>
@@ -68,7 +68,7 @@ export default function WelcomePage() {
               </div>
 
               <div className="flex items-start gap-4">
-                <div className="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold">
+                <div className="flex-shrink-0 w-8 h-8 bg-primary text-white rounded-full flex items-center justify-center font-bold">
                   2
                 </div>
                 <div>
@@ -81,7 +81,7 @@ export default function WelcomePage() {
               </div>
 
               <div className="flex items-start gap-4">
-                <div className="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold">
+                <div className="flex-shrink-0 w-8 h-8 bg-primary text-white rounded-full flex items-center justify-center font-bold">
                   3
                 </div>
                 <div>
@@ -94,7 +94,7 @@ export default function WelcomePage() {
               </div>
 
               <div className="flex items-start gap-4">
-                <div className="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold">
+                <div className="flex-shrink-0 w-8 h-8 bg-primary text-white rounded-full flex items-center justify-center font-bold">
                   4
                 </div>
                 <div>
@@ -109,20 +109,20 @@ export default function WelcomePage() {
           </div>
 
           {/* Info Box */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-8">
+          <div className="bg-primary-50 border border-primary-200 rounded-lg p-6 mb-8">
             <div className="flex items-start gap-3">
-              <svg className="w-6 h-6 text-blue-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-6 h-6 text-primary flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               <div>
-                <h3 className="font-semibold text-blue-900 mb-1">Didn't receive the email?</h3>
-                <p className="text-blue-800 text-sm mb-3">
+                <h3 className="font-semibold text-primary-800 mb-1">Didn't receive the email?</h3>
+                <p className="text-primary-700 text-sm mb-3">
                   Check your spam folder. The email should arrive within a few minutes.
                   If you still don't see it, contact our support team.
                 </p>
                 <Link
                   href="/support"
-                  className="text-blue-600 hover:text-blue-700 font-medium text-sm underline"
+                  className="text-primary hover:text-primary-600 font-medium text-sm underline"
                 >
                   Contact Support
                 </Link>
@@ -134,7 +134,7 @@ export default function WelcomePage() {
           <div className="text-center">
             <Link
               href="/login"
-              className="inline-block bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+              className="inline-block bg-primary text-white px-8 py-3 rounded-lg font-semibold hover:bg-primary-600 transition-colors"
             >
               Already Have the Link? Log In
             </Link>

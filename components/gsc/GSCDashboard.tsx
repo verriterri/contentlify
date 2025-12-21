@@ -179,23 +179,23 @@ export function GSCDashboard({ hasUnusedReport, isConnected, googleEmail, report
             </p>
           )}
 
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
+          <div className="bg-primary-50 border border-primary-200 rounded-lg p-6 mb-6">
             <h3 className="font-semibold text-gray-900 mb-3">Each report includes:</h3>
             <ul className="text-left text-gray-700 space-y-2">
               <li className="flex items-start">
-                <span className="text-blue-600 mr-2">✓</span>
+                <span className="text-primary mr-2">✓</span>
                 <span>Top 100 queries with clicks, impressions, CTR, and position</span>
               </li>
               <li className="flex items-start">
-                <span className="text-blue-600 mr-2">✓</span>
+                <span className="text-primary mr-2">✓</span>
                 <span>Top 100 pages by clicks</span>
               </li>
               <li className="flex items-start">
-                <span className="text-blue-600 mr-2">✓</span>
+                <span className="text-primary mr-2">✓</span>
                 <span>Performance summary and insights</span>
               </li>
               <li className="flex items-start">
-                <span className="text-blue-600 mr-2">✓</span>
+                <span className="text-primary mr-2">✓</span>
                 <span>Last 28 days of search data</span>
               </li>
             </ul>
@@ -203,7 +203,7 @@ export function GSCDashboard({ hasUnusedReport, isConnected, googleEmail, report
 
           <a
             href="/pricing"
-            className="inline-block bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+            className="inline-block bg-primary text-white px-8 py-3 rounded-lg font-semibold hover:bg-primary-600 transition-colors"
           >
             Buy Report for $4.99
           </a>
@@ -232,7 +232,7 @@ export function GSCDashboard({ hasUnusedReport, isConnected, googleEmail, report
 
           <button
             onClick={handleConnectGoogle}
-            className="bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700"
+            className="bg-primary text-white px-8 py-3 rounded-lg font-semibold hover:bg-primary-600"
           >
             Connect Google Account
           </button>
@@ -264,7 +264,7 @@ export function GSCDashboard({ hasUnusedReport, isConnected, googleEmail, report
         {properties.length === 0 && !loading ? (
           <button
             onClick={fetchProperties}
-            className="bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700"
+            className="bg-primary text-white px-6 py-2 rounded-lg font-semibold hover:bg-primary-600"
           >
             Load Properties
           </button>
@@ -273,7 +273,7 @@ export function GSCDashboard({ hasUnusedReport, isConnected, googleEmail, report
             <select
               value={selectedProperty}
               onChange={(e) => setSelectedProperty(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
             >
               <option value="">Select a property...</option>
               {properties.map((prop) => (
@@ -286,7 +286,7 @@ export function GSCDashboard({ hasUnusedReport, isConnected, googleEmail, report
             <button
               onClick={fetchAnalysis}
               disabled={!selectedProperty || loading}
-              className="bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="bg-primary text-white px-6 py-2 rounded-lg font-semibold hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? 'Loading...' : 'Fetch GSC Data'}
             </button>
@@ -307,7 +307,7 @@ export function GSCDashboard({ hasUnusedReport, isConnected, googleEmail, report
           <div className="bg-white rounded-lg shadow-md p-6">
             <h2 className="text-xl font-bold text-gray-900 mb-4">Summary (Last 28 Days)</h2>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="bg-blue-50 p-4 rounded-lg">
+              <div className="bg-primary-50 p-4 rounded-lg">
                 <p className="text-sm text-gray-600 mb-1">Total Clicks</p>
                 <p className="text-2xl font-bold text-gray-900">
                   {gscData.summary.totalClicks.toLocaleString()}

@@ -7,19 +7,19 @@ export default function Home() {
       <HomeHeader />
 
       {/* Hero Section */}
-      <section className="relative py-24 lg:py-32 bg-gradient-to-br from-blue-600 to-blue-800">
+      <section className="relative py-24 lg:py-32 bg-gradient-to-br from-gray-900 to-primary-900">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h1 className="text-5xl lg:text-6xl font-bold text-white mb-6 leading-tight">
               Unlock Your Search Performance Insights
             </h1>
-            <p className="text-2xl text-blue-100 mb-8 max-w-2xl mx-auto">
+            <p className="text-2xl text-primary-100 mb-8 max-w-2xl mx-auto">
               Get a comprehensive diagnostic report of your Google Search Console data for just $4.99
             </p>
             <div className="flex justify-center">
               <DirectCheckoutButton />
             </div>
-            <p className="text-blue-100 mt-4 text-sm">
+            <p className="text-primary-100 mt-4 text-sm">
               No subscription. One-time payment. Instant access.
             </p>
           </div>
@@ -37,8 +37,8 @@ export default function Home() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {/* Top Queries */}
             <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-200">
-              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
-                <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="w-12 h-12 bg-primary-100 rounded-lg flex items-center justify-center mb-4">
+                <svg className="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
               </div>
@@ -100,7 +100,7 @@ export default function Home() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             <div className="text-center">
-              <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 text-white rounded-full text-2xl font-bold mb-4">
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-primary text-white rounded-full text-2xl font-bold mb-4">
                 1
               </div>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">Purchase Report</h3>
@@ -110,7 +110,7 @@ export default function Home() {
             </div>
 
             <div className="text-center">
-              <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 text-white rounded-full text-2xl font-bold mb-4">
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-primary text-white rounded-full text-2xl font-bold mb-4">
                 2
               </div>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">Check Your Email</h3>
@@ -120,7 +120,7 @@ export default function Home() {
             </div>
 
             <div className="text-center">
-              <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 text-white rounded-full text-2xl font-bold mb-4">
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-primary text-white rounded-full text-2xl font-bold mb-4">
                 3
               </div>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">Connect Google</h3>
@@ -130,7 +130,7 @@ export default function Home() {
             </div>
 
             <div className="text-center">
-              <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 text-white rounded-full text-2xl font-bold mb-4">
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-primary text-white rounded-full text-2xl font-bold mb-4">
                 4
               </div>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">View Your Report</h3>
@@ -151,7 +151,7 @@ export default function Home() {
           </div>
 
           <div className="max-w-md mx-auto">
-            <div className="bg-white rounded-2xl border-2 border-blue-600 shadow-xl p-10 text-center">
+            <div className="bg-white rounded-2xl border-2 border-primary shadow-xl p-10 text-center">
               <h3 className="text-2xl font-bold text-gray-900 mb-4">GSC Diagnostic Report</h3>
               <div className="mb-6">
                 <span className="text-6xl font-bold text-gray-900">$4.99</span>
@@ -272,12 +272,12 @@ export default function Home() {
       </section>
 
       {/* Final CTA */}
-      <section className="py-20 bg-gradient-to-br from-blue-600 to-blue-800">
+      <section className="py-20 bg-gradient-to-br from-gray-900 to-primary-900">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-4xl lg:text-5xl font-bold text-white mb-6">
             Ready to unlock your search insights?
           </h2>
-          <p className="text-xl text-blue-100 mb-8">
+          <p className="text-xl text-primary-100 mb-8">
             Get your comprehensive GSC diagnostic report in minutes for just $4.99
           </p>
           <DirectCheckoutButton />
