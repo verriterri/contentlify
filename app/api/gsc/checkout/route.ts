@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { stripe } from '@/lib/stripe';
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
-import { getSupabaseUrl, getSupabaseAnonKey } from '@/lib/supabase';
+import { createClient } from '@supabase/supabase-js';
 
 // Mark route as dynamic
 export const dynamic = 'force-dynamic';
@@ -10,95 +8,34 @@ export const dynamic = 'force-dynamic';
 /**
  * POST /api/gsc/checkout
  * Creates a Stripe checkout session for GSC analysis ($9.99 one-time)
+ * NOW SUPPORTS ANONYMOUS PURCHASES - no authentication required
  */
 export async function POST(req: NextRequest) {
   try {
-    // Get authenticated user
-    const cookieStore = await cookies();
-    const supabaseUrl = getSupabaseUrl();
-    const supabaseAnonKey = getSupabaseAnonKey();
+    const { email } = await req.json();
 
-    const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
-        },
-        set(name: string, value: string, options: any) {
-          cookieStore.set(name, value, options);
-        },
-        remove(name: string, options: any) {
-          cookieStore.set(name, '', options);
-        },
-      },
-    });
-
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
+    // Validate email
+    if (!email || !email.includes('@')) {
       return NextResponse.json(
-        { error: 'Unauthorized - Please log in to continue' },
-        { status: 401 }
-      );
-    }
-
-    // Check if user already paid for GSC analysis
-    const { data: existingPayment } = await supabase
-      .from('gsc_payments')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('status', 'completed')
-      .single();
-
-    if (existingPayment) {
-      return NextResponse.json(
-        { error: 'You have already purchased GSC analysis access' },
+        { error: 'Valid email address is required' },
         { status: 400 }
       );
     }
 
-    // Get user from database
-    const { data: userData } = await supabase
-      .from('users')
-      .select('email, stripe_customer_id')
-      .eq('id', user.id)
-      .single();
+    // Use service role to create payment record (bypasses RLS)
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
 
-    if (!userData) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      );
-    }
-
-    // Create or retrieve Stripe customer
-    let customerId = userData.stripe_customer_id;
-
-    if (!customerId) {
-      const customer = await stripe.customers.create({
-        email: userData.email || user.email!,
-        metadata: {
-          supabase_user_id: user.id,
-        },
-      });
-      customerId = customer.id;
-
-      // Update user with customer ID
-      await supabase
-        .from('users')
-        .update({ stripe_customer_id: customerId })
-        .eq('id', user.id);
-    }
-
-    // Create pending payment record
+    // Create pending payment record with email (no user_id yet)
     const { data: payment, error: paymentError } = await supabase
       .from('gsc_payments')
       .insert({
-        user_id: user.id,
+        email: email.toLowerCase().trim(),
         amount: 9.99,
         status: 'pending',
+        report_generated: false,
       })
       .select()
       .single();
@@ -111,31 +48,32 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Create checkout session
+    // Create Stripe checkout session
     const sessionUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
     const checkoutSession = await stripe.checkout.sessions.create({
-      customer: customerId,
+      customer_email: email.toLowerCase().trim(),
       mode: 'payment',
       line_items: [
         {
           price_data: {
             currency: 'usd',
             product_data: {
-              name: 'GSC Analysis Access',
-              description: 'One-time payment for Google Search Console analysis access',
+              name: 'GSC Diagnostic Report',
+              description: 'One-time Google Search Console analysis report',
             },
             unit_amount: 999, // $9.99 in cents
           },
           quantity: 1,
         },
       ],
-      success_url: `${sessionUrl}/dashboard/gsc?payment=success`,
-      cancel_url: `${sessionUrl}/dashboard/gsc?payment=canceled`,
+      success_url: `${sessionUrl}/welcome?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${sessionUrl}/?payment=canceled`,
       metadata: {
-        supabase_user_id: user.id,
+        email: email.toLowerCase().trim(),
         payment_id: payment.id,
         payment_type: 'gsc_analysis',
+        is_anonymous_purchase: 'true',
       },
     });
 
@@ -145,8 +83,8 @@ export async function POST(req: NextRequest) {
       .update({ stripe_session_id: checkoutSession.id })
       .eq('id', payment.id);
 
-    console.log('[GSC Checkout] Created checkout session:', {
-      userId: user.id,
+    console.log('[GSC Checkout] Created anonymous checkout session:', {
+      email,
       paymentId: payment.id,
       sessionId: checkoutSession.id,
     });

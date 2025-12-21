@@ -4,9 +4,14 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 
 interface GSCDashboardProps {
-  hasPaid: boolean;
+  hasUnusedReport: boolean;
   isConnected: boolean;
   googleEmail?: string;
+  reportStatus?: {
+    totalPurchased: number;
+    reportsGenerated: number;
+    reportsAvailable: number;
+  };
 }
 
 interface GSCProperty {
@@ -25,7 +30,7 @@ interface GSCData {
   };
 }
 
-export function GSCDashboard({ hasPaid, isConnected, googleEmail }: GSCDashboardProps) {
+export function GSCDashboard({ hasUnusedReport, isConnected, googleEmail, reportStatus }: GSCDashboardProps) {
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -148,51 +153,60 @@ export function GSCDashboard({ hasPaid, isConnected, googleEmail }: GSCDashboard
     }
   };
 
-  // Payment required
-  if (!hasPaid) {
+  // Payment required - no unused reports available
+  if (!hasUnusedReport) {
     return (
       <div className="bg-white rounded-lg shadow-md p-8 max-w-2xl mx-auto">
         <div className="text-center">
           <h2 className="text-2xl font-bold text-gray-900 mb-4">
-            Unlock GSC Analysis
+            {reportStatus && reportStatus.reportsGenerated > 0
+              ? 'Purchase Another Report'
+              : 'Get Your GSC Diagnostic Report'}
           </h2>
-          <p className="text-gray-600 mb-6">
-            Get one-time access to Google Search Console analysis for just $9.99
-          </p>
+
+          {reportStatus && reportStatus.reportsGenerated > 0 ? (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+              <p className="text-green-800">
+                <strong>Reports generated:</strong> {reportStatus.reportsGenerated} of {reportStatus.totalPurchased}
+              </p>
+              <p className="text-sm text-green-700 mt-1">
+                Purchase another report to analyze updated data or a different property
+              </p>
+            </div>
+          ) : (
+            <p className="text-gray-600 mb-6">
+              Get a one-time diagnostic report of your Google Search Console data for $9.99
+            </p>
+          )}
 
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
-            <h3 className="font-semibold text-gray-900 mb-3">What's included:</h3>
+            <h3 className="font-semibold text-gray-900 mb-3">Each report includes:</h3>
             <ul className="text-left text-gray-700 space-y-2">
               <li className="flex items-start">
                 <span className="text-blue-600 mr-2">✓</span>
-                <span>Connect your Google Search Console account</span>
+                <span>Top 100 queries with clicks, impressions, CTR, and position</span>
               </li>
               <li className="flex items-start">
                 <span className="text-blue-600 mr-2">✓</span>
-                <span>View top 100 queries with clicks, impressions, CTR, and position</span>
+                <span>Top 100 pages by clicks</span>
               </li>
               <li className="flex items-start">
                 <span className="text-blue-600 mr-2">✓</span>
-                <span>Analyze top pages by clicks</span>
+                <span>Performance summary and insights</span>
               </li>
               <li className="flex items-start">
                 <span className="text-blue-600 mr-2">✓</span>
-                <span>Get performance summary and insights</span>
-              </li>
-              <li className="flex items-start">
-                <span className="text-blue-600 mr-2">✓</span>
-                <span>Last 28 days of data</span>
+                <span>Last 28 days of search data</span>
               </li>
             </ul>
           </div>
 
-          <button
-            onClick={handlePayment}
-            disabled={loading}
-            className="bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          <a
+            href="/pricing"
+            className="inline-block bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
           >
-            {loading ? 'Loading...' : 'Pay $9.99 to Unlock'}
-          </button>
+            Buy Report for $9.99
+          </a>
 
           {error && (
             <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700">

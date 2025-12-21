@@ -31,15 +31,30 @@ export default async function GSCPage() {
     redirect('/login');
   }
 
-  // Check payment status
-  const { data: payment } = await supabase
+  // Check for UNUSED payment (one-time access)
+  const { data: unusedPayment } = await supabase
     .from('gsc_payments')
     .select('*')
     .eq('user_id', user.id)
     .eq('status', 'completed')
+    .eq('report_generated', false)
     .single();
 
-  const hasPaid = !!payment;
+  const hasUnusedReport = !!unusedPayment;
+
+  // Get all payments for stats
+  const { data: allPayments } = await supabase
+    .from('gsc_payments')
+    .select('*')
+    .eq('user_id', user.id)
+    .eq('status', 'completed')
+    .order('completed_at', { ascending: false });
+
+  const reportStatus = {
+    totalPurchased: allPayments?.length || 0,
+    reportsGenerated: allPayments?.filter((p) => p.report_generated).length || 0,
+    reportsAvailable: allPayments?.filter((p) => !p.report_generated).length || 0,
+  };
 
   // Check GSC connection status
   const { data: connection } = await supabase
@@ -58,14 +73,15 @@ export default async function GSCPage() {
           Google Search Console Analysis
         </h1>
         <p className="text-gray-600">
-          Analyze your search performance with GSC data
+          One-time diagnostic reports for your search performance
         </p>
       </div>
 
       <GSCDashboard
-        hasPaid={hasPaid}
+        hasUnusedReport={hasUnusedReport}
         isConnected={isConnected}
         googleEmail={googleEmail}
+        reportStatus={reportStatus}
       />
     </div>
   );

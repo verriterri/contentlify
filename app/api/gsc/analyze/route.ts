@@ -48,19 +48,22 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Check if user has paid for GSC analysis
-    const { data: payment } = await supabase
+    // Check for UNUSED payment (one-time access enforcement)
+    const { data: unusedPayment } = await supabase
       .from('gsc_payments')
       .select('*')
       .eq('user_id', user.id)
       .eq('status', 'completed')
+      .eq('report_generated', false) // KEY: Only unused payments
+      .order('completed_at', { ascending: false })
+      .limit(1)
       .single();
 
-    if (!payment) {
+    if (!unusedPayment) {
       return NextResponse.json(
         {
-          error: 'Payment required',
-          message: 'Please complete payment to access GSC analysis',
+          error: 'No available reports',
+          message: 'Purchase a new report to continue. Each $9.99 payment allows one report generation.',
           requiresPayment: true,
         },
         { status: 402 }
@@ -123,9 +126,11 @@ export async function GET(req: NextRequest) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
+    // Insert analysis results linked to payment
     await supabaseAdmin.from('gsc_analysis_results').insert({
       user_id: user.id,
       connection_id: tokenData.connectionId,
+      payment_id: unusedPayment.id, // Link to payment
       site_url: siteUrl,
       data_period_start: formatDate(startDate),
       data_period_end: formatDate(endDate),
@@ -134,8 +139,18 @@ export async function GET(req: NextRequest) {
       summary_stats: gscData.summary,
     });
 
-    console.log('[GSC Analyze] Successfully fetched and stored GSC data:', {
+    // MARK PAYMENT AS USED (one-time access enforcement)
+    await supabaseAdmin
+      .from('gsc_payments')
+      .update({
+        report_generated: true,
+        report_generated_at: new Date().toISOString(),
+      })
+      .eq('id', unusedPayment.id);
+
+    console.log('[GSC Analyze] Successfully generated report and marked payment as used:', {
       userId: user.id,
+      paymentId: unusedPayment.id,
       siteUrl,
       queriesCount: gscData.queries.length,
       pagesCount: gscData.pages.length,
