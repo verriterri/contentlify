@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe'
 import { createServerClient } from '@/lib/supabase'
 import Stripe from 'stripe'
-import { sendEmail } from '@/lib/email/sender'
-import { getWelcomeEmail } from '@/lib/email/templates'
 
 export async function POST(req: NextRequest) {
   const body = await req.text()
@@ -53,115 +51,29 @@ export async function POST(req: NextRequest) {
         // Handle GSC analysis payment (one-time $4.99)
         if (session.mode === 'payment' && session.metadata?.payment_type === 'gsc_analysis') {
           const paymentId = session.metadata.payment_id
-          const isAnonymousPurchase = session.metadata.is_anonymous_purchase === 'true'
-          const email = session.metadata.email
+          const userId = session.metadata.supabase_user_id
 
           console.log('[Webhook] Processing GSC analysis payment:', {
             paymentId,
-            isAnonymousPurchase,
-            email,
+            userId,
           })
 
-          // ANONYMOUS PURCHASE - Create account automatically
-          if (isAnonymousPurchase && email) {
-            try {
-              console.log('[Webhook] Creating account for anonymous purchase:', email)
-
-              // 1. Create Supabase auth user
-              const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-                email,
-                email_confirm: true, // Skip email verification
-                user_metadata: {
-                  created_via: 'gsc_purchase',
-                  purchase_date: new Date().toISOString(),
-                },
-              })
-
-              if (authError || !authData.user) {
-                console.error('[Webhook] Failed to create auth user:', authError)
-                // Still update payment but log error
-                await supabase
-                  .from('gsc_payments')
-                  .update({
-                    status: 'completed',
-                    stripe_payment_intent_id: session.payment_intent as string,
-                    completed_at: new Date().toISOString(),
-                  })
-                  .eq('id', paymentId)
-                break
-              }
-
-              const userId = authData.user.id
-
-              // 2. Create public.users record
-              const { error: userInsertError } = await supabase
-                .from('users')
-                .insert({
-                  id: userId,
-                  email,
-                  credits: 0, // No free credits for purchase-first users
-                  email_verified: true,
-                  free_trial_used: false,
-                  has_made_first_purchase: false,
-                })
-
-              if (userInsertError) {
-                console.error('[Webhook] Failed to create user record:', userInsertError)
-              }
-
-              // 3. Update payment with user_id
-              await supabase
-                .from('gsc_payments')
-                .update({
-                  user_id: userId,
-                  status: 'completed',
-                  stripe_payment_intent_id: session.payment_intent as string,
-                  completed_at: new Date().toISOString(),
-                })
-                .eq('id', paymentId)
-
-              // 4. Generate magic link
-              const { data: magicLinkData, error: magicLinkError } = await supabase.auth.admin.generateLink({
-                type: 'magiclink',
-                email,
-              })
-
-              if (magicLinkError || !magicLinkData) {
-                console.error('[Webhook] Failed to generate magic link:', magicLinkError)
-              } else {
-                // 5. Send welcome email with magic link
-                const emailTemplate = getWelcomeEmail(email, magicLinkData.properties.action_link)
-                await sendEmail({
-                  to: email,
-                  subject: emailTemplate.subject,
-                  html: emailTemplate.html,
-                })
-              }
-
-              console.log('[Webhook] Successfully created account for:', email)
-            } catch (error) {
-              console.error('[Webhook] Error in anonymous purchase flow:', error)
-            }
-          } else {
-            // AUTHENTICATED PURCHASE - Just update payment
-            const userId = session.metadata.supabase_user_id
-
-            if (!userId || !paymentId) {
-              console.error('[Webhook] Missing user ID or payment ID for authenticated purchase')
-              break
-            }
-
-            await supabase
-              .from('gsc_payments')
-              .update({
-                status: 'completed',
-                stripe_payment_intent_id: session.payment_intent as string,
-                completed_at: new Date().toISOString(),
-              })
-              .eq('id', paymentId)
-
-            console.log(`[Webhook] GSC analysis payment completed for user ${userId}`)
+          if (!userId || !paymentId) {
+            console.error('[Webhook] Missing user ID or payment ID')
+            break
           }
+
+          // Update payment status
+          await supabase
+            .from('gsc_payments')
+            .update({
+              status: 'completed',
+              stripe_payment_intent_id: session.payment_intent as string,
+              completed_at: new Date().toISOString(),
+            })
+            .eq('id', paymentId)
+
+          console.log(`[Webhook] GSC analysis payment completed for user ${userId}`)
 
           break
         }

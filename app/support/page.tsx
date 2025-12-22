@@ -22,33 +22,23 @@ export default function SupportPage() {
             <h2 className="text-2xl font-bold text-gray-900 mb-6">Common Issues</h2>
 
             <div className="space-y-6">
-              {/* Wrong Email */}
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  I entered the wrong email address
-                </h3>
-                <p className="text-gray-600 mb-3">
-                  No problem! Email us with your Stripe payment receipt, and we'll manually send you a login link to the correct email address for free.
-                </p>
-              </div>
-
-              {/* Didn't Receive Email */}
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  I didn't receive the magic login link
-                </h3>
-                <p className="text-gray-600 mb-3">
-                  First, check your spam/junk folder. The email should arrive within a few minutes of purchase. If you still don't see it, contact us with your payment details.
-                </p>
-              </div>
-
               {/* Can't Access Account */}
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">
                   I can't access my account
                 </h3>
                 <p className="text-gray-600 mb-3">
-                  Make sure you're using the most recent magic link we sent you. Magic links expire after 24 hours. If you need a new link, contact us with your registered email address.
+                  Try resetting your password or requesting a new magic link from the login page. If you continue having issues, contact us with your registered email address.
+                </p>
+              </div>
+
+              {/* Didn't Receive Verification Email */}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  I didn't receive the verification email
+                </h3>
+                <p className="text-gray-600 mb-3">
+                  First, check your spam/junk folder. The verification email should arrive within a few minutes of signup. If you still don't see it, contact us and we can verify your account manually.
                 </p>
               </div>
 
@@ -59,6 +49,16 @@ export default function SupportPage() {
                 </h3>
                 <p className="text-gray-600 mb-3">
                   If you're having trouble connecting your Google Search Console account or generating your report, please contact us with details about the error you're seeing.
+                </p>
+              </div>
+
+              {/* Payment Issues */}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  Payment or billing questions
+                </h3>
+                <p className="text-gray-600 mb-3">
+                  For questions about your purchase, refunds, or billing, contact us with your payment receipt and we'll be happy to help.
                 </p>
               </div>
             </div>

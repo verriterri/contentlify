@@ -1,17 +1,30 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { createClient } from '@/lib/supabase/client';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 export function DirectCheckoutButton() {
-  const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [user, setUser] = useState<any>(null);
+  const [checkingAuth, setCheckingAuth] = useState(true);
+  const router = useRouter();
+  const supabase = createClient();
 
-  const handleCheckout = async (e: React.FormEvent) => {
-    e.preventDefault();
+  useEffect(() => {
+    const checkUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+      setCheckingAuth(false);
+    };
+    checkUser();
+  }, []);
 
-    if (!email || !email.includes('@')) {
-      setError('Please enter a valid email address');
+  const handleCheckout = async () => {
+    if (!user) {
+      router.push('/signup');
       return;
     }
 
@@ -24,7 +37,6 @@ export function DirectCheckoutButton() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email: email.toLowerCase().trim() }),
       });
 
       const data = await res.json();
@@ -42,46 +54,51 @@ export function DirectCheckoutButton() {
     }
   };
 
-  return (
-    <form onSubmit={handleCheckout} className="w-full max-w-md mx-auto">
-      <div className="space-y-4">
-        <div>
-          <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-            Email Address
-          </label>
-          <input
-            type="email"
-            id="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="your@email.com"
-            required
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-            disabled={loading}
-          />
-          <p className="mt-1 text-sm text-gray-500">
-            No account needed - we'll create one for you
-          </p>
-        </div>
+  if (checkingAuth) {
+    return (
+      <button
+        disabled
+        className="w-full bg-primary text-white px-8 py-4 rounded-lg font-semibold text-lg opacity-50"
+      >
+        Loading...
+      </button>
+    );
+  }
 
-        <button
-          type="submit"
-          disabled={loading || !email}
-          className="w-full bg-primary text-white px-8 py-4 rounded-lg font-semibold text-lg hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+  if (!user) {
+    return (
+      <div className="w-full max-w-md mx-auto space-y-4">
+        <Link
+          href="/signup"
+          className="block w-full bg-primary text-white px-8 py-4 rounded-lg font-semibold text-lg hover:bg-primary-600 transition-colors text-center"
         >
-          {loading ? 'Processing...' : 'Buy Report for $4.99'}
-        </button>
-
-        {error && (
-          <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-            {error}
-          </div>
-        )}
-
-        <p className="text-xs text-center text-gray-500">
-          By purchasing, you'll receive a login link via email to access your report
+          Sign Up to Buy Report for $4.99
+        </Link>
+        <p className="text-sm text-center text-gray-600">
+          Already have an account?{' '}
+          <Link href="/login" className="text-primary hover:text-primary-600 font-medium">
+            Sign In
+          </Link>
         </p>
       </div>
-    </form>
+    );
+  }
+
+  return (
+    <div className="w-full max-w-md mx-auto space-y-4">
+      <button
+        onClick={handleCheckout}
+        disabled={loading}
+        className="w-full bg-primary text-white px-8 py-4 rounded-lg font-semibold text-lg hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+      >
+        {loading ? 'Processing...' : 'Buy Report for $4.99'}
+      </button>
+
+      {error && (
+        <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+          {error}
+        </div>
+      )}
+    </div>
   );
 }

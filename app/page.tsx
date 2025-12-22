@@ -103,9 +103,9 @@ export default function Home() {
               <div className="inline-flex items-center justify-center w-16 h-16 bg-primary text-white rounded-full text-2xl font-bold mb-4">
                 1
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Purchase Report</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Create Account</h3>
               <p className="text-gray-600">
-                Enter your email and pay $4.99. No signup required.
+                Sign up with your email. Quick and free.
               </p>
             </div>
 
@@ -113,9 +113,9 @@ export default function Home() {
               <div className="inline-flex items-center justify-center w-16 h-16 bg-primary text-white rounded-full text-2xl font-bold mb-4">
                 2
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Check Your Email</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Purchase Report</h3>
               <p className="text-gray-600">
-                We'll create your account and send a magic login link.
+                One-time payment of $4.99. Instant access.
               </p>
             </div>
 
@@ -210,7 +210,7 @@ export default function Home() {
                 Do I need to sign up before purchasing?
               </h3>
               <p className="text-gray-600 leading-relaxed">
-                No! Just enter your email and complete the payment. We'll automatically create your account and send you a magic login link after purchase.
+                Yes, you'll need to create a free account first. Then you can purchase your $4.99 report. This takes just a minute and uses Supabase's secure authentication.
               </p>
             </div>
 
