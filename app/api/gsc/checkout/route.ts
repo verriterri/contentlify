@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { stripe } from '@/lib/stripe';
-import { createClient } from '@/lib/supabase/server';
+import { createServerClient } from '@/lib/supabase';
 import { cookies } from 'next/headers';
+import { createServerClient as createSSRClient } from '@supabase/ssr';
+import { getSupabaseUrl, getSupabaseAnonKey } from '@/lib/supabase';
 
 // Mark route as dynamic
 export const dynamic = 'force-dynamic';
@@ -14,7 +16,19 @@ export const dynamic = 'force-dynamic';
 export async function POST(req: NextRequest) {
   try {
     const cookieStore = await cookies();
-    const supabase = createClient(cookieStore);
+    const supabase = createSSRClient(getSupabaseUrl(), getSupabaseAnonKey(), {
+      cookies: {
+        get(name: string) {
+          return cookieStore.get(name)?.value;
+        },
+        set(name: string, value: string, options: any) {
+          cookieStore.set(name, value, options);
+        },
+        remove(name: string, options: any) {
+          cookieStore.set(name, '', options);
+        },
+      },
+    });
 
     // Check authentication
     const { data: { user }, error: authError } = await supabase.auth.getUser();

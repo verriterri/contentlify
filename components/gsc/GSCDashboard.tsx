@@ -69,12 +69,12 @@ export function GSCDashboard({ hasUnusedReport, isConnected, googleEmail, report
     }
   }, [searchParams]);
 
-  // Fetch properties when connected and paid
+  // Fetch properties when connected and has unused report
   useEffect(() => {
-    if (hasPaid && isConnected && properties.length === 0) {
+    if (hasUnusedReport && isConnected && properties.length === 0) {
       fetchProperties();
     }
-  }, [hasPaid, isConnected]);
+  }, [hasUnusedReport, isConnected]);
 
   const handlePayment = async () => {
     setLoading(true);

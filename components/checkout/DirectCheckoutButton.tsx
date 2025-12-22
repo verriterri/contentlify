@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
@@ -11,7 +11,6 @@ export function DirectCheckoutButton() {
   const [user, setUser] = useState<any>(null);
   const [checkingAuth, setCheckingAuth] = useState(true);
   const router = useRouter();
-  const supabase = createClient();
 
   useEffect(() => {
     const checkUser = async () => {

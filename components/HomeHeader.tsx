@@ -3,7 +3,6 @@ import Image from 'next/image'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { LogoutButton } from '@/components/auth/LogoutButton'
-import { CreditBalanceUpdater } from '@/components/dashboard/CreditBalanceUpdater'
 import { getSupabaseUrl, getSupabaseAnonKey } from '@/lib/supabase'
 
 export async function HomeHeader() {
@@ -61,7 +60,6 @@ export async function HomeHeader() {
             </Link>
           </div>
           <div className="flex items-center gap-4">
-            {user && <CreditBalanceUpdater />}
             {user && (
               <div className="flex items-center gap-2">
                 <Link
