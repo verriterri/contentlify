@@ -694,9 +694,14 @@ CREATE POLICY "Users can view own GSC payments"
   ON public.gsc_payments FOR SELECT
   USING (auth.uid() = user_id);
 
-CREATE POLICY "Users can insert own GSC payments"
+-- Allow server-side inserts for anonymous purchases (user_id can be null initially)
+CREATE POLICY "Server can insert GSC payments"
   ON public.gsc_payments FOR INSERT
-  WITH CHECK (auth.uid() = user_id);
+  WITH CHECK (true);
+
+CREATE POLICY "Users can update own GSC payments"
+  ON public.gsc_payments FOR UPDATE
+  USING (auth.uid() = user_id);
 
 -- GSC Connections policies
 CREATE POLICY "Users can view own GSC connections"
