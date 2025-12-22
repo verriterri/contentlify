@@ -7,93 +7,122 @@ export default function PricingPage() {
       <HomeHeader />
 
       <div className="py-20">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
             <h1 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
-              Get Your GSC Diagnostic Report
+              Free Dashboard. Paid AI Analysis.
             </h1>
             <p className="text-xl text-gray-600">
-              One-time payment. Instant access. Actionable insights.
+              Get started for free. Upgrade to AI insights when you need them.
             </p>
           </div>
 
-          <div className="max-w-md mx-auto">
-            <div className="bg-white rounded-2xl border-2 border-primary shadow-xl p-10 text-center">
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">GSC Diagnostic Report</h2>
-              <div className="mb-6">
-                <span className="text-6xl font-bold text-gray-900">$4.99</span>
-                <p className="text-gray-600 mt-2">One-time payment</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {/* Free Tier */}
+            <div className="bg-white rounded-2xl border-2 border-gray-200 shadow-lg p-8">
+              <div className="text-center mb-6">
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">Free Dashboard</h2>
+                <div className="mb-4">
+                  <span className="text-6xl font-bold text-gray-900">$0</span>
+                  <p className="text-gray-600 mt-2">Forever free</p>
+                </div>
               </div>
 
-              <ul className="text-left space-y-3 mb-8">
+              <ul className="space-y-3 mb-8">
                 <li className="flex items-start">
                   <svg className="w-5 h-5 text-green-500 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
-                  <span className="text-gray-700">Top 100 queries with full metrics</span>
+                  <span className="text-gray-700">Connect Google Search Console</span>
                 </li>
                 <li className="flex items-start">
                   <svg className="w-5 h-5 text-green-500 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
-                  <span className="text-gray-700">Top 100 pages by clicks</span>
+                  <span className="text-gray-700">View top 100 queries & pages</span>
                 </li>
                 <li className="flex items-start">
                   <svg className="w-5 h-5 text-green-500 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
-                  <span className="text-gray-700">Performance summary (28 days)</span>
+                  <span className="text-gray-700">Performance metrics & CTR data</span>
                 </li>
                 <li className="flex items-start">
                   <svg className="w-5 h-5 text-green-500 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
-                  <span className="text-gray-700">CTR and position analysis</span>
+                  <span className="text-gray-700">28-day summary stats</span>
                 </li>
                 <li className="flex items-start">
                   <svg className="w-5 h-5 text-green-500 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
-                  <span className="text-gray-700">Instant access after purchase</span>
+                  <span className="text-gray-700">Clean, modern interface</span>
+                </li>
+              </ul>
+
+              <a
+                href="/signup"
+                className="block w-full bg-gray-200 text-gray-900 px-8 py-4 rounded-lg font-semibold text-center hover:bg-gray-300 transition-colors"
+              >
+                Start Free
+              </a>
+            </div>
+
+            {/* AI Analysis Tier */}
+            <div className="bg-gradient-to-br from-primary-50 to-purple-50 rounded-2xl border-2 border-primary shadow-xl p-8 relative">
+              <div className="absolute -top-4 left-1/2 -translate-x-1/2">
+                <span className="px-4 py-1 bg-primary text-white text-sm font-bold rounded-full">POPULAR</span>
+              </div>
+
+              <div className="text-center mb-6">
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">AI Analysis</h2>
+                <div className="mb-4">
+                  <span className="text-6xl font-bold text-gray-900">$4.99</span>
+                  <p className="text-gray-600 mt-2">Per analysis</p>
+                </div>
+              </div>
+
+              <p className="text-sm text-gray-700 mb-4 font-semibold">Everything in Free, plus:</p>
+
+              <ul className="space-y-3 mb-8">
+                <li className="flex items-start">
+                  <svg className="w-5 h-5 text-primary mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span className="text-gray-900 font-medium">AI-powered SEO recommendations</span>
+                </li>
+                <li className="flex items-start">
+                  <svg className="w-5 h-5 text-primary mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span className="text-gray-900 font-medium">Personalized content optimization</span>
+                </li>
+                <li className="flex items-start">
+                  <svg className="w-5 h-5 text-primary mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span className="text-gray-900 font-medium">Keyword opportunity identification</span>
+                </li>
+                <li className="flex items-start">
+                  <svg className="w-5 h-5 text-primary mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span className="text-gray-900 font-medium">CTR optimization strategies</span>
+                </li>
+                <li className="flex items-start">
+                  <svg className="w-5 h-5 text-primary mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span className="text-gray-900 font-medium">Actionable next steps</span>
                 </li>
               </ul>
 
               <DirectCheckoutButton />
 
-              <p className="text-sm text-gray-500 mt-4">
-                No subscription. No recurring charges.
+              <p className="text-sm text-gray-600 mt-4 text-center">
+                One-time payment. No subscription.
               </p>
-            </div>
-          </div>
-
-          {/* Additional Info */}
-          <div className="mt-12 text-center">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">How It Works</h3>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 max-w-3xl mx-auto">
-              <div>
-                <div className="inline-flex items-center justify-center w-10 h-10 bg-primary text-white rounded-full text-lg font-bold mb-2">
-                  1
-                </div>
-                <p className="text-sm text-gray-600">Purchase Report</p>
-              </div>
-              <div>
-                <div className="inline-flex items-center justify-center w-10 h-10 bg-primary text-white rounded-full text-lg font-bold mb-2">
-                  2
-                </div>
-                <p className="text-sm text-gray-600">Check Your Email</p>
-              </div>
-              <div>
-                <div className="inline-flex items-center justify-center w-10 h-10 bg-primary text-white rounded-full text-lg font-bold mb-2">
-                  3
-                </div>
-                <p className="text-sm text-gray-600">Connect Google</p>
-              </div>
-              <div>
-                <div className="inline-flex items-center justify-center w-10 h-10 bg-primary text-white rounded-full text-lg font-bold mb-2">
-                  4
-                </div>
-                <p className="text-sm text-gray-600">View Report</p>
-              </div>
             </div>
           </div>
         </div>

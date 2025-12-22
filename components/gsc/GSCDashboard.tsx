@@ -69,12 +69,13 @@ export function GSCDashboard({ hasUnusedReport, isConnected, googleEmail, report
     }
   }, [searchParams]);
 
-  // Fetch properties when connected and has unused report
+  // Fetch properties when connected (free for all users)
   useEffect(() => {
-    if (hasUnusedReport && isConnected && properties.length === 0) {
+    if (isConnected && properties.length === 0 && !loading) {
       fetchProperties();
     }
-  }, [hasUnusedReport, isConnected]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isConnected]);
 
   const handlePayment = async () => {
     setLoading(true);
@@ -153,72 +154,7 @@ export function GSCDashboard({ hasUnusedReport, isConnected, googleEmail, report
     }
   };
 
-  // Payment required - no unused reports available
-  if (!hasUnusedReport) {
-    return (
-      <div className="bg-white rounded-lg shadow-md p-8 max-w-2xl mx-auto">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">
-            {reportStatus && reportStatus.reportsGenerated > 0
-              ? 'Purchase Another Report'
-              : 'Get Your GSC Diagnostic Report'}
-          </h2>
-
-          {reportStatus && reportStatus.reportsGenerated > 0 ? (
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
-              <p className="text-green-800">
-                <strong>Reports generated:</strong> {reportStatus.reportsGenerated} of {reportStatus.totalPurchased}
-              </p>
-              <p className="text-sm text-green-700 mt-1">
-                Purchase another report to analyze updated data or a different property
-              </p>
-            </div>
-          ) : (
-            <p className="text-gray-600 mb-6">
-              Get a one-time diagnostic report of your Google Search Console data for $4.99
-            </p>
-          )}
-
-          <div className="bg-primary-50 border border-primary-200 rounded-lg p-6 mb-6">
-            <h3 className="font-semibold text-gray-900 mb-3">Each report includes:</h3>
-            <ul className="text-left text-gray-700 space-y-2">
-              <li className="flex items-start">
-                <span className="text-primary mr-2">✓</span>
-                <span>Top 100 queries with clicks, impressions, CTR, and position</span>
-              </li>
-              <li className="flex items-start">
-                <span className="text-primary mr-2">✓</span>
-                <span>Top 100 pages by clicks</span>
-              </li>
-              <li className="flex items-start">
-                <span className="text-primary mr-2">✓</span>
-                <span>Performance summary and insights</span>
-              </li>
-              <li className="flex items-start">
-                <span className="text-primary mr-2">✓</span>
-                <span>Last 28 days of search data</span>
-              </li>
-            </ul>
-          </div>
-
-          <a
-            href="/pricing"
-            className="inline-block bg-primary text-white px-8 py-3 rounded-lg font-semibold hover:bg-primary-600 transition-colors"
-          >
-            Buy Report for $4.99
-          </a>
-
-          {error && (
-            <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700">
-              {error}
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  // Connect Google required
+  // Connect Google required (always free)
   if (!isConnected) {
     return (
       <div className="bg-white rounded-lg shadow-md p-8 max-w-2xl mx-auto">
@@ -247,21 +183,34 @@ export function GSCDashboard({ hasUnusedReport, isConnected, googleEmail, report
     );
   }
 
-  // Main dashboard - both paid and connected
+  // Main dashboard - free for all connected users
   return (
     <div className="space-y-6">
       {/* Connection status */}
-      <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+      <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center justify-between">
         <p className="text-green-800">
           Connected as: <strong>{googleEmail}</strong>
         </p>
+        {!hasUnusedReport && (
+          <a
+            href="/pricing"
+            className="bg-primary text-white px-4 py-2 rounded-lg font-semibold hover:bg-primary-600 transition-colors text-sm"
+          >
+            Get AI Analysis - $4.99
+          </a>
+        )}
       </div>
 
       {/* Property selector */}
       <div className="bg-white rounded-lg shadow-md p-6">
         <h2 className="text-xl font-bold text-gray-900 mb-4">Select Property</h2>
 
-        {properties.length === 0 && !loading ? (
+        {loading && properties.length === 0 ? (
+          <div className="text-center py-4">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            <p className="mt-2 text-gray-600">Loading properties...</p>
+          </div>
+        ) : properties.length === 0 ? (
           <button
             onClick={fetchProperties}
             className="bg-primary text-white px-6 py-2 rounded-lg font-semibold hover:bg-primary-600"
@@ -274,6 +223,7 @@ export function GSCDashboard({ hasUnusedReport, isConnected, googleEmail, report
               value={selectedProperty}
               onChange={(e) => setSelectedProperty(e.target.value)}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              disabled={loading}
             >
               <option value="">Select a property...</option>
               {properties.map((prop) => (
@@ -401,6 +351,56 @@ export function GSCDashboard({ hasUnusedReport, isConnected, googleEmail, report
               </table>
             </div>
           </div>
+
+          {/* Upgrade to AI Analysis CTA */}
+          {!hasUnusedReport && (
+            <div className="bg-gradient-to-br from-primary-50 to-purple-50 border border-primary-200 rounded-xl p-8 text-center">
+              <h3 className="text-2xl font-bold text-gray-900 mb-3">
+                Want Deeper Insights?
+              </h3>
+              <p className="text-gray-700 mb-6 max-w-2xl mx-auto">
+                Upgrade to AI-powered analysis to get actionable recommendations, SEO insights, and strategic advice tailored to your data.
+              </p>
+              <div className="bg-white rounded-lg p-6 mb-6 max-w-md mx-auto">
+                <h4 className="font-semibold text-gray-900 mb-3">AI Analysis includes:</h4>
+                <ul className="text-left text-gray-700 space-y-2 text-sm">
+                  <li className="flex items-start">
+                    <span className="text-primary mr-2">✓</span>
+                    <span>Personalized SEO recommendations</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="text-primary mr-2">✓</span>
+                    <span>Content improvement suggestions</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="text-primary mr-2">✓</span>
+                    <span>Keyword opportunity identification</span>
+                  </li>
+                  <li className="flex items-start">
+                    <span className="text-primary mr-2">✓</span>
+                    <span>CTR optimization strategies</span>
+                  </li>
+                </ul>
+              </div>
+              <a
+                href="/pricing"
+                className="inline-block bg-primary text-white px-8 py-4 rounded-lg font-semibold text-lg hover:bg-primary-600 transition-colors shadow-lg"
+              >
+                Get AI Analysis for $4.99
+              </a>
+            </div>
+          )}
+
+          {hasUnusedReport && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-6 text-center">
+              <p className="text-green-800 font-semibold mb-2">
+                You have 1 AI analysis credit available!
+              </p>
+              <p className="text-sm text-green-700">
+                Your AI-powered analysis report will be generated soon. Check back shortly for your insights.
+              </p>
+            </div>
+          )}
         </div>
       )}
     </div>
