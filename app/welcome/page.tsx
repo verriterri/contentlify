@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { HomeHeader } from '@/components/HomeHeader'
+import { SimpleHeader } from '@/components/SimpleHeader'
 
 export default function WelcomePage() {
   const searchParams = useSearchParams()
@@ -30,7 +30,7 @@ export default function WelcomePage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <HomeHeader />
+      <SimpleHeader />
 
       <div className="py-20">
         <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
