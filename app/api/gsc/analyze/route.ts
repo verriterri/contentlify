@@ -48,28 +48,6 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Check for UNUSED payment (one-time access enforcement)
-    const { data: unusedPayment } = await supabase
-      .from('gsc_payments')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('status', 'completed')
-      .eq('report_generated', false) // KEY: Only unused payments
-      .order('completed_at', { ascending: false })
-      .limit(1)
-      .single();
-
-    if (!unusedPayment) {
-      return NextResponse.json(
-        {
-          error: 'No available reports',
-          message: 'Purchase a new report to continue. Each $4.99 payment allows one report generation.',
-          requiresPayment: true,
-        },
-        { status: 402 }
-      );
-    }
-
     // Get valid access token (refreshes if needed)
     const tokenData = await getValidAccessToken(user.id);
 
@@ -87,13 +65,14 @@ export async function GET(req: NextRequest) {
     const url = new URL(req.url);
     const action = url.searchParams.get('action');
 
-    // If action is 'list', return available GSC properties
+    // If action is 'list', return available GSC properties (FREE - no payment required)
     if (action === 'list') {
       const properties = await fetchGSCProperties(tokenData.accessToken);
       return NextResponse.json({ properties });
     }
 
-    // Otherwise, fetch GSC data for a specific property
+    // Fetch GSC data for a specific property (FREE - basic dashboard is free)
+    // Payment is only required for AI analysis, which is handled separately
     const siteUrl = url.searchParams.get('siteUrl');
 
     if (!siteUrl) {
@@ -120,37 +99,9 @@ export async function GET(req: NextRequest) {
       formatDate(endDate)
     );
 
-    // Store analysis results in database using secret key
-    const supabaseAdmin = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SECRET_KEY!
-    );
-
-    // Insert analysis results linked to payment
-    await supabaseAdmin.from('gsc_analysis_results').insert({
-      user_id: user.id,
-      connection_id: tokenData.connectionId,
-      payment_id: unusedPayment.id, // Link to payment
-      site_url: siteUrl,
-      data_period_start: formatDate(startDate),
-      data_period_end: formatDate(endDate),
-      queries_data: gscData.queries,
-      pages_data: gscData.pages,
-      summary_stats: gscData.summary,
-    });
-
-    // MARK PAYMENT AS USED (one-time access enforcement)
-    await supabaseAdmin
-      .from('gsc_payments')
-      .update({
-        report_generated: true,
-        report_generated_at: new Date().toISOString(),
-      })
-      .eq('id', unusedPayment.id);
-
-    console.log('[GSC Analyze] Successfully generated report and marked payment as used:', {
+    // Log successful data fetch (free tier)
+    console.log('[GSC Analyze] Successfully fetched GSC data (free tier):', {
       userId: user.id,
-      paymentId: unusedPayment.id,
       siteUrl,
       queriesCount: gscData.queries.length,
       pagesCount: gscData.pages.length,
