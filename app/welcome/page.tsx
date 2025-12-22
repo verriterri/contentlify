@@ -10,11 +10,33 @@ export default function WelcomePage() {
   const sessionId = searchParams.get('session_id')
   const [email, setEmail] = useState<string>('')
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    // You could fetch session details here if needed
-    // For now, we'll just show the welcome message
-    setLoading(false)
+    const fetchSessionDetails = async () => {
+      if (!sessionId) {
+        setLoading(false)
+        return
+      }
+
+      try {
+        const res = await fetch(`/api/checkout/session?session_id=${sessionId}`)
+        const data = await res.json()
+
+        if (!res.ok) {
+          throw new Error(data.error || 'Failed to fetch session details')
+        }
+
+        setEmail(data.email || '')
+      } catch (err: any) {
+        console.error('[WelcomePage] Error:', err)
+        setError(err.message)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchSessionDetails()
   }, [sessionId])
 
   if (loading) {
@@ -44,9 +66,15 @@ export default function WelcomePage() {
             <h1 className="text-4xl font-bold text-gray-900 mb-4">
               Thank You for Your Purchase!
             </h1>
-            <p className="text-xl text-gray-600">
+            <p className="text-xl text-gray-600 mb-6">
               Your payment was successful
             </p>
+            {email && (
+              <div className="bg-primary-50 border border-primary-200 rounded-lg p-4 inline-block">
+                <p className="text-sm text-primary-800 mb-1">Magic link will be sent to:</p>
+                <p className="text-lg font-semibold text-primary-900">{email}</p>
+              </div>
+            )}
           </div>
 
           {/* Next Steps */}
@@ -108,24 +136,48 @@ export default function WelcomePage() {
             </div>
           </div>
 
-          {/* Info Box */}
-          <div className="bg-primary-50 border border-primary-200 rounded-lg p-6 mb-8">
-            <div className="flex items-start gap-3">
-              <svg className="w-6 h-6 text-primary flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <div>
-                <h3 className="font-semibold text-primary-800 mb-1">Didn't receive the email?</h3>
-                <p className="text-primary-700 text-sm mb-3">
-                  Check your spam folder. The email should arrive within a few minutes.
-                  If you still don't see it, contact our support team.
-                </p>
-                <Link
-                  href="/support"
-                  className="text-primary hover:text-primary-600 font-medium text-sm underline"
-                >
-                  Contact Support
-                </Link>
+          {/* Support Info Boxes */}
+          <div className="space-y-4 mb-8">
+            {/* Wrong Email */}
+            <div className="bg-orange-50 border border-orange-200 rounded-lg p-6">
+              <div className="flex items-start gap-3">
+                <svg className="w-6 h-6 text-orange-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <div>
+                  <h3 className="font-semibold text-orange-800 mb-1">Entered the wrong email address?</h3>
+                  <p className="text-orange-700 text-sm mb-3">
+                    No problem! Contact our support team with your payment receipt, and we'll manually send you a login link to the correct email address for free.
+                  </p>
+                  <Link
+                    href="/support"
+                    className="text-orange-600 hover:text-orange-700 font-medium text-sm underline"
+                  >
+                    Contact Support
+                  </Link>
+                </div>
+              </div>
+            </div>
+
+            {/* Didn't Receive Email */}
+            <div className="bg-primary-50 border border-primary-200 rounded-lg p-6">
+              <div className="flex items-start gap-3">
+                <svg className="w-6 h-6 text-primary flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div>
+                  <h3 className="font-semibold text-primary-800 mb-1">Didn't receive the email?</h3>
+                  <p className="text-primary-700 text-sm mb-3">
+                    Check your spam folder. The email should arrive within a few minutes.
+                    If you still don't see it, contact our support team.
+                  </p>
+                  <Link
+                    href="/support"
+                    className="text-primary hover:text-primary-600 font-medium text-sm underline"
+                  >
+                    Contact Support
+                  </Link>
+                </div>
               </div>
             </div>
           </div>
