@@ -2,21 +2,19 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { getSupabaseUrl, getSupabaseAnonKey } from '@/lib/supabase';
-import { getValidAccessToken, fetchGSCData, fetchGSCProperties } from '@/lib/gsc-api';
-import { analyzeGSCData } from '@/lib/gsc-analysis';
+import { getValidAccessToken, fetchGSCData } from '@/lib/gsc-api';
 import { createClient } from '@supabase/supabase-js';
+import { analyzeGSCData } from '@/lib/gsc-analysis';
 
 // Mark route as dynamic
 export const dynamic = 'force-dynamic';
 
 /**
- * GET /api/gsc/analyze
- * Fetches GSC data for authenticated user (requires payment)
- * Query params:
- * - siteUrl: optional, the GSC property URL to fetch data for
- * - action: 'list' to get properties, default is to fetch data
+ * POST /api/gsc/ai-analysis
+ * Generates AI-powered analysis for a GSC property (requires payment)
+ * Body: { siteUrl: string }
  */
-export async function GET(req: NextRequest) {
+export async function POST(req: NextRequest) {
   try {
     const cookieStore = await cookies();
     const supabaseUrl = getSupabaseUrl();
@@ -49,7 +47,29 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Get valid access token (refreshes if needed)
+    // Check for UNUSED payment (one-time access enforcement)
+    const { data: unusedPayment } = await supabase
+      .from('gsc_payments')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('status', 'completed')
+      .eq('report_generated', false)
+      .order('completed_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (!unusedPayment) {
+      return NextResponse.json(
+        {
+          error: 'No available reports',
+          message: 'Purchase a new report to continue. Each $4.99 payment allows one AI analysis.',
+          requiresPayment: true,
+        },
+        { status: 402 }
+      );
+    }
+
+    // Get valid access token
     const tokenData = await getValidAccessToken(user.id);
 
     if (!tokenData) {
@@ -63,22 +83,13 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const url = new URL(req.url);
-    const action = url.searchParams.get('action');
-
-    // If action is 'list', return available GSC properties (FREE - no payment required)
-    if (action === 'list') {
-      const properties = await fetchGSCProperties(tokenData.accessToken);
-      return NextResponse.json({ properties });
-    }
-
-    // Fetch GSC data for a specific property (FREE - basic dashboard is free)
-    // Payment is only required for AI analysis, which is handled separately
-    const siteUrl = url.searchParams.get('siteUrl');
+    // Get siteUrl from request body
+    const body = await req.json();
+    const { siteUrl } = body;
 
     if (!siteUrl) {
       return NextResponse.json(
-        { error: 'Missing siteUrl parameter' },
+        { error: 'Missing siteUrl in request body' },
         { status: 400 }
       );
     }
@@ -100,37 +111,72 @@ export async function GET(req: NextRequest) {
       formatDate(endDate)
     );
 
-    // Run programmatic analysis (FREE - Phase 1)
+    // Run programmatic analysis
     const analysis = analyzeGSCData(gscData.queries, gscData.pages);
 
-    // Log successful data fetch (free tier)
-    console.log('[GSC Analyze] Successfully fetched GSC data with free analysis:', {
+    // Store analysis results in database using secret key
+    const supabaseAdmin = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SECRET_KEY!
+    );
+
+    // Insert analysis results linked to payment
+    const { data: analysisRecord, error: insertError } = await supabaseAdmin
+      .from('gsc_analysis_results')
+      .insert({
+        user_id: user.id,
+        connection_id: tokenData.connectionId,
+        payment_id: unusedPayment.id,
+        site_url: siteUrl,
+        data_period_start: formatDate(startDate),
+        data_period_end: formatDate(endDate),
+        queries_data: gscData.queries,
+        pages_data: gscData.pages,
+        summary_stats: gscData.summary,
+        analysis_results: analysis,
+      })
+      .select()
+      .single();
+
+    if (insertError) {
+      console.error('[AI Analysis] Failed to store results:', insertError);
+      throw new Error('Failed to store analysis results');
+    }
+
+    // MARK PAYMENT AS USED (one-time access enforcement)
+    await supabaseAdmin
+      .from('gsc_payments')
+      .update({
+        report_generated: true,
+        report_generated_at: new Date().toISOString(),
+      })
+      .eq('id', unusedPayment.id);
+
+    console.log('[AI Analysis] Successfully generated analysis and marked payment as used:', {
       userId: user.id,
+      paymentId: unusedPayment.id,
       siteUrl,
-      queriesCount: gscData.queries.length,
-      pagesCount: gscData.pages.length,
+      analysisId: analysisRecord.id,
       opportunitiesFound: {
         lowHangingFruit: analysis.lowHangingFruit.items.length,
         almostThere: analysis.almostThere.items.length,
         clickDeserts: analysis.clickDeserts.items.length,
+        ctrUnderperformers: analysis.ctrUnderperformers.items.length,
       },
     });
 
     return NextResponse.json({
+      success: true,
+      analysisId: analysisRecord.id,
       siteUrl,
       dateRange: {
         start: formatDate(startDate),
         end: formatDate(endDate),
       },
-      data: {
-        queries: gscData.queries,
-        pages: gscData.pages,
-        summary: gscData.summary,
-      },
-      analysis, // FREE programmatic insights
+      analysis,
     });
   } catch (error: any) {
-    console.error('[GSC Analyze] Error:', error);
+    console.error('[AI Analysis] Error:', error);
 
     // Handle specific GSC API errors
     if (error.message?.includes('Failed to fetch GSC')) {
@@ -144,7 +190,7 @@ export async function GET(req: NextRequest) {
     }
 
     return NextResponse.json(
-      { error: 'Failed to analyze GSC data' },
+      { error: 'Failed to generate analysis', details: error.message },
       { status: 500 }
     );
   }
