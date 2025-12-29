@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { getSupabaseUrl, getSupabaseAnonKey } from '@/lib/supabase';
-import { getValidAccessToken, fetchGSCData, fetchGSCProperties } from '@/lib/gsc-api';
+import { getValidAccessToken, fetchGSCData, fetchGSCProperties, fetchGSCTimeSeriesData } from '@/lib/gsc-api';
 import { analyzeGSCData } from '@/lib/gsc-analysis';
+import { analyzeTimeSeriesData } from '@/lib/gsc-trend-analysis';
 import { createClient } from '@supabase/supabase-js';
 
 // Mark route as dynamic
@@ -83,10 +84,10 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Calculate date range (last 28 days)
+    // Calculate date range (last 90 days)
     const endDate = new Date();
     const startDate = new Date();
-    startDate.setDate(startDate.getDate() - 28);
+    startDate.setDate(startDate.getDate() - 90);
 
     const formatDate = (date: Date) => {
       return date.toISOString().split('T')[0];
@@ -100,8 +101,19 @@ export async function GET(req: NextRequest) {
       formatDate(endDate)
     );
 
+    // Fetch time-series data for trend analysis
+    const timeSeriesData = await fetchGSCTimeSeriesData(
+      tokenData.accessToken,
+      siteUrl,
+      formatDate(startDate),
+      formatDate(endDate)
+    );
+
     // Run programmatic analysis (FREE - Phase 1)
     const analysis = analyzeGSCData(gscData.queries, gscData.pages);
+
+    // Run trend analysis on time-series data
+    const trendAnalysis = analyzeTimeSeriesData(timeSeriesData);
 
     // Log successful data fetch (free tier)
     console.log('[GSC Analyze] Successfully fetched GSC data with free analysis:', {
@@ -128,6 +140,7 @@ export async function GET(req: NextRequest) {
         summary: gscData.summary,
       },
       analysis, // FREE programmatic insights
+      trendAnalysis, // FREE trend analysis (cliffs, patterns, comparisons)
     });
   } catch (error: any) {
     console.error('[GSC Analyze] Error:', error);

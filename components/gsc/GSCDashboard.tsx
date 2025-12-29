@@ -40,6 +40,35 @@ interface AnalysisData {
   summary: any;
 }
 
+interface TrendAlert {
+  type: string;
+  severity: 'critical' | 'warning' | 'info';
+  title: string;
+  description: string;
+  startDate?: string;
+  percentChange?: number;
+  metric: string;
+}
+
+interface PeriodComparison {
+  metric: string;
+  current: number;
+  previous: number;
+  change: number;
+  percentChange: number;
+  trend: 'up' | 'down' | 'stable';
+}
+
+interface TrendAnalysisData {
+  alerts: TrendAlert[];
+  weekOverWeek: PeriodComparison[];
+  monthOverMonth: PeriodComparison[];
+  overallTrend: {
+    direction: 'improving' | 'declining' | 'stable';
+    strength: 'strong' | 'moderate' | 'weak';
+  };
+}
+
 export function GSCDashboard({ hasUnusedReport, isConnected, googleEmail, reportStatus }: GSCDashboardProps) {
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
@@ -48,6 +77,7 @@ export function GSCDashboard({ hasUnusedReport, isConnected, googleEmail, report
   const [selectedProperty, setSelectedProperty] = useState<string>('');
   const [gscData, setGscData] = useState<GSCData | null>(null);
   const [analysis, setAnalysis] = useState<AnalysisData | null>(null);
+  const [trendAnalysis, setTrendAnalysis] = useState<TrendAnalysisData | null>(null);
 
   // Handle OAuth callback success
   useEffect(() => {
@@ -159,6 +189,7 @@ export function GSCDashboard({ hasUnusedReport, isConnected, googleEmail, report
 
       setGscData(data.data);
       setAnalysis(data.analysis); // Store free analysis insights
+      setTrendAnalysis(data.trendAnalysis); // Store trend analysis
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -297,9 +328,82 @@ export function GSCDashboard({ hasUnusedReport, isConnected, googleEmail, report
       {/* GSC Data Display */}
       {gscData && (
         <div className="space-y-6">
+          {/* Trend Alerts */}
+          {trendAnalysis && trendAnalysis.alerts.length > 0 && (
+            <div className="space-y-3">
+              {trendAnalysis.alerts.map((alert, index) => (
+                <div
+                  key={index}
+                  className={`rounded-lg p-4 border-l-4 ${
+                    alert.severity === 'critical'
+                      ? 'bg-red-50 border-red-500'
+                      : alert.severity === 'warning'
+                      ? 'bg-yellow-50 border-yellow-500'
+                      : 'bg-blue-50 border-blue-500'
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <span className="text-2xl">
+                      {alert.severity === 'critical' ? '🚨' : alert.severity === 'warning' ? '⚠️' : 'ℹ️'}
+                    </span>
+                    <div className="flex-1">
+                      <h3 className={`font-bold mb-1 ${
+                        alert.severity === 'critical'
+                          ? 'text-red-900'
+                          : alert.severity === 'warning'
+                          ? 'text-yellow-900'
+                          : 'text-blue-900'
+                      }`}>
+                        {alert.title}
+                      </h3>
+                      <p className={`text-sm ${
+                        alert.severity === 'critical'
+                          ? 'text-red-700'
+                          : alert.severity === 'warning'
+                          ? 'text-yellow-700'
+                          : 'text-blue-700'
+                      }`}>
+                        {alert.description}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Week-over-Week Comparison */}
+          {trendAnalysis && trendAnalysis.weekOverWeek.length > 0 && (
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <h2 className="text-xl font-bold text-gray-900 mb-4">Week-over-Week Trends</h2>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                {trendAnalysis.weekOverWeek.map((comparison, index) => (
+                  <div key={index} className="border border-gray-200 rounded-lg p-4">
+                    <p className="text-sm text-gray-600 mb-1">{comparison.metric}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-2xl font-bold text-gray-900">
+                        {comparison.metric === 'Ctr'
+                          ? (comparison.current * 100).toFixed(2) + '%'
+                          : comparison.metric === 'Position'
+                          ? comparison.current.toFixed(1)
+                          : Math.round(comparison.current).toLocaleString()}
+                      </p>
+                      <span className={`text-sm font-semibold ${
+                        comparison.trend === 'up' ? 'text-green-600' : comparison.trend === 'down' ? 'text-red-600' : 'text-gray-600'
+                      }`}>
+                        {comparison.trend === 'up' ? '↑' : comparison.trend === 'down' ? '↓' : '→'}
+                        {Math.abs(comparison.percentChange).toFixed(1)}%
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Summary Stats */}
           <div className="bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Summary (Last 28 Days)</h2>
+            <h2 className="text-xl font-bold text-gray-900 mb-4">Summary (Last 90 Days)</h2>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="bg-primary-50 p-4 rounded-lg">
                 <p className="text-sm text-gray-600 mb-1">Total Clicks</p>

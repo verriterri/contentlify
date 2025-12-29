@@ -203,6 +203,64 @@ export async function fetchGSCData(
 }
 
 /**
+ * Fetch GSC time-series data for trend analysis
+ * Returns daily metrics for the specified date range
+ */
+export async function fetchGSCTimeSeriesData(
+  accessToken: string,
+  siteUrl: string,
+  startDate: string,
+  endDate: string
+) {
+  try {
+    // Fetch daily aggregated data
+    const response = await fetch(
+      `https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(
+        siteUrl
+      )}/searchAnalytics/query`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          startDate,
+          endDate,
+          dimensions: ['date'],
+          rowLimit: 25000, // GSC max limit
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.json();
+      console.error('[GSC API] Time-series data fetch failed:', error);
+      throw new Error('Failed to fetch GSC time-series data');
+    }
+
+    const data = await response.json();
+
+    // Transform to daily metrics array
+    const dailyMetrics = (data.rows || []).map((row: any) => ({
+      date: row.keys[0], // YYYY-MM-DD format
+      clicks: row.clicks,
+      impressions: row.impressions,
+      ctr: row.ctr,
+      position: row.position,
+    }));
+
+    // Sort by date ascending
+    dailyMetrics.sort((a: any, b: any) => a.date.localeCompare(b.date));
+
+    return dailyMetrics;
+  } catch (error) {
+    console.error('[GSC API] Error fetching GSC time-series data:', error);
+    throw error;
+  }
+}
+
+/**
  * Get list of GSC properties (sites) for user
  */
 export async function fetchGSCProperties(accessToken: string) {
