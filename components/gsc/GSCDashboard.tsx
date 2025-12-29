@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceDot } from 'recharts';
 
 interface GSCDashboardProps {
   hasUnusedReport: boolean;
@@ -67,6 +68,13 @@ interface TrendAnalysisData {
     direction: 'improving' | 'declining' | 'stable';
     strength: 'strong' | 'moderate' | 'weak';
   };
+  dailyData: Array<{
+    date: string;
+    clicks: number;
+    impressions: number;
+    ctr: number;
+    position: number;
+  }>;
 }
 
 export function GSCDashboard({ hasUnusedReport, isConnected, googleEmail, reportStatus }: GSCDashboardProps) {
@@ -369,6 +377,129 @@ export function GSCDashboard({ hasUnusedReport, isConnected, googleEmail, report
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* Traffic Trends Chart */}
+          {trendAnalysis && trendAnalysis.dailyData && trendAnalysis.dailyData.length > 0 && (
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <h2 className="text-xl font-bold text-gray-900 mb-4">Traffic Trends (Last 90 Days)</h2>
+
+              {/* Clicks & Impressions Chart */}
+              <div className="mb-8">
+                <h3 className="text-sm font-semibold text-gray-700 mb-3">Clicks & Impressions</h3>
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={trendAnalysis.dailyData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <XAxis
+                      dataKey="date"
+                      tick={{ fontSize: 12 }}
+                      tickFormatter={(date) => {
+                        const d = new Date(date);
+                        return `${d.getMonth() + 1}/${d.getDate()}`;
+                      }}
+                    />
+                    <YAxis yAxisId="left" tick={{ fontSize: 12 }} />
+                    <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} />
+                    <Tooltip
+                      contentStyle={{ backgroundColor: '#fff', border: '1px solid #ccc', borderRadius: '4px' }}
+                      labelFormatter={(date) => new Date(date).toLocaleDateString()}
+                    />
+                    <Legend />
+                    <Line
+                      yAxisId="left"
+                      type="monotone"
+                      dataKey="clicks"
+                      stroke="#8b5cf6"
+                      strokeWidth={2}
+                      dot={false}
+                      name="Clicks"
+                    />
+                    <Line
+                      yAxisId="right"
+                      type="monotone"
+                      dataKey="impressions"
+                      stroke="#10b981"
+                      strokeWidth={2}
+                      dot={false}
+                      name="Impressions"
+                    />
+                    {/* Mark anomaly points */}
+                    {trendAnalysis.alerts.filter(a => a.startDate).map((alert, idx) => {
+                      const dataPoint = trendAnalysis.dailyData.find(d => d.date === alert.startDate);
+                      if (!dataPoint) return null;
+                      return (
+                        <ReferenceDot
+                          key={idx}
+                          x={alert.startDate}
+                          y={dataPoint.clicks}
+                          yAxisId="left"
+                          r={6}
+                          fill={alert.severity === 'critical' ? '#ef4444' : alert.severity === 'warning' ? '#f59e0b' : '#3b82f6'}
+                          stroke="#fff"
+                          strokeWidth={2}
+                        />
+                      );
+                    })}
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* CTR & Position Chart */}
+              <div>
+                <h3 className="text-sm font-semibold text-gray-700 mb-3">CTR & Average Position</h3>
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={trendAnalysis.dailyData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <XAxis
+                      dataKey="date"
+                      tick={{ fontSize: 12 }}
+                      tickFormatter={(date) => {
+                        const d = new Date(date);
+                        return `${d.getMonth() + 1}/${d.getDate()}`;
+                      }}
+                    />
+                    <YAxis
+                      yAxisId="left"
+                      tick={{ fontSize: 12 }}
+                      tickFormatter={(value) => `${(value * 100).toFixed(1)}%`}
+                    />
+                    <YAxis
+                      yAxisId="right"
+                      orientation="right"
+                      tick={{ fontSize: 12 }}
+                      reversed
+                    />
+                    <Tooltip
+                      contentStyle={{ backgroundColor: '#fff', border: '1px solid #ccc', borderRadius: '4px' }}
+                      labelFormatter={(date) => new Date(date).toLocaleDateString()}
+                      formatter={(value: any, name?: string) => {
+                        if (name === 'CTR') return [(value * 100).toFixed(2) + '%', name];
+                        return [value.toFixed(1), name || ''];
+                      }}
+                    />
+                    <Legend />
+                    <Line
+                      yAxisId="left"
+                      type="monotone"
+                      dataKey="ctr"
+                      stroke="#f59e0b"
+                      strokeWidth={2}
+                      dot={false}
+                      name="CTR"
+                    />
+                    <Line
+                      yAxisId="right"
+                      type="monotone"
+                      dataKey="position"
+                      stroke="#ef4444"
+                      strokeWidth={2}
+                      dot={false}
+                      name="Avg Position"
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
             </div>
           )}
 
