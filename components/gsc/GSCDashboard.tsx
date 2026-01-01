@@ -32,12 +32,21 @@ interface GSCData {
 }
 
 interface AnalysisData {
+  // Query-level analysis
   lowHangingFruit: any;
   almostThere: any;
   clickDeserts: any;
   lowVolumeWins: any;
   ctrUnderperformers: any;
   topOpportunities: any[];
+
+  // Page-level analysis
+  pageLowHangingFruit: any;
+  pageAlmostThere: any;
+  pageClickDeserts: any;
+  pageCTRUnderperformers: any;
+  topPageOpportunities: any[];
+
   summary: any;
 }
 
@@ -153,6 +162,37 @@ export function GSCDashboard({ hasUnusedReport, isConnected, googleEmail, report
     window.location.href = '/api/auth/google';
   };
 
+  const handleReconnect = async () => {
+    if (!confirm('This will disconnect and reconnect your Google account. Continue?')) {
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      // Delete existing connection
+      const res = await fetch('/api/gsc/disconnect', {
+        method: 'POST',
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to disconnect');
+      }
+
+      console.log('[GSC Dashboard] Disconnected successfully, redirecting to OAuth...');
+
+      // Redirect to OAuth
+      window.location.href = '/api/auth/google';
+    } catch (err: any) {
+      console.error('[GSC Dashboard] Reconnect error:', err);
+      setError(err.message);
+      setLoading(false);
+    }
+  };
+
   const fetchProperties = async () => {
     setLoading(true);
     setError(null);
@@ -162,14 +202,30 @@ export function GSCDashboard({ hasUnusedReport, isConnected, googleEmail, report
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error || 'Failed to fetch properties');
+        console.error('[GSC Dashboard] Properties fetch failed:', {
+          status: res.status,
+          error: data.error,
+          message: data.message,
+          requiresConnection: data.requiresConnection,
+        });
+
+        // Detect scope permission error
+        if (res.status === 403 && data.error?.includes('insufficient authentication scopes')) {
+          throw new Error(
+            'Missing permissions. Please click "Reconnect" above and make sure to authorize Search Console access.'
+          );
+        }
+
+        throw new Error(data.message || data.error || 'Failed to fetch properties');
       }
 
+      console.log('[GSC Dashboard] Properties loaded:', data.properties?.length || 0);
       setProperties(data.properties || []);
       if (data.properties?.length > 0) {
         setSelectedProperty(data.properties[0].siteUrl);
       }
     } catch (err: any) {
+      console.error('[GSC Dashboard] Properties fetch error:', err);
       setError(err.message);
     } finally {
       setLoading(false);
@@ -271,9 +327,19 @@ export function GSCDashboard({ hasUnusedReport, isConnected, googleEmail, report
     <div className="space-y-6">
       {/* Connection status */}
       <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center justify-between">
-        <p className="text-green-800">
-          Connected as: <strong>{googleEmail}</strong>
-        </p>
+        <div className="flex items-center gap-4">
+          <p className="text-green-800">
+            Connected as: <strong>{googleEmail}</strong>
+          </p>
+          <button
+            onClick={handleReconnect}
+            disabled={loading}
+            className="text-sm text-green-700 hover:text-green-900 underline disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Reconnect if you're experiencing permission issues"
+          >
+            Reconnect
+          </button>
+        </div>
         {!hasUnusedReport && (
           <a
             href="/pricing"
@@ -563,37 +629,51 @@ export function GSCDashboard({ hasUnusedReport, isConnected, googleEmail, report
             </div>
           </div>
 
-          {/* FREE Analysis Insights - Top Opportunities */}
+          {/* FREE Analysis Insights - Top Search Phrase Opportunities */}
           {analysis && analysis.topOpportunities.length > 0 && (
             <div className="bg-gradient-to-br from-green-50 to-blue-50 border-2 border-green-200 rounded-xl p-6">
               <div className="mb-4">
                 <h2 className="text-2xl font-bold text-gray-900 mb-1">
-                  🎯 Your Top SEO Opportunities (FREE)
+                  🎯 Your Top Search Phrase Opportunities (FREE)
                 </h2>
                 <p className="text-gray-700">
-                  Quick wins identified from your data - start here for maximum impact
+                  Search queries that need immediate attention - prioritize these for maximum impact
                 </p>
               </div>
-              <div className="space-y-3">
-                {analysis.topOpportunities.slice(0, 5).map((item: any, index: number) => (
+              <div className="space-y-4">
+                {analysis.topOpportunities.map((queryData: any, index: number) => (
                   <div key={index} className="bg-white rounded-lg p-4 border border-green-200">
                     <div className="flex items-start gap-3">
                       <span className="inline-flex items-center justify-center w-8 h-8 bg-green-500 text-white rounded-full text-sm font-bold flex-shrink-0">
                         {index + 1}
                       </span>
                       <div className="flex-1">
-                        <h3 className="font-semibold text-gray-900 mb-1">{item.query}</h3>
-                        <p className="text-sm text-gray-600 mb-2">{item.issue}</p>
-                        <p className="text-sm text-green-700 font-medium mb-2">
-                          💡 {item.recommendation}
-                        </p>
-                        <div className="flex items-center gap-4 text-xs text-gray-600">
-                          <span>Position: #{Math.round(item.position)}</span>
-                          <span>Impressions: {item.impressions.toLocaleString()}</span>
-                          <span>CTR: {(item.ctr * 100).toFixed(1)}%</span>
-                          {item.potentialGain && (
-                            <span className="text-green-600 font-semibold">{item.potentialGain}</span>
-                          )}
+                        <h3 className="font-semibold text-gray-900 mb-2">{queryData.query}</h3>
+
+                        {/* Query Stats */}
+                        <div className="flex items-center gap-4 text-xs text-gray-600 mb-3 pb-3 border-b border-gray-200">
+                          <span>Position: #{Math.round(queryData.position)}</span>
+                          <span>Impressions: {queryData.impressions.toLocaleString()}</span>
+                          <span>CTR: {(queryData.ctr * 100).toFixed(1)}%</span>
+                          <span>Clicks: {queryData.clicks}</span>
+                        </div>
+
+                        {/* All Issues for this Query */}
+                        <div className="space-y-2">
+                          {queryData.issues.map((issue: any, issueIdx: number) => (
+                            <div key={issueIdx} className="bg-green-50 rounded p-3">
+                              <div className="flex items-start gap-2 mb-1">
+                                <span className="text-xs font-semibold text-green-700 uppercase">{issue.category}</span>
+                              </div>
+                              <p className="text-sm text-gray-700 mb-1">{issue.issue}</p>
+                              <p className="text-sm text-green-700 font-medium">
+                                💡 {issue.recommendation}
+                              </p>
+                              {issue.potentialGain && (
+                                <p className="text-xs text-green-600 font-semibold mt-1">{issue.potentialGain}</p>
+                              )}
+                            </div>
+                          ))}
                         </div>
                       </div>
                     </div>
@@ -746,6 +826,175 @@ export function GSCDashboard({ hasUnusedReport, isConnected, googleEmail, report
                           <span>Pos: #{Math.round(item.position)}</span>
                           <span>Impr: {item.impressions.toLocaleString()}</span>
                           <span>CTR: {(item.ctr * 100).toFixed(1)}%</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* PAGE-LEVEL ANALYSIS SECTIONS */}
+              {/* Divider between Query and Page Analysis */}
+              <div className="border-t-4 border-gray-300 my-8 pt-8">
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">Page-Level Opportunities</h2>
+                <p className="text-gray-600 mb-6">Which URLs on your site need optimization</p>
+              </div>
+
+              {/* Top Page Opportunities */}
+              {analysis.topPageOpportunities && analysis.topPageOpportunities.length > 0 && (
+                <div className="bg-gradient-to-br from-blue-50 to-purple-50 border-2 border-blue-200 rounded-xl p-6">
+                  <div className="mb-4">
+                    <h2 className="text-2xl font-bold text-gray-900 mb-1">
+                      📄 Your Top Page Opportunities (FREE)
+                    </h2>
+                    <p className="text-gray-700">
+                      Pages that need immediate attention - prioritize these for maximum impact
+                    </p>
+                  </div>
+                  <div className="space-y-4">
+                    {analysis.topPageOpportunities.map((pageData: any, index: number) => (
+                      <div key={index} className="bg-white rounded-lg p-4 border border-blue-200">
+                        <div className="flex items-start gap-3">
+                          <span className="inline-flex items-center justify-center w-8 h-8 bg-blue-500 text-white rounded-full text-sm font-bold flex-shrink-0">
+                            {index + 1}
+                          </span>
+                          <div className="flex-1">
+                            <h3 className="font-semibold text-gray-900 mb-2 text-sm break-all">{pageData.page}</h3>
+
+                            {/* Page Stats */}
+                            <div className="flex items-center gap-4 text-xs text-gray-600 mb-3 pb-3 border-b border-gray-200">
+                              <span>Position: #{Math.round(pageData.position)}</span>
+                              <span>Impressions: {pageData.impressions.toLocaleString()}</span>
+                              <span>CTR: {(pageData.ctr * 100).toFixed(1)}%</span>
+                              <span>Clicks: {pageData.clicks}</span>
+                            </div>
+
+                            {/* All Issues for this Page */}
+                            <div className="space-y-2">
+                              {pageData.issues.map((issue: any, issueIdx: number) => (
+                                <div key={issueIdx} className="bg-blue-50 rounded p-3">
+                                  <div className="flex items-start gap-2 mb-1">
+                                    <span className="text-xs font-semibold text-blue-700 uppercase">{issue.category}</span>
+                                  </div>
+                                  <p className="text-sm text-gray-700 mb-1">{issue.issue}</p>
+                                  <p className="text-sm text-blue-700 font-medium">
+                                    💡 {issue.recommendation}
+                                  </p>
+                                  {issue.potentialGain && (
+                                    <p className="text-xs text-green-600 font-semibold mt-1">{issue.potentialGain}</p>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Page Low-Hanging Fruit */}
+              {analysis.pageLowHangingFruit && analysis.pageLowHangingFruit.items.length > 0 && (
+                <div className="bg-white rounded-lg shadow-md p-6">
+                  <h2 className="text-xl font-bold text-gray-900 mb-2">
+                    {analysis.pageLowHangingFruit.title}
+                  </h2>
+                  <p className="text-gray-600 mb-4">{analysis.pageLowHangingFruit.description}</p>
+                  <div className="space-y-3">
+                    {analysis.pageLowHangingFruit.items.slice(0, 5).map((item: any, index: number) => (
+                      <div key={index} className="border border-gray-200 rounded-lg p-3 hover:border-primary-200 transition-colors">
+                        <h3 className="font-semibold text-gray-900 text-sm mb-1 break-all">{item.page}</h3>
+                        <p className="text-xs text-gray-600 mb-2">{item.issue}</p>
+                        <p className="text-xs text-primary font-medium mb-2">💡 {item.recommendation}</p>
+                        <div className="flex items-center gap-3 text-xs text-gray-600">
+                          <span>Pos: #{Math.round(item.position)}</span>
+                          <span>Impr: {item.impressions.toLocaleString()}</span>
+                          <span>CTR: {(item.ctr * 100).toFixed(1)}%</span>
+                          {item.potentialGain && (
+                            <span className="text-green-600 font-semibold">{item.potentialGain}</span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Page Almost There */}
+              {analysis.pageAlmostThere && analysis.pageAlmostThere.items.length > 0 && (
+                <div className="bg-white rounded-lg shadow-md p-6">
+                  <h2 className="text-xl font-bold text-gray-900 mb-2">
+                    {analysis.pageAlmostThere.title}
+                  </h2>
+                  <p className="text-gray-600 mb-4">{analysis.pageAlmostThere.description}</p>
+                  <div className="space-y-3">
+                    {analysis.pageAlmostThere.items.slice(0, 5).map((item: any, index: number) => (
+                      <div key={index} className="border border-gray-200 rounded-lg p-3 hover:border-primary-200 transition-colors">
+                        <h3 className="font-semibold text-gray-900 text-sm mb-1 break-all">{item.page}</h3>
+                        <p className="text-xs text-gray-600 mb-2">{item.issue}</p>
+                        <p className="text-xs text-primary font-medium mb-2">💡 {item.recommendation}</p>
+                        <div className="flex items-center gap-3 text-xs text-gray-600">
+                          <span>Pos: #{Math.round(item.position)}</span>
+                          <span>Impr: {item.impressions.toLocaleString()}</span>
+                          <span>CTR: {(item.ctr * 100).toFixed(1)}%</span>
+                          {item.potentialGain && (
+                            <span className="text-green-600 font-semibold">{item.potentialGain}</span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Page Click Deserts */}
+              {analysis.pageClickDeserts && analysis.pageClickDeserts.items.length > 0 && (
+                <div className="bg-white rounded-lg shadow-md p-6">
+                  <h2 className="text-xl font-bold text-gray-900 mb-2">
+                    {analysis.pageClickDeserts.title}
+                  </h2>
+                  <p className="text-gray-600 mb-4">{analysis.pageClickDeserts.description}</p>
+                  <div className="space-y-3">
+                    {analysis.pageClickDeserts.items.slice(0, 5).map((item: any, index: number) => (
+                      <div key={index} className="border border-gray-200 rounded-lg p-3 hover:border-primary-200 transition-colors">
+                        <h3 className="font-semibold text-gray-900 text-sm mb-1 break-all">{item.page}</h3>
+                        <p className="text-xs text-gray-600 mb-2">{item.issue}</p>
+                        <p className="text-xs text-primary font-medium mb-2">💡 {item.recommendation}</p>
+                        <div className="flex items-center gap-3 text-xs text-gray-600">
+                          <span>Pos: #{Math.round(item.position)}</span>
+                          <span>Impr: {item.impressions.toLocaleString()}</span>
+                          <span>CTR: {(item.ctr * 100).toFixed(1)}%</span>
+                          {item.potentialGain && (
+                            <span className="text-green-600 font-semibold">{item.potentialGain}</span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Page CTR Underperformers */}
+              {analysis.pageCTRUnderperformers && analysis.pageCTRUnderperformers.items.length > 0 && (
+                <div className="bg-white rounded-lg shadow-md p-6">
+                  <h2 className="text-xl font-bold text-gray-900 mb-2">
+                    {analysis.pageCTRUnderperformers.title}
+                  </h2>
+                  <p className="text-gray-600 mb-4">{analysis.pageCTRUnderperformers.description}</p>
+                  <div className="space-y-3">
+                    {analysis.pageCTRUnderperformers.items.slice(0, 5).map((item: any, index: number) => (
+                      <div key={index} className="border border-gray-200 rounded-lg p-3 hover:border-primary-200 transition-colors">
+                        <h3 className="font-semibold text-gray-900 text-sm mb-1 break-all">{item.page}</h3>
+                        <p className="text-xs text-gray-600 mb-2">{item.issue}</p>
+                        <p className="text-xs text-primary font-medium mb-2">💡 {item.recommendation}</p>
+                        <div className="flex items-center gap-3 text-xs text-gray-600">
+                          <span>Pos: #{Math.round(item.position)}</span>
+                          <span>Impr: {item.impressions.toLocaleString()}</span>
+                          <span>CTR: {(item.ctr * 100).toFixed(1)}%</span>
+                          {item.potentialGain && (
+                            <span className="text-green-600 font-semibold">{item.potentialGain}</span>
+                          )}
                         </div>
                       </div>
                     ))}

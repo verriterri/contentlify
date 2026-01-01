@@ -57,13 +57,19 @@ export default async function GSCPage() {
   };
 
   // Check GSC connection status
-  const { data: connection } = await supabase
+  const { data: connection, error: connectionError } = await supabase
     .from('gsc_connections')
     .select('google_account_email')
     .eq('user_id', user.id)
-    .single();
+    .maybeSingle(); // Use maybeSingle() instead of single() to handle "no rows" gracefully
 
-  const isConnected = !!connection;
+  console.log('[GSC Page] Connection check:', {
+    userId: user.id,
+    hasConnection: !!connection,
+    error: connectionError,
+  });
+
+  const isConnected = !!connection && !connectionError;
   const googleEmail = connection?.google_account_email;
 
   return (

@@ -51,9 +51,11 @@ export async function GET(req: NextRequest) {
     }
 
     // Get valid access token (refreshes if needed)
+    console.log('[GSC Analyze] Looking for connection for user:', user.id);
     const tokenData = await getValidAccessToken(user.id);
 
     if (!tokenData) {
+      console.error('[GSC Analyze] No connection found for user:', user.id);
       return NextResponse.json(
         {
           error: 'No GSC connection found',
@@ -64,13 +66,30 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    console.log('[GSC Analyze] Connection found for user:', user.id);
+
     const url = new URL(req.url);
     const action = url.searchParams.get('action');
 
     // If action is 'list', return available GSC properties (FREE - no payment required)
     if (action === 'list') {
-      const properties = await fetchGSCProperties(tokenData.accessToken);
-      return NextResponse.json({ properties });
+      try {
+        const properties = await fetchGSCProperties(tokenData.accessToken);
+        return NextResponse.json({ properties });
+      } catch (error: any) {
+        // Check if this is a scope permission error
+        if (error.message?.includes('insufficient authentication scopes')) {
+          return NextResponse.json(
+            {
+              error: error.message,
+              message: 'Missing Search Console permissions. Please reconnect your Google account.',
+              requiresReconnect: true,
+            },
+            { status: 403 }
+          );
+        }
+        throw error;
+      }
     }
 
     // Fetch GSC data for a specific property (FREE - basic dashboard is free)

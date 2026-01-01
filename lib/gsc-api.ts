@@ -49,6 +49,8 @@ export async function getValidAccessToken(
     process.env.SUPABASE_SECRET_KEY!
   );
 
+  console.log('[GSC API] Querying connection for user:', userId);
+
   // Get user's GSC connection
   const { data: connection, error } = await supabase
     .from('gsc_connections')
@@ -56,10 +58,27 @@ export async function getValidAccessToken(
     .eq('user_id', userId)
     .single();
 
-  if (error || !connection) {
+  if (error) {
+    console.error('[GSC API] Error querying gsc_connections:', {
+      error,
+      userId,
+      code: error.code,
+      message: error.message,
+    });
+    return null;
+  }
+
+  if (!connection) {
     console.error('[GSC API] No GSC connection found for user:', userId);
     return null;
   }
+
+  console.log('[GSC API] Connection found:', {
+    userId,
+    connectionId: connection.id,
+    googleEmail: connection.google_account_email,
+    tokenExpiresAt: connection.token_expires_at,
+  });
 
   // Check if token is expired (with 5 minute buffer)
   const expiresAt = new Date(connection.token_expires_at);
@@ -80,6 +99,14 @@ export async function getValidAccessToken(
 
   if (!refreshed) {
     console.error('[GSC API] Failed to refresh token for user:', userId);
+
+    // Delete the invalid connection so user can reconnect
+    console.log('[GSC API] Deleting invalid connection for user:', userId);
+    await supabase
+      .from('gsc_connections')
+      .delete()
+      .eq('id', connection.id);
+
     return null;
   }
 
@@ -277,6 +304,14 @@ export async function fetchGSCProperties(accessToken: string) {
     if (!response.ok) {
       const error = await response.json();
       console.error('[GSC API] Properties fetch failed:', error);
+
+      // Provide helpful error message for scope issues
+      if (response.status === 403) {
+        throw new Error(
+          `insufficient authentication scopes: ${error.error?.message || 'Missing Search Console permissions'}`
+        );
+      }
+
       throw new Error('Failed to fetch GSC properties');
     }
 
